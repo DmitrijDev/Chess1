@@ -1,16 +1,17 @@
 using Chess.LogicPart;
-using Board = Chess.GameBoard.GameBoard;
+using Board = Chess.GameBoard;
 
 namespace Chess
 {
     public partial class GameForm : Form
     {
-        public bool gameStarted = false;
         public int ButtonSize { get; private set; } = Screen.PrimaryScreen.WorkingArea.Height / 16;
 
-        public Color LightSquaresColor { get; set; } = Color.Gold;
+        private SquareButton[,] FormButtons { get; } = new SquareButton[8, 8];
 
-        public Color DarkSquaresColor { get; set; } = Color.Chocolate;
+        public Color LightSquaresColor { get; private set; } = Color.Gold;
+
+        public Color DarkSquaresColor { get; private set; } = Color.Chocolate;
 
         public GameForm()
         {
@@ -18,26 +19,11 @@ namespace Chess
             AutoSize = true;
             SetButtons();
             RenewPosition();
-            //SquareButton.OnA1Click += Write;
         }
-
-        public SquareButton this[int vertical, int horizontal] => Buttons[vertical, horizontal];
 
         private void ChessGameForm_Load(object sender, EventArgs e)
         {
         }
-
-        //public void Write() => Buttons[7, 7].Text = "Ура!";
-
-        /*public void Play()
-        {
-            gameStarted = true;
-
-            for (; ; )
-            {
-                Buttons[7, 7].Text = "Ура!";
-            }
-        }*/
 
         public void SetButtons()
         {
@@ -45,7 +31,7 @@ namespace Chess
             MaximumSize = new Size(int.MaxValue, int.MaxValue);
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
-            var boardSize = Buttons.GetLength(0);
+            var boardSize = FormButtons.GetLength(0);
             var shift = ButtonSize / 2;
             var buttonColor = LightSquaresColor;
             var buttonX = shift;
@@ -56,9 +42,9 @@ namespace Chess
                 for (var j = boardSize - 1; j >= 0; --j)
                 {
                     // Если кнопки ранее уже созданы, а теперь мы хотим изменить размер полей, то старые кнопки нужно удалить.
-                    if (Buttons[i, j] != null)
+                    if (FormButtons[i, j] != null)
                     {
-                        Controls.Remove(Buttons[i, j]);
+                        Controls.Remove(FormButtons[i, j]);
                     }
 
                     var newButton = new SquareButton(this, i, j)
@@ -67,7 +53,7 @@ namespace Chess
                         Location = new Point(buttonX, buttonY)
                     };
 
-                    Buttons[i, j] = newButton;
+                    FormButtons[i, j] = newButton;
                     Controls.Add(newButton);
 
                     buttonColor = buttonColor == LightSquaresColor ? DarkSquaresColor : LightSquaresColor;
@@ -96,14 +82,19 @@ namespace Chess
 
         public void RenewPosition()
         {
-            var currentPosition = Board.Board.CurrentPosition;
+            GamePosition currentPosition;
+
+            lock (Board.Board)
+            {
+                currentPosition = Board.Board.CurrentPosition;
+            }
 
             for (var i = 0; i < 8; ++i)
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    Buttons[i, j].ContainedPieceIndex = currentPosition[i, j];
-                    Buttons[i, j].RenewText();
+                    FormButtons[i, j].ContainedPieceIndex = currentPosition[i, j];
+                    FormButtons[i, j].RenewText();
                 }
             }
         }
@@ -115,8 +106,6 @@ namespace Chess
             MessageBox.Show(message, caption, okButton);
         }
 
-        public PieceColor MovingSideColor => Board.Board.MovingSideColor; // == 0 - ход белых, == 1 - ход черных.
-
-        public SquareButton[,] Buttons => SquareButton.FormButtons;
+        public PieceColor MovingSideColor => Board.Board.MovingSideColor; // == 0 - ход белых, == 1 - ход черных.        
     }
 }

@@ -1,8 +1,7 @@
 using Chess.LogicPart;
 using Chess.Players;
-using Board = Chess.GameBoard.GameBoard;
 using System.Diagnostics;
-using System.Threading;
+using Board = Chess.GameBoard;
 
 namespace Chess
 {
@@ -10,81 +9,97 @@ namespace Chess
     {
         public static GameForm Form { get; set; }
 
-        public static VirtualPlayer WhiteVirtualPlayer { get; set; } //= new VirtualPlayer(Strategies.ChooseMoveForVirtualFool), или == null, если за эту сторону играет пользователь.
+        public static VirtualPlayer WhiteVirtualPlayer { get; private set; } //= new VirtualPlayer(Strategies.ChooseMoveForVirtualFool); // или == null, если за эту сторону играет пользователь.
 
-        public static VirtualPlayer BlackVirtualPlayer { get; set; } //= new VirtualPlayer(Strategies.ChooseMoveForVirtualFool); //Аналогично
+        public static VirtualPlayer BlackVirtualPlayer { get; private set; } = new VirtualPlayer(Strategies.ChooseMoveForVirtualFool); //Аналогично
 
         public static Thread WhitePlayerThread { get; set; }
 
         public static Thread BlackPlayerThread { get; set; }
 
-        public static void MakeMoveForWhite()
+        public static Thread GameFormThread { get; private set; }
+
+        private static void PlayForWhite()
         {
-            Thread.Sleep(5000);
-
-            while (Board.Board.MovingSideColor == PieceColor.Black)
-            { }
-
-            if (BlackVirtualPlayer != null)
+            for (; ; )
             {
-                BlackPlayerThread = new Thread(MakeMoveForBlack);
-                SquareButton.RenewThread = new Thread(SquareButton.ExpectVirtualPlayerMove);
-                BlackPlayerThread.Start();
-                SquareButton.RenewThread.Start();
-            }
+                if (Board.Board.MovingSideColor == PieceColor.Black)
+                {
+                    continue;
+                }
 
-            lock (Board.Board)
-            {
-                var move = WhiteVirtualPlayer.ChooseMove();
-                Board.Board.MakeMove(move);
+                lock (Board.Board)
+                {
+                    var move = WhiteVirtualPlayer.ChooseMove();
+                    Board.Board.MakeMove(move);
+                }
             }
         }
 
-        public static void MakeMoveForBlack()
+        private static void PlayForBlack()
         {
-            Thread.Sleep(5000);
-
-            while (Board.Board.MovingSideColor == PieceColor.White)
-            { }
-
-            if (WhiteVirtualPlayer != null)
+            for (; ; )
             {
-                WhitePlayerThread = new Thread(MakeMoveForWhite);
-                SquareButton.RenewThread = new Thread(SquareButton.ExpectVirtualPlayerMove);
-                WhitePlayerThread.Start();
-                SquareButton.RenewThread.Start();
-            }
+                if (Board.Board.MovingSideColor == PieceColor.White)
+                {
+                    continue;
+                }
 
-            lock (Board.Board)
-            {
-                var move = BlackVirtualPlayer.ChooseMove();
-                Board.Board.MakeMove(move);
+                lock (Board.Board)
+                {
+                    var move = BlackVirtualPlayer.ChooseMove();
+                    Board.Board.MakeMove(move);
+                }
             }
         }
 
-        /// <summary>
-        ///  The main entry point for the application.
-        /// </summary>
+        private static void DoGameFormTask()
+        {
+            Form = new GameForm();
+            Form.FormClosed += new FormClosedEventHandler(EndWork);
+            Form.ShowDialog();
+            var movesCount = Board.Board.MovesCount;
+
+            for (; ; )
+            {
+                if (Board.Board.MovesCount > movesCount)
+                {
+                    Form.RenewPosition();
+                    movesCount = Board.Board.MovesCount;
+                }
+            }
+        }
+
+        private static void EndWork(object sender, EventArgs e) => Process.GetCurrentProcess().Kill(); // Если пользователь закрыл форму.
+
         [STAThread]
         static void Main()
         {
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
 
-            var whiteMaterial = new string[3] { "King", "ROOK", "rook" };
+            var whiteMaterial = new string[3] { "King", "Rook", "Rook" };
             var whitePositions = new string[3] { "e1", "a1", "h1" };
 
-            var blackMaterial = new string[3] { "Король ", " ладья ", "Л" };
+            var blackMaterial = new string[3] { "King", "Rook", "Rook" };
             var blackPositions = new string[3] { "e8", "a8", "h8" };
 
             Board.Board.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, PieceColor.White);
-            Form = new GameForm();
 
-            Application.Run(Form);
-            //Form.Activate();
-            //Form.RenewPosition();
-            Process.GetCurrentProcess().Kill(); // Если пользователь закрыл форму.
+            GameFormThread = new Thread(DoGameFormTask);
+            GameFormThread.Start();
+
+            if (WhiteVirtualPlayer != null)
+            {
+                WhitePlayerThread = new Thread(PlayForWhite);
+                WhitePlayerThread.Start();
+            }
+
+            if (BlackVirtualPlayer != null)
+            {
+                BlackPlayerThread = new Thread(PlayForBlack);
+                BlackPlayerThread.Start();
+            }
+
         }
     }
 }

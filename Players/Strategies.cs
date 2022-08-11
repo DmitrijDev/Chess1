@@ -1,4 +1,4 @@
-﻿using Board = Chess.GameBoard.GameBoard;
+﻿using Board = Chess.GameBoard;
 
 namespace Chess.Players
 {
