@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GameBoard\GameBoard.csproj" />
+    <ProjectReference Include="..\LogicPart\LogicPart.csproj" />
   </ItemGroup>
 
 </Project>

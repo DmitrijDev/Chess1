@@ -7,9 +7,6 @@ namespace Chess.LogicPart
 
         public PieceColor MovingSide { get; set; }
 
-        public GamePosition()
-        { }
-
         public GamePosition(ChessBoard board)
         {
             for (var i = 0; i < 8; ++i)
@@ -20,7 +17,7 @@ namespace Chess.LogicPart
                 }
             }
 
-            MovingSide = board.MovingSide.Color;
+            MovingSide = board.MovingSideColor;
         }
 
         public int this[int vertical, int horizontal]

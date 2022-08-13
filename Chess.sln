@@ -11,8 +11,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StringsUsing", "StringsUsin
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Players", "Players\Players.csproj", "{083586D4-0387-405A-8D94-AB1D91A97EEC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameBoard", "GameBoard\GameBoard.csproj", "{C3494C9F-83F5-407E-9B89-D4C868A272E2}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,10 +33,6 @@ Global
 		{083586D4-0387-405A-8D94-AB1D91A97EEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{083586D4-0387-405A-8D94-AB1D91A97EEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{083586D4-0387-405A-8D94-AB1D91A97EEC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C3494C9F-83F5-407E-9B89-D4C868A272E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C3494C9F-83F5-407E-9B89-D4C868A272E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C3494C9F-83F5-407E-9B89-D4C868A272E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C3494C9F-83F5-407E-9B89-D4C868A272E2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

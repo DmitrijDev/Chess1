@@ -69,12 +69,13 @@ namespace Chess.LogicPart
 
         public bool CanCastleKingside()
         {
-            if (!(Color == PieceColor.White && Position.Name == "e1") && !(Color == PieceColor.Black && Position.Name == "e8") || HasMoved)
+            if ((!(Color == PieceColor.White && Position.Name == "e1") && !(Color == PieceColor.Black && Position.Name == "e8")) || HasMoved)
             {
                 return false;
             }
 
-            if (Board[7, Horizontal].IsEmpty || Board[7, Horizontal].ContainedPiece is not Rook || Board[7, Horizontal].ContainedPiece.Color != Color || Board[7, Horizontal].ContainedPiece.HasMoved)
+            if (Board[7, Horizontal].IsEmpty || Board[7, Horizontal].ContainedPiece is not Rook || Board[7, Horizontal].ContainedPiece.Color != Color ||
+                Board[7, Horizontal].ContainedPiece.HasMoved)
             {
                 return false;
             }
@@ -84,7 +85,7 @@ namespace Chess.LogicPart
                 return false;
             }
 
-            if (Position.IsMenaced() || Board[5, Horizontal].IsMenaced() || Board[6, Horizontal].IsMenaced())
+            if (IsMenaced() || Board[5, Horizontal].IsMenaced() || Board[6, Horizontal].IsMenaced())
             {
                 return false;
             }
@@ -94,12 +95,13 @@ namespace Chess.LogicPart
 
         public bool CanCastleQueenside()
         {
-            if (!(Color == PieceColor.White && Position.Name == "e1") && !(Color == PieceColor.Black && Position.Name == "e8") || HasMoved)
+            if ((!(Color == PieceColor.White && Position.Name == "e1") && !(Color == PieceColor.Black && Position.Name == "e8")) || HasMoved)
             {
                 return false;
             }
 
-            if (Board[0, Horizontal].IsEmpty || Board[0, Horizontal].ContainedPiece is not Rook || Board[0, Horizontal].ContainedPiece.Color != Color || Board[0, Horizontal].ContainedPiece.HasMoved)
+            if (Board[0, Horizontal].IsEmpty || Board[0, Horizontal].ContainedPiece is not Rook || Board[0, Horizontal].ContainedPiece.Color != Color ||
+                Board[0, Horizontal].ContainedPiece.HasMoved)
             {
                 return false;
             }
@@ -109,7 +111,7 @@ namespace Chess.LogicPart
                 return false;
             }
 
-            if (Position.IsMenaced() || Board[2, Horizontal].IsMenaced() || Board[3, Horizontal].IsMenaced())
+            if (IsMenaced() || Board[2, Horizontal].IsMenaced() || Board[3, Horizontal].IsMenaced())
             {
                 return false;
             }

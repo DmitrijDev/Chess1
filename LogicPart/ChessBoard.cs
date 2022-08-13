@@ -34,7 +34,6 @@ namespace Chess.LogicPart
             White = new GameSide(PieceColor.White, this);
             Black = new GameSide(PieceColor.Black, this);
             MovingSide = White;
-
             Status = GameStatus.ClearBoard;
         }
 
@@ -42,6 +41,15 @@ namespace Chess.LogicPart
             PieceColor movingSide) : this()
         {
             SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, movingSide);
+        }
+
+        public ChessBoard(ChessBoard otherBoard) : this()
+        {
+            var whiteMaterial = otherBoard.White.Material.Select(piece => piece.RussianName);
+            var whitePositions = otherBoard.White.Material.Select(piece => piece.Position.Name);
+            var blackMaterial = otherBoard.Black.Material.Select(piece => piece.RussianName);
+            var blackPositions = otherBoard.Black.Material.Select(piece => piece.Position.Name);
+            SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, otherBoard.MovingSide.Color);
         }
 
         internal Square this[int vertical, int horizontal]
@@ -323,7 +331,7 @@ namespace Chess.LogicPart
                 throw new ArgumentException("В качестве начального поля хода указано пустое поле.");
             }
 
-            if (piece.Color != MovingSide.Color)
+            if (piece.Color != MovingSideColor)
             {
                 throw new InvalidOperationException("Указанный ход невозможен т.к. очередь хода за другой стороной.");
             }
@@ -401,18 +409,14 @@ namespace Chess.LogicPart
             if (IsDrawByMaterial() || IsDrawByThreeRepeats() || MovesAfterCaptureOrPawnMoveCount == 100)
             {
                 Status = GameStatus.Draw;
-                _legalMoves.Clear();                
+                _legalMoves.Clear();
             }
         }
 
         public List<int[]> GetLegalMoves() => RenewLegalMoves().Select(move => new int[4] { move.MovingPiece.Vertical, move.MovingPiece.Horizontal, move.MoveSquare.Vertical,
             move.MoveSquare.Horizontal}).ToList();
 
-        public string WhiteMaterialToString() => string.Join(", ", White.Material.Select(piece => piece.ShortRussianName + piece.Position));
-
-        public string BlackMaterialToString() => string.Join(", ", Black.Material.Select(piece => piece.ShortRussianName + piece.Position));
-
-        public GamePosition CurrentPosition => _positions.Count > 0 ? _positions[_positions.Count - 1] : new GamePosition(this);
+        public GamePosition CurrentPosition => _positions.Count > 0 && Status == GameStatus.GameCanContinue ? _positions[_positions.Count - 1] : new GamePosition(this);
 
         public PieceColor MovingSideColor => MovingSide.Color;
     }
