@@ -20,14 +20,12 @@ namespace Chess
             Height = _form.ButtonSize;
             Width = _form.ButtonSize;
             FlatStyle = FlatStyle.Flat;
-            Click += new EventHandler(ClickSquare);
+            Click += new EventHandler(HandleClick);
         }
 
-        private void ClickSquare(object sender, EventArgs e)
+        private void HandleClick(object sender, EventArgs e)
         {
-            var movingSideColor = _form.MovingSideColor;
-
-            if ((movingSideColor == PieceColor.White && _form.ProgramPlaysForWhite) || (movingSideColor == PieceColor.Black && _form.ProgramPlaysForBlack))
+            if (_form.ProgramPlaysFor(MovingSideColor) || _form.GameIsOver)
             {
                 return;
             }
@@ -39,7 +37,7 @@ namespace Chess
                     return;
                 }
 
-                if ((movingSideColor == PieceColor.White && ContainedPieceIndex > 6) || (movingSideColor == PieceColor.Black && ContainedPieceIndex <= 6))
+                if ((MovingSideColor == PieceColor.White && ContainedPieceIndex > 6) || (MovingSideColor == PieceColor.Black && ContainedPieceIndex <= 6))
                 {
                     _form.ShowMessage("Это не ваша фигура.");
                     return;
@@ -56,8 +54,8 @@ namespace Chess
                 return;
             }
 
-            if ((movingSideColor == PieceColor.White && ContainedPieceIndex <= 6 && ContainedPieceIndex > 0) ||
-                (movingSideColor == PieceColor.Black && ContainedPieceIndex > 6)) //Замена выбранной фигуры на другую.
+            if ((MovingSideColor == PieceColor.White && ContainedPieceIndex > 0 && ContainedPieceIndex <= 6) ||
+                (MovingSideColor == PieceColor.Black && ContainedPieceIndex > 6)) //Замена выбранной фигуры на другую.
             {
                 _form.ClickedButtons.Clear();
                 _form.ClickedButtons.Add(_x);
@@ -74,5 +72,7 @@ namespace Chess
 
         // Пока временно вместо изображения фигуры просто пишем ее сокращенное название.
         public void RenewText() => Text = _piecesNames[ContainedPieceIndex];
+
+        public PieceColor MovingSideColor => _form.MovingSideColor;
     }
 }
