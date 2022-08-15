@@ -16,10 +16,10 @@ namespace Chess
         private PieceColor _movingSideColor = PieceColor.White;
         private bool _programMadeMove;
 
-        public VirtualPlayer WhiteVirtualPlayer { get; private set; } = new VirtualPlayer(Strategies.ChooseMoveForVirtualFool);
+        public VirtualPlayer WhiteVirtualPlayer { get; private set; } //= new VirtualPlayer(Strategies.ChooseMoveForVirtualFool);
         // == null, если за эту сторону играет пользователь.
 
-        public VirtualPlayer BlackVirtualPlayer { get; private set; } //= new VirtualPlayer(Strategies.ChooseMoveForVirtualFool);
+        public VirtualPlayer BlackVirtualPlayer { get; private set; } = new VirtualPlayer(Strategies.ChooseMoveForVirtualFool);
         //Аналогично.
 
         public List<int> ClickedButtons { get; } = new();
@@ -34,6 +34,7 @@ namespace Chess
         {
             InitializeComponent();
             AutoSize = true;
+            CreateImages();
             var whiteMaterial = new string[3] { "King", "Rook", "Rook" };
             var whitePositions = new string[3] { "e1", "a1", "h1" };
             var blackMaterial = new string[3] { "King", "Rook", "Rook" };
@@ -118,19 +119,24 @@ namespace Chess
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    _formButtons[i, j].ContainedPieceIndex = currentPosition[i, j];
-                    _formButtons[i, j].RenewText();
+                    /*if (_formButtons[i, j].DisplayedPieceIndex != currentPosition[i, j])
+                    {
+                        _formButtons[i, j].DisplayedPieceIndex = currentPosition[i, j];
+                        _formButtons[i, j].RenewImage();
+                    }*/
+                    _formButtons[i, j].DisplayedPieceIndex = currentPosition[i, j];
+                    _formButtons[i, j].RenewImage();
                 }
             }
         }
 
-        public void SetSizeAndColors(int buttonSize, Color lightSquaresColor, Color darkSquaresColor)
+        /*public void SetSizeAndColors(int buttonSize, Color lightSquaresColor, Color darkSquaresColor)
         {
             ButtonSize = buttonSize;
             LightSquaresColor = lightSquaresColor;
             DarkSquaresColor = darkSquaresColor;
             SetButtons();
-        }
+        }*/
 
         public void MakeMove(int[] move)
         {
@@ -207,7 +213,6 @@ namespace Chess
                 board.MakeMove(enemyMove);
             }
 
-            //Thread.Sleep(5000); // Можно проверить будет ли работать интерфейс пока программа думает.
             var replyMove = player.ChooseMove();
             board.MakeMove(replyMove);
 
@@ -240,6 +245,47 @@ namespace Chess
             }
 
             MakeMove(move);
+        }
+
+        public static Bitmap GetColoredImage(Bitmap oldImage, Color imageColor, Color backColor)
+        {
+            var newImage = new Bitmap(oldImage);
+
+            for (var i = 0; i < newImage.Width; ++i)
+            {
+                for (var j = 0; j < newImage.Height; ++j)
+                {
+                    if (newImage.GetPixel(i, j).R < 127)
+                    {
+                        newImage.SetPixel(i, j, backColor);
+                    }
+                    else
+                    {
+                        newImage.SetPixel(i, j, imageColor);
+                    }
+                }
+            }
+
+            return newImage;
+        }
+
+        public void CreateImages()
+        {
+            SquareButton.Images = new Bitmap[25];
+            var initialImages = new Bitmap[7] {null, new Bitmap("Король.jpg"), new Bitmap("Ферзь.jpg"), new Bitmap("Ладья.jpg"), new Bitmap("Конь.jpg"),
+                new Bitmap("Слон.jpg"), new Bitmap("Пешка.jpg") };
+
+            for (var i = 1; i < SquareButton.Images.Length; ++i)
+            {
+                SquareButton.Images[i] = i <= 6 ? new Bitmap(initialImages[i]) : new Bitmap(SquareButton.Images[i - 6]);
+            }
+
+            for (var i = 1; i < SquareButton.Images.Length; ++i)
+            {
+                var backColor = i <= 12 ? LightSquaresColor : DarkSquaresColor;
+                var imageColor = (i >= 1 && i <= 6) || (i >= 13 && i <= 18) ? Color.White : Color.Black;
+                SquareButton.Images[i] = GetColoredImage(SquareButton.Images[i], imageColor, backColor);
+            }
         }
 
         public bool ProgramPlaysFor(PieceColor color) => color == PieceColor.White ? WhiteVirtualPlayer != null : BlackVirtualPlayer != null;

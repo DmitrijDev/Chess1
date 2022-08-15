@@ -7,10 +7,10 @@ namespace Chess
         private readonly GameForm _form;
         private readonly int _x;
         private readonly int _y;
-        private static readonly string[] _piecesNames = new string[13] { "", "Кр", "Ф", "Л", "К", "С", "П", "кр", "ф", "л", "к", "с", "п" };
-        // 1-6 - белые фигуры, 7-12 - черные (маленькими буквами).        
+             
+        public int DisplayedPieceIndex { get; set; } // 0 - пустое поле, 1-6 - белые фигуры, 7-12 -черные.
 
-        public int ContainedPieceIndex { get; set; } // 0 - пустое поле, 1-6 - белые фигуры, 7-12 -черные.
+        public static Bitmap[] Images { get; set; } // 1-6, 13-18 - белые фигуры, 7-12, 19-24 - черные. 1-12 - фигуры на белом поле, 13-24 - на черном.
 
         public SquareButton(GameForm form, int x, int y)
         {
@@ -20,6 +20,7 @@ namespace Chess
             Height = _form.ButtonSize;
             Width = _form.ButtonSize;
             FlatStyle = FlatStyle.Flat;
+            BackgroundImageLayout = ImageLayout.Zoom;
             Click += new EventHandler(HandleClick);
         }
 
@@ -32,12 +33,12 @@ namespace Chess
 
             if (_form.ClickedButtons.Count == 0) // Т.е. выбор фигуры для хода.
             {
-                if (ContainedPieceIndex == 0)
+                if (DisplayedPieceIndex == 0)
                 {
                     return;
                 }
 
-                if ((MovingSideColor == PieceColor.White && ContainedPieceIndex > 6) || (MovingSideColor == PieceColor.Black && ContainedPieceIndex <= 6))
+                if ((MovingSideColor == PieceColor.White && DisplayedPieceIndex > 6) || (MovingSideColor == PieceColor.Black && DisplayedPieceIndex <= 6))
                 {
                     _form.ShowMessage("Это не ваша фигура.");
                     return;
@@ -54,8 +55,8 @@ namespace Chess
                 return;
             }
 
-            if ((MovingSideColor == PieceColor.White && ContainedPieceIndex > 0 && ContainedPieceIndex <= 6) ||
-                (MovingSideColor == PieceColor.Black && ContainedPieceIndex > 6)) //Замена выбранной фигуры на другую.
+            if ((MovingSideColor == PieceColor.White && DisplayedPieceIndex > 0 && DisplayedPieceIndex <= 6) ||
+                (MovingSideColor == PieceColor.Black && DisplayedPieceIndex > 6)) //Замена выбранной фигуры на другую.
             {
                 _form.ClickedButtons.Clear();
                 _form.ClickedButtons.Add(_x);
@@ -70,8 +71,17 @@ namespace Chess
             _form.MakeMove(move);
         }
 
-        // Пока временно вместо изображения фигуры просто пишем ее сокращенное название.
-        public void RenewText() => Text = _piecesNames[ContainedPieceIndex];
+        public void RenewImage()
+        {
+            if (DisplayedPieceIndex == 0)
+            {
+                BackgroundImage = null;
+                return;
+            }
+
+            var newImageIndex = BackColor == _form.LightSquaresColor ? DisplayedPieceIndex : DisplayedPieceIndex + 12;
+            BackgroundImage = Images[newImageIndex];
+        }
 
         public PieceColor MovingSideColor => _form.MovingSideColor;
     }
