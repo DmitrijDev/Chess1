@@ -26,7 +26,7 @@ namespace Chess
 
         public int ButtonSize { get; private set; } = Screen.PrimaryScreen.WorkingArea.Height / 16;
 
-        public Color LightSquaresColor { get; private set; } = Color.Gold;
+        public Color LightSquaresColor { get; private set; } = Color.Yellow;
 
         public Color DarkSquaresColor { get; private set; } = Color.Chocolate;
 
@@ -197,8 +197,8 @@ namespace Chess
 
         public void Think()
         {
-            var board = _movingSideColor == PieceColor.White ? _whiteThinkingBoard : _blackThinkingBoard;
             var player = _movingSideColor == PieceColor.White ? WhiteVirtualPlayer : BlackVirtualPlayer;
+            var board = player.Board;
 
             if (_movesCount > board.MovesCount)
             {
@@ -247,33 +247,11 @@ namespace Chess
             MakeMove(move);
         }
 
-        public static Bitmap GetColoredImage(Bitmap oldImage, Color imageColor, Color backColor)
-        {
-            var newImage = new Bitmap(oldImage);
-
-            for (var i = 0; i < newImage.Width; ++i)
-            {
-                for (var j = 0; j < newImage.Height; ++j)
-                {
-                    if (newImage.GetPixel(i, j).R < 127)
-                    {
-                        newImage.SetPixel(i, j, backColor);
-                    }
-                    else
-                    {
-                        newImage.SetPixel(i, j, imageColor);
-                    }
-                }
-            }
-
-            return newImage;
-        }
-
         public void CreateImages()
         {
             SquareButton.Images = new Bitmap[25];
-            var initialImages = new Bitmap[7] {null, new Bitmap("Король.jpg"), new Bitmap("Ферзь.jpg"), new Bitmap("Ладья.jpg"), new Bitmap("Конь.jpg"),
-                new Bitmap("Слон.jpg"), new Bitmap("Пешка.jpg") };
+            var initialImages = new Bitmap[7] {null, new Bitmap("King.jpg"), new Bitmap("Queen.jpg"), new Bitmap("Rook.jpg"), new Bitmap("Knight.jpg"),
+                new Bitmap("Bishop.jpg"), new Bitmap("Pawn.jpg") };
 
             for (var i = 1; i < SquareButton.Images.Length; ++i)
             {
@@ -284,7 +262,7 @@ namespace Chess
             {
                 var backColor = i <= 12 ? LightSquaresColor : DarkSquaresColor;
                 var imageColor = (i >= 1 && i <= 6) || (i >= 13 && i <= 18) ? Color.White : Color.Black;
-                SquareButton.Images[i] = GetColoredImage(SquareButton.Images[i], imageColor, backColor);
+                SquareButton.Images[i] = Graphics.GetColoredPicture(SquareButton.Images[i], backColor, imageColor);
             }
         }
 
