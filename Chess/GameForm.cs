@@ -30,6 +30,8 @@ namespace Chess
 
         public Color DarkSquaresColor { get; private set; } = Color.Chocolate;
 
+        public Color HighlightColor { get; private set; } = Color.Cyan;
+
         public GameForm()
         {
             InitializeComponent();
@@ -79,17 +81,22 @@ namespace Chess
             {
                 for (var j = boardSize - 1; j >= 0; --j)
                 {
+                    var borderSize = 0;
+
                     // Если кнопки ранее уже созданы, а теперь мы хотим изменить размер полей, то старые кнопки нужно удалить.
                     if (_formButtons[i, j] != null)
                     {
+                        borderSize = _formButtons[i, j].FlatAppearance.BorderSize;
                         Controls.Remove(_formButtons[i, j]);
                     }
 
                     var newButton = new SquareButton(this, i, j)
                     {
                         BackColor = buttonColor,
-                        Location = new Point(buttonX, buttonY)
+                        Location = new Point(buttonX, buttonY),
                     };
+
+                    newButton.FlatAppearance.BorderSize = borderSize;
 
                     _formButtons[i, j] = newButton;
                     Controls.Add(newButton);
@@ -108,10 +115,10 @@ namespace Chess
             Width += shift;
             MinimumSize = new Size(Width, Height);
             MaximumSize = MinimumSize;
-            RenewPosition();
+            RenewPosition(RenewMode.FullRenew);
         }
 
-        public void RenewPosition()
+        public void RenewPosition(RenewMode renewMode)
         {
             var currentPosition = _gameBoard.CurrentPosition;
 
@@ -119,24 +126,33 @@ namespace Chess
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    /*if (_formButtons[i, j].DisplayedPieceIndex != currentPosition[i, j])
+                    if (renewMode == RenewMode.FullRenew)
+                    {
+                        var borderSize = _formButtons[i, j].FlatAppearance.BorderSize;
+                        _formButtons[i, j].DisplayedPieceIndex = currentPosition[i, j];
+                        _formButtons[i, j].RenewImage();
+                        _formButtons[i, j].FlatAppearance.BorderSize = borderSize;
+                        continue;
+                    }
+
+                    _formButtons[i, j].FlatAppearance.BorderSize = 0;
+
+                    if (_formButtons[i, j].DisplayedPieceIndex != currentPosition[i, j])
                     {
                         _formButtons[i, j].DisplayedPieceIndex = currentPosition[i, j];
                         _formButtons[i, j].RenewImage();
-                    }*/
-                    _formButtons[i, j].DisplayedPieceIndex = currentPosition[i, j];
-                    _formButtons[i, j].RenewImage();
+                    }
                 }
             }
         }
 
-        /*public void SetSizeAndColors(int buttonSize, Color lightSquaresColor, Color darkSquaresColor)
+        public void SetSizeAndColors(int buttonSize, Color lightSquaresColor, Color darkSquaresColor)
         {
             ButtonSize = buttonSize;
             LightSquaresColor = lightSquaresColor;
             DarkSquaresColor = darkSquaresColor;
             SetButtons();
-        }*/
+        }
 
         public void MakeMove(int[] move)
         {
@@ -151,7 +167,9 @@ namespace Chess
                 return;
             }
 
-            RenewPosition();
+            RenewPosition(RenewMode.RenewAfterMove);
+            OutlineButton(move[0], move[1]);
+            OutlineButton(move[2], move[3]);
 
             if (_movesCount < _gameBoard.MovesCount)
             {
@@ -249,7 +267,7 @@ namespace Chess
 
         public void CreateImages()
         {
-            SquareButton.Images = new Bitmap[25];
+            SquareButton.Images = new Bitmap[37];
             var initialImages = new Bitmap[7] {null, new Bitmap("King.jpg"), new Bitmap("Queen.jpg"), new Bitmap("Rook.jpg"), new Bitmap("Knight.jpg"),
                 new Bitmap("Bishop.jpg"), new Bitmap("Pawn.jpg") };
 
@@ -260,11 +278,15 @@ namespace Chess
 
             for (var i = 1; i < SquareButton.Images.Length; ++i)
             {
-                var backColor = i <= 12 ? LightSquaresColor : DarkSquaresColor;
-                var imageColor = (i >= 1 && i <= 6) || (i >= 13 && i <= 18) ? Color.White : Color.Black;
+                var backColor = i <= 12 ? LightSquaresColor : i <= 24 ? DarkSquaresColor : HighlightColor;
+                var imageColor = (i >= 1 && i <= 6) || (i >= 13 && i <= 18) || (i >= 25 && i <= 30) ? Color.White : Color.Black;
                 SquareButton.Images[i] = Graphics.GetColoredPicture(SquareButton.Images[i], backColor, imageColor);
             }
         }
+
+        public void RemoveHighlight(int x, int y) => _formButtons[x, y].RemoveHighlight();
+
+        public void OutlineButton(int x, int y) => _formButtons[x, y].FlatAppearance.BorderSize = 2;
 
         public bool ProgramPlaysFor(PieceColor color) => color == PieceColor.White ? WhiteVirtualPlayer != null : BlackVirtualPlayer != null;
         // Программа может играть и сама с собой.

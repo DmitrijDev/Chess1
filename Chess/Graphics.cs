@@ -4,14 +4,12 @@ namespace Chess
     internal static class Graphics
     {
         private static int[,] _matrix; // 1 - соотв. пиксель картинки относ. к изображению фигуры, -1 - фона.
-        private static bool[,] _isInBorderZone;
 
         // Раскрашивает черно-белую картинку фигуры, при условии, что фигура - белая, фон - черный.
         public static Bitmap GetColoredPicture(Bitmap oldPicture, Color backColor, Color imageColor)
         {
             var newPicture = new Bitmap(oldPicture);
             _matrix = new int[newPicture.Width, newPicture.Height];
-            _isInBorderZone = new bool[newPicture.Width, newPicture.Height];
 
             for (var i = 0; i < newPicture.Width; ++i)
             {
@@ -36,12 +34,10 @@ namespace Chess
                 {
                     if (IsBorderPixel(newPicture, i, j, 1))
                     {
-                        _isInBorderZone[i, j] = true;
+                        ErodePixel(newPicture, i, j, 1);
                     }
                 }
             }
-
-            ErodeBorders(newPicture);
 
             return newPicture;
         }
@@ -65,20 +61,6 @@ namespace Chess
             }
 
             return false;
-        }
-
-        public static void ErodeBorders(Bitmap picture)
-        {
-            for (var i = 0; i < picture.Width; ++i)
-            {
-                for (var j = 0; j < picture.Height; ++j)
-                {
-                    if (_isInBorderZone[i, j])
-                    {
-                        ErodePixel(picture, i, j, 1);
-                    }
-                }
-            }
         }
 
         public static void ErodePixel(Bitmap picture, int x, int y, int erosionDegree)
