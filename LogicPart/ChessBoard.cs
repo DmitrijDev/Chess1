@@ -270,7 +270,7 @@ namespace Chess.LogicPart
             {
                 foreach (var square in piece.GetLegalMoveSquares())
                 {
-                    _legalMoves.Add(new Move(piece, square));
+                    _legalMoves.Add(new Move(piece, square)); // Пока нет пешек - их превращения можно не учитывать.
                 }
             }
 
@@ -283,31 +283,27 @@ namespace Chess.LogicPart
 
         public bool IsDrawByThreeRepeats()
         {
-            var newPosition = new GamePosition(this);
-
-            if (_positions.Count < 4)
+            if (_positions.Count < 5)
             {
-                _positions.Add(newPosition);
                 return false;
             }
 
+            var lastPosition = _positions[_positions.Count - 1];
             var repeatsCount = 1;
 
-            foreach (var position in _positions)
+            for (var i = 0; i < _positions.Count - 1; ++i)
             {
-                if (position.Equals(newPosition))
+                if (_positions[i].Equals(lastPosition))
                 {
                     ++repeatsCount;
-                }
 
-                if (repeatsCount == 3)
-                {
-                    _positions.Add(newPosition);
-                    return true;
-                }
+                    if (repeatsCount == 3)
+                    {
+                        return true;
+                    }
+                }                
             }
 
-            _positions.Add(newPosition);
             return false;
         }
 
@@ -387,6 +383,7 @@ namespace Chess.LogicPart
             }
 
             ++MovesCount;
+            _positions.Add(new GamePosition(this));
 
             if (RenewLegalMoves().Count == 0)
             {
@@ -416,7 +413,7 @@ namespace Chess.LogicPart
         public List<int[]> GetLegalMoves() => RenewLegalMoves().Select(move => new int[4] { move.MovingPiece.Vertical, move.MovingPiece.Horizontal, move.MoveSquare.Vertical,
             move.MoveSquare.Horizontal}).ToList();
 
-        public GamePosition CurrentPosition => _positions.Count > 0 && Status == GameStatus.GameCanContinue ? _positions[_positions.Count - 1] : new GamePosition(this);
+        public GamePosition CurrentPosition => _positions.Count > 0 ? _positions[_positions.Count - 1] : new GamePosition(this);
 
         public PieceColor MovingSideColor => MovingSide.Color;
     }

@@ -21,7 +21,7 @@ namespace Chess
             Width = _form.ButtonSize;
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
-            FlatAppearance.BorderColor = Color.Blue;
+            FlatAppearance.BorderColor = _form.HighlightColor;
             BackgroundImageLayout = ImageLayout.Zoom;
             Click += new EventHandler(HandleClick);
         }

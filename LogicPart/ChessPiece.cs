@@ -76,7 +76,7 @@ namespace Chess.LogicPart
                     (menacingPiece.Vertical < square.Vertical && FriendlyKing.Vertical > square.Vertical))).ToList();
                 }
 
-                // Пока нет ни ферзя, ни слона - диагональные шахи можно не рассматривать.
+                // Пока есть только короли и ладьи - можно рассматривать только горизонтальные и вертикальные шахи.
 
                 if (list.Contains(menacingPiece.Position))
                 {
@@ -91,7 +91,7 @@ namespace Chess.LogicPart
 
             if (IsPinnedVertically())
             {
-                result = result.Where(square => square.Vertical == Vertical).ToList();
+                return result.Where(square => square.Vertical == Vertical).ToList();
             }
 
             if (IsPinnedHorizontally())

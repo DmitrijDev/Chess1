@@ -4,14 +4,14 @@ namespace Chess.Players
 {
     public class VirtualPlayer
     {
-        public Func<ChessBoard, int[]> Strategy { get; }
+        private readonly Func<ChessBoard, int[]> _selectMove;
 
         public ChessBoard Board { get; set; }
 
-        public VirtualPlayer(Func<ChessBoard, int[]> strategy) => Strategy = strategy;
+        public VirtualPlayer(Func<ChessBoard, int[]> selectMove) => _selectMove = selectMove;
 
         public void SetBoard(ChessBoard board) => Board = board;
 
-        public int[] ChooseMove() => Strategy(Board);
+        public int[] SelectMove() => _selectMove(Board);
     }
 }

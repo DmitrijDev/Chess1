@@ -14,6 +14,8 @@ namespace Chess
         private readonly Timer _timer = new() { Interval = 1000 };
         private readonly Panel _panel = new();
 
+        private readonly int _initialButtonSize = Screen.PrimaryScreen.WorkingArea.Height / 16;
+
         private readonly List<int> _clickedButtons = new();
         private int[] _lastMove = new int[0];
         private int _movesCount;
@@ -26,7 +28,7 @@ namespace Chess
         public VirtualPlayer BlackVirtualPlayer { get; private set; } = new VirtualPlayer(Strategies.ChooseMoveForVirtualFool);
         //Аналогично.
 
-        public int ButtonSize { get; private set; } = Screen.PrimaryScreen.WorkingArea.Height / 16;
+        public int ButtonSize { get; private set; }
 
         public Color LightSquaresColor { get; private set; } = Color.Yellow;
 
@@ -38,8 +40,10 @@ namespace Chess
         {
             InitializeComponent();
             Text = "";
-            BackColor = Color.LightGray;
+            BackColor = Color.LightBlue;
             AutoSize = true;
+            ButtonSize = _initialButtonSize;
+            SetPanelSettings();
             MouseMove += new MouseEventHandler(MovePanel);
             CreateImages();
 
@@ -74,16 +78,15 @@ namespace Chess
 
         public void SetControls()
         {
+            Controls.Remove(_panel);
             MinimumSize = new Size(0, 0);
             MaximumSize = new Size(int.MaxValue, int.MaxValue);
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            InitializePanel();
 
             var boardSize = _formButtons.GetLength(0);
-            var shift = ButtonSize;
             var buttonColor = LightSquaresColor;
-            var buttonX = shift;
-            var buttonY = _panel.Height + shift;
+            var buttonX = ButtonSize;
+            var buttonY = _panel.Height + ButtonSize;
 
             for (var i = 0; i < boardSize; ++i)
             {
@@ -115,25 +118,48 @@ namespace Chess
 
                 buttonColor = buttonColor == LightSquaresColor ? DarkSquaresColor : LightSquaresColor;
                 buttonX += ButtonSize;
-                buttonY = _panel.Height + shift;
+                buttonY = _panel.Height + ButtonSize;
             }
 
             AutoSizeMode = AutoSizeMode.GrowOnly;
-            Height += shift;
+            Width += ButtonSize;
+            Height += ButtonSize;
             MinimumSize = new Size(Width, Height);
             MaximumSize = MinimumSize;
+            _panel.Width = Width;
+            Controls.Add(_panel);
             RenewPosition(RenewMode.FullRenew);
         }
 
-        public void InitializePanel()
+        public void SetPanelSettings()
         {
-            Controls.Remove(_panel);
-            _panel.Height = ButtonSize / 2;
-            _panel.Width = ButtonSize * 10;
+            _panel.Height = _initialButtonSize / 2;
             _panel.Location = new Point(0, -_panel.Height);
-            _panel.BackColor = Color.Gray;
+            _panel.BackColor = Color.GhostWhite;
             _panel.BorderStyle = BorderStyle.FixedSingle;
-            Controls.Add(_panel);
+            AddMenus();
+        }
+
+        public void AddMenus()
+        {
+            var menuStrip = new MenuStrip()
+            {
+                Height = _panel.Height,
+                BackColor = _panel.BackColor,
+            };
+
+
+            var gameMenu = new ToolStripMenuItem("Игра");
+
+            var escapeItem = new ToolStripMenuItem("Выход");
+
+            _panel.Controls.Add(menuStrip);
+
+            menuStrip.Items.Add(gameMenu);
+
+            gameMenu.DropDownItems.Add(escapeItem);
+
+            escapeItem.Click += new EventHandler(Escape);
         }
 
         public void MovePanel(object sender, EventArgs e)
@@ -316,7 +342,7 @@ namespace Chess
                 board.MakeMove(enemyMove);
             }
 
-            var replyMove = player.ChooseMove();
+            var replyMove = player.SelectMove();
             board.MakeMove(replyMove);
 
             lock (_lastMove)
@@ -350,6 +376,8 @@ namespace Chess
             MakeMove(move);
         }
 
+        public void Escape(object sender, EventArgs e) => Close();
+
         public void CreateImages()
         {
             SquareButton.Images = new Bitmap[37];
@@ -377,8 +405,6 @@ namespace Chess
 
         public bool ProgramPlaysFor(PieceColor color) => color == PieceColor.White ? WhiteVirtualPlayer != null : BlackVirtualPlayer != null;
         // Программа может играть и сама с собой.
-
-        //public PieceColor MovingSideColor => _movingSideColor;
 
         public bool GameIsOver => _gameBoard.Status != GameStatus.GameCanContinue;
     }
