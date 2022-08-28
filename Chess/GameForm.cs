@@ -9,12 +9,12 @@ namespace Chess
         private readonly ChessBoard _gameBoard = new(); // Для каждого из потоков создаем по отдельному экземпляру доски.
         private readonly ChessBoard _whiteThinkingBoard;
         private readonly ChessBoard _blackThinkingBoard;
+        private readonly Timer _timer = new() { Interval = 1000 };
 
         private readonly SquareButton[,] _formButtons = new SquareButton[8, 8];
-        private readonly Timer _timer = new() { Interval = 1000 };
-        private readonly Panel _panel = new();
-
+        private readonly Panel _menuPanel;
         private readonly int _initialButtonSize = Screen.PrimaryScreen.WorkingArea.Height / 16;
+        private bool _hideMenus;
 
         private readonly List<int> _clickedButtons = new();
         private int[] _lastMove = new int[0];
@@ -43,8 +43,8 @@ namespace Chess
             BackColor = Color.LightBlue;
             AutoSize = true;
             ButtonSize = _initialButtonSize;
-            SetPanelSettings();
-            MouseMove += new MouseEventHandler(MovePanel);
+            _menuPanel = CreateMenuPanel();
+            MouseMove += new MouseEventHandler(MoveMenuPanel);
             CreateImages();
 
             var whiteMaterial = new string[3] { "King", "Rook", "Rook" };
@@ -67,30 +67,29 @@ namespace Chess
                 BlackVirtualPlayer.SetBoard(_blackThinkingBoard);
             }
 
-            _timer.Tick += new EventHandler(MakeProgramMove);
-            _timer.Start();
-
             if (ProgramPlaysFor(_movingSideColor))
             {
                 new Thread(Think).Start();
             }
+
+            _timer.Tick += new EventHandler(MakeProgramMove);
+            _timer.Start();
         }
 
         public void SetControls()
         {
-            Controls.Remove(_panel);
+            Controls.Remove(_menuPanel);
             MinimumSize = new Size(0, 0);
             MaximumSize = new Size(int.MaxValue, int.MaxValue);
             AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
-            var boardSize = _formButtons.GetLength(0);
             var buttonColor = LightSquaresColor;
             var buttonX = ButtonSize;
-            var buttonY = _panel.Height + ButtonSize;
+            var buttonY = _menuPanel.Height + ButtonSize;
 
-            for (var i = 0; i < boardSize; ++i)
+            for (var i = 0; i < 8; ++i)
             {
-                for (var j = boardSize - 1; j >= 0; --j)
+                for (var j = 7; j >= 0; --j)
                 {
                     var borderSize = 0;
 
@@ -104,7 +103,7 @@ namespace Chess
                     var newButton = new SquareButton(this, i, j)
                     {
                         BackColor = buttonColor,
-                        Location = new Point(buttonX, buttonY),
+                        Location = new Point(buttonX, buttonY)
                     };
 
                     newButton.FlatAppearance.BorderSize = borderSize;
@@ -118,7 +117,7 @@ namespace Chess
 
                 buttonColor = buttonColor == LightSquaresColor ? DarkSquaresColor : LightSquaresColor;
                 buttonX += ButtonSize;
-                buttonY = _panel.Height + ButtonSize;
+                buttonY = _menuPanel.Height + ButtonSize;
             }
 
             AutoSizeMode = AutoSizeMode.GrowOnly;
@@ -126,57 +125,78 @@ namespace Chess
             Height += ButtonSize;
             MinimumSize = new Size(Width, Height);
             MaximumSize = MinimumSize;
-            _panel.Width = Width;
-            Controls.Add(_panel);
-            RenewPosition(RenewMode.FullRenew);
+            _menuPanel.Width = Width;
+            Controls.Add(_menuPanel);
+            RenewBoardView(RenewMode.FullRenew);
         }
 
-        public void SetPanelSettings()
+        public Panel CreateMenuPanel()
         {
-            _panel.Height = _initialButtonSize / 2;
-            _panel.Location = new Point(0, -_panel.Height);
-            _panel.BackColor = Color.GhostWhite;
-            _panel.BorderStyle = BorderStyle.FixedSingle;
-            AddMenus();
-        }
+            var menuStrip = new MenuStrip();
 
-        public void AddMenus()
-        {
-            var menuStrip = new MenuStrip()
+            var panel = new Panel()
             {
-                Height = _panel.Height,
-                BackColor = _panel.BackColor,
+                Height = menuStrip.Height,
+                Location = new Point(0, 0),
+                BorderStyle = BorderStyle.FixedSingle
             };
 
+            panel.Controls.Add(menuStrip);
+            menuStrip.Items.Add(CreateGameMenu());
+            menuStrip.Items.Add(CreateViewMenu());
+            return panel;
+        }
 
+        public ToolStripMenuItem CreateGameMenu()
+        {
             var gameMenu = new ToolStripMenuItem("Игра");
 
             var escapeItem = new ToolStripMenuItem("Выход");
 
-            _panel.Controls.Add(menuStrip);
-
-            menuStrip.Items.Add(gameMenu);
-
             gameMenu.DropDownItems.Add(escapeItem);
 
             escapeItem.Click += new EventHandler(Escape);
+
+            return gameMenu;
         }
 
-        public void MovePanel(object sender, EventArgs e)
+        public ToolStripMenuItem CreateViewMenu()
         {
+            var viewMenu = new ToolStripMenuItem("Вид");
+
+            var hideMenusItem = new ToolStripMenuItem("Скрывать меню")
+            {
+                CheckOnClick = true,
+                Checked = _hideMenus
+            };
+
+            viewMenu.DropDownItems.Add(hideMenusItem);
+
+            hideMenusItem.Click += new EventHandler(ChangeHideMenusItemState);
+
+            return viewMenu;
+        }
+
+        public void MoveMenuPanel(object sender, EventArgs e)
+        {
+            if (!_hideMenus)
+            {
+                return;
+            }
+
             var titleHeight = RectangleToScreen(ClientRectangle).Top - Top;
 
-            if (Cursor.Position.Y <= Location.Y + titleHeight + _panel.Height)
+            if (Cursor.Position.Y <= Location.Y + titleHeight + _menuPanel.Height)
             {
-                _panel.Location = new Point(0, 0);
+                _menuPanel.Location = new Point(0, 0);
             }
             else
             {
-                _panel.Location = new Point(0, -_panel.Height);
+                _menuPanel.Location = new Point(0, -_menuPanel.Height);
             }
         }
 
-        public void RenewPosition(RenewMode renewMode)
+        public void RenewBoardView(RenewMode renewMode)
         {
             var currentPosition = _gameBoard.CurrentPosition;
 
@@ -278,7 +298,7 @@ namespace Chess
                 return;
             }
 
-            RenewPosition(RenewMode.RenewAfterMove);
+            RenewBoardView(RenewMode.RenewAfterMove);
             OutlineButton(move[0], move[1]);
             OutlineButton(move[2], move[3]);
 
@@ -377,6 +397,8 @@ namespace Chess
         }
 
         public void Escape(object sender, EventArgs e) => Close();
+
+        public void ChangeHideMenusItemState(object sender, EventArgs e) => _hideMenus = !_hideMenus;
 
         public void CreateImages()
         {

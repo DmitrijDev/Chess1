@@ -3,9 +3,9 @@ namespace Chess.LogicPart
 {
     public class GamePosition
     {
-        public int[,] Board { get; } = new int[8, 8];
+        private readonly int[,] _board = new int[8, 8];
 
-        public PieceColor MovingSide { get; set; }
+        public PieceColor MovingSide { get; private set; }
 
         public GamePosition(ChessBoard board)
         {
@@ -13,7 +13,7 @@ namespace Chess.LogicPart
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    Board[i, j] = board[i, j].IsEmpty ? 0 : board[i, j].ContainedPiece.NumeralIndex;
+                    _board[i, j] = board[i, j].IsEmpty ? 0 : board[i, j].ContainedPiece.NumeralIndex;
                 }
             }
 
@@ -29,7 +29,7 @@ namespace Chess.LogicPart
                     throw new IndexOutOfRangeException("Поля с указанными координатами не существует.");
                 }
 
-                return Board[vertical, horizontal];
+                return _board[vertical, horizontal];
             }
         }
 
@@ -56,7 +56,7 @@ namespace Chess.LogicPart
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    if (otherPosition.Board[i, j] != Board[i, j])
+                    if (otherPosition._board[i, j] != _board[i, j])
                     {
                         return false;
                     }
