@@ -14,22 +14,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Bishop.jpg">
+    <None Update="Pictures\Bishop.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="King.jpg">
+    <None Update="Pictures\King.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Knight.jpg">
+    <None Update="Pictures\Knight.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Pawn.jpg">
+    <None Update="Pictures\Pawn.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Queen.jpg">
+    <None Update="Pictures\Queen.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Rook.jpg">
+    <None Update="Pictures\Rook.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

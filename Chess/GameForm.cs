@@ -7,28 +7,28 @@ namespace Chess
     public partial class GameForm : Form
     {
         private readonly ChessBoard _gameBoard = new(); // Для каждого из потоков создаем по отдельному экземпляру доски.
-        private readonly ChessBoard _whiteThinkingBoard;
-        private readonly ChessBoard _blackThinkingBoard;
+        private ChessBoard _whiteThinkingBoard;
+        private ChessBoard _blackThinkingBoard;
+        private Thread _think;
+
+        private readonly MenuPanel _menuPanel;
+        private readonly SquareButton[,] _formButtons = new SquareButton[8, 8];
         private readonly Timer _timer = new() { Interval = 1000 };
 
-        private readonly SquareButton[,] _formButtons = new SquareButton[8, 8];
-        private readonly Panel _menuPanel;
-        private readonly int _initialButtonSize = Screen.PrimaryScreen.WorkingArea.Height / 16;
-        private bool _hideMenus;
-
+        private int _startedGamesCount;
         private readonly List<int> _clickedButtons = new();
         private int[] _lastMove = new int[0];
         private int _movesCount;
         private PieceColor _movingSideColor = PieceColor.White;
         private bool _programMadeMove;
 
-        public VirtualPlayer WhiteVirtualPlayer { get; private set; } //= new VirtualPlayer(Strategies.ChooseMoveForVirtualFool);
+        public VirtualPlayer WhiteVirtualPlayer { get; private set; } //= new VirtualPlayer(Strategies.SelectMoveForVirtualFool);
         // == null, если за эту сторону играет пользователь.
 
-        public VirtualPlayer BlackVirtualPlayer { get; private set; } = new VirtualPlayer(Strategies.ChooseMoveForVirtualFool);
+        public VirtualPlayer BlackVirtualPlayer { get; private set; } = new VirtualPlayer(Strategies.SelectMoveForVirtualFool);
         //Аналогично.
 
-        public int ButtonSize { get; private set; }
+        public int ButtonSize { get; private set; } = Screen.PrimaryScreen.WorkingArea.Height / 16;
 
         public Color LightSquaresColor { get; private set; } = Color.Yellow;
 
@@ -36,44 +36,18 @@ namespace Chess
 
         public Color HighlightColor { get; private set; } = Color.Blue;
 
+        public bool HidesMenus { get; set; }
+
         public GameForm()
         {
             InitializeComponent();
             Text = "";
             BackColor = Color.LightBlue;
             AutoSize = true;
-            ButtonSize = _initialButtonSize;
-            _menuPanel = CreateMenuPanel();
-            MouseMove += new MouseEventHandler(MoveMenuPanel);
-            CreateImages();
-
-            var whiteMaterial = new string[3] { "King", "Rook", "Rook" };
-            var whitePositions = new string[3] { "e1", "a1", "h1" };
-            var blackMaterial = new string[3] { "King", "Rook", "Rook" };
-            var blackPositions = new string[3] { "e8", "a8", "h8" };
-            _gameBoard.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, _movingSideColor);
-            _whiteThinkingBoard = new ChessBoard(_gameBoard);
-            _blackThinkingBoard = new ChessBoard(_gameBoard);
-
-            SetControls();
-
-            if (ProgramPlaysFor(PieceColor.White))
-            {
-                WhiteVirtualPlayer.SetBoard(_whiteThinkingBoard);
-            }
-
-            if (ProgramPlaysFor(PieceColor.Black))
-            {
-                BlackVirtualPlayer.SetBoard(_blackThinkingBoard);
-            }
-
-            if (ProgramPlaysFor(_movingSideColor))
-            {
-                new Thread(Think).Start();
-            }
-
+            _menuPanel = new MenuPanel(this);
             _timer.Tick += new EventHandler(MakeProgramMove);
-            _timer.Start();
+            SetControls();
+            StartNewGame();
         }
 
         public void SetControls()
@@ -127,76 +101,9 @@ namespace Chess
             MaximumSize = MinimumSize;
             _menuPanel.Width = Width;
             Controls.Add(_menuPanel);
-            RenewBoardView(RenewMode.FullRenew);
         }
 
-        public Panel CreateMenuPanel()
-        {
-            var menuStrip = new MenuStrip();
-
-            var panel = new Panel()
-            {
-                Height = menuStrip.Height,
-                Location = new Point(0, 0),
-                BorderStyle = BorderStyle.FixedSingle
-            };
-
-            panel.Controls.Add(menuStrip);
-            menuStrip.Items.Add(CreateGameMenu());
-            menuStrip.Items.Add(CreateViewMenu());
-            return panel;
-        }
-
-        public ToolStripMenuItem CreateGameMenu()
-        {
-            var gameMenu = new ToolStripMenuItem("Игра");
-
-            var escapeItem = new ToolStripMenuItem("Выход");
-
-            gameMenu.DropDownItems.Add(escapeItem);
-
-            escapeItem.Click += new EventHandler(Escape);
-
-            return gameMenu;
-        }
-
-        public ToolStripMenuItem CreateViewMenu()
-        {
-            var viewMenu = new ToolStripMenuItem("Вид");
-
-            var hideMenusItem = new ToolStripMenuItem("Скрывать меню")
-            {
-                CheckOnClick = true,
-                Checked = _hideMenus
-            };
-
-            viewMenu.DropDownItems.Add(hideMenusItem);
-
-            hideMenusItem.Click += new EventHandler(ChangeHideMenusItemState);
-
-            return viewMenu;
-        }
-
-        public void MoveMenuPanel(object sender, EventArgs e)
-        {
-            if (!_hideMenus)
-            {
-                return;
-            }
-
-            var titleHeight = RectangleToScreen(ClientRectangle).Top - Top;
-
-            if (Cursor.Position.Y <= Location.Y + titleHeight + _menuPanel.Height)
-            {
-                _menuPanel.Location = new Point(0, 0);
-            }
-            else
-            {
-                _menuPanel.Location = new Point(0, -_menuPanel.Height);
-            }
-        }
-
-        public void RenewBoardView(RenewMode renewMode)
+        public void RenewButtonsView(RenewMode renewMode)
         {
             var currentPosition = _gameBoard.CurrentPosition;
 
@@ -206,10 +113,8 @@ namespace Chess
                 {
                     if (renewMode == RenewMode.FullRenew)
                     {
-                        var borderSize = _formButtons[i, j].FlatAppearance.BorderSize;
                         _formButtons[i, j].DisplayedPieceIndex = currentPosition[i, j];
                         _formButtons[i, j].RenewImage();
-                        _formButtons[i, j].FlatAppearance.BorderSize = borderSize;
                         continue;
                     }
 
@@ -224,12 +129,54 @@ namespace Chess
             }
         }
 
+        public void StartNewGame()
+        {
+            _timer.Stop();
+            ++_startedGamesCount;
+
+            while (_think != null && _think.ThreadState == ThreadState.Running)
+            { }
+
+            _movesCount = 0;
+            _movingSideColor = PieceColor.White;
+            _programMadeMove = false;
+
+            var whiteMaterial = new string[3] { "King", "Rook", "Rook" };
+            var whitePositions = new string[3] { "e1", "a1", "h1" };
+            var blackMaterial = new string[3] { "King", "Rook", "Rook" };
+            var blackPositions = new string[3] { "e8", "a8", "h8" };
+            _gameBoard.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, _movingSideColor);
+            _whiteThinkingBoard = new ChessBoard(_gameBoard);
+            _blackThinkingBoard = new ChessBoard(_gameBoard);            
+
+            RenewButtonsView(RenewMode.RenewIfNeeded);
+
+            if (ProgramPlaysFor(PieceColor.White))
+            {
+                WhiteVirtualPlayer.SetBoard(_whiteThinkingBoard);
+            }
+
+            if (ProgramPlaysFor(PieceColor.Black))
+            {
+                BlackVirtualPlayer.SetBoard(_blackThinkingBoard);
+            }
+
+            if (ProgramPlaysFor(_movingSideColor))
+            {
+                _think = new Thread(Think);
+                _think.Start();
+            }
+
+            _timer.Start();
+        }
+
         public void SetSizeAndColors(int buttonSize, Color lightSquaresColor, Color darkSquaresColor)
         {
             ButtonSize = buttonSize;
             LightSquaresColor = lightSquaresColor;
             DarkSquaresColor = darkSquaresColor;
             SetControls();
+            RenewButtonsView(RenewMode.FullRenew);
         }
 
         public void HandleClickAt(int x, int y)
@@ -298,7 +245,7 @@ namespace Chess
                 return;
             }
 
-            RenewBoardView(RenewMode.RenewAfterMove);
+            RenewButtonsView(RenewMode.RenewIfNeeded);
             OutlineButton(move[0], move[1]);
             OutlineButton(move[2], move[3]);
 
@@ -338,7 +285,8 @@ namespace Chess
             // Запускаем выбор программой ответного хода, если нужно.
             if (ProgramPlaysFor(_movingSideColor))
             {
-                new Thread(Think).Start();
+                _think = new Thread(Think);
+                _think.Start();
             }
         }
 
@@ -394,29 +342,6 @@ namespace Chess
             }
 
             MakeMove(move);
-        }
-
-        public void Escape(object sender, EventArgs e) => Close();
-
-        public void ChangeHideMenusItemState(object sender, EventArgs e) => _hideMenus = !_hideMenus;
-
-        public void CreateImages()
-        {
-            SquareButton.Images = new Bitmap[37];
-            var initialImages = new Bitmap[7] {null, new Bitmap("King.jpg"), new Bitmap("Queen.jpg"), new Bitmap("Rook.jpg"), new Bitmap("Knight.jpg"),
-                new Bitmap("Bishop.jpg"), new Bitmap("Pawn.jpg") };
-
-            for (var i = 1; i < SquareButton.Images.Length; ++i)
-            {
-                SquareButton.Images[i] = i <= 6 ? new Bitmap(initialImages[i]) : new Bitmap(SquareButton.Images[i - 6]);
-            }
-
-            for (var i = 1; i < SquareButton.Images.Length; ++i)
-            {
-                var backColor = i <= 12 ? LightSquaresColor : i <= 24 ? DarkSquaresColor : HighlightColor;
-                var imageColor = (i >= 1 && i <= 6) || (i >= 13 && i <= 18) || (i >= 25 && i <= 30) ? Color.White : Color.Black;
-                SquareButton.Images[i] = Graphics.GetColoredPicture(SquareButton.Images[i], backColor, imageColor);
-            }
         }
 
         public void HighlightAt(int x, int y) => _formButtons[x, y].Highlight();

@@ -4,7 +4,7 @@ namespace Chess.Players
 {
     public static class Strategies
     {
-        public static int[] ChooseMoveForVirtualFool(ChessBoard board)
+        public static int[] SelectMoveForVirtualFool(ChessBoard board)
         {
             if (board.Status != GameStatus.GameCanContinue)
             {
