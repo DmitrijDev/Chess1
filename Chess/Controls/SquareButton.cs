@@ -3,7 +3,7 @@ namespace Chess
 {
     public class SquareButton : Button
     {
-        private readonly GameForm _form;
+        private readonly BoardPanel _boardPanel;
         private readonly int _x;
         private readonly int _y;
         private static Bitmap[] _images;
@@ -11,21 +11,21 @@ namespace Chess
 
         public int DisplayedPieceIndex { get; set; } // 0 - пустое поле, 1-6 - белые фигуры, 7-12 -черные.       
 
-        public SquareButton(GameForm form, int x, int y)
+        internal SquareButton(BoardPanel boardPanel, int x, int y)
         {
-            _form = form;
+            _boardPanel = boardPanel;
             _x = x;
             _y = y;
-            Height = _form.ButtonSize;
-            Width = _form.ButtonSize;
+            Height = _boardPanel.ButtonSize;
+            Width = _boardPanel.ButtonSize;
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
-            FlatAppearance.BorderColor = _form.HighlightColor;
+            FlatAppearance.BorderColor = _boardPanel.HighlightColor;
             BackgroundImageLayout = ImageLayout.Zoom;
 
             if (_images == null)
             {
-                CreateImages(Color.White, Color.Black, _form.LightSquaresColor, _form.DarkSquaresColor, _form.HighlightColor);
+                CreateImages(Color.White, Color.Black, _boardPanel.LightSquaresColor, _boardPanel.DarkSquaresColor, _boardPanel.HighlightColor);
             }
 
             Click += new EventHandler(HandleClick);
@@ -50,7 +50,7 @@ namespace Chess
             }
         }
 
-        private void HandleClick(object sender, EventArgs e) => _form.HandleClickAt(_x, _y);
+        private void HandleClick(object sender, EventArgs e) => _boardPanel.HandleClickAt(_x, _y);
 
         public void RenewImage()
         {
@@ -60,7 +60,7 @@ namespace Chess
                 return;
             }
 
-            var newImageIndex = BackColor == _form.LightSquaresColor ? DisplayedPieceIndex : DisplayedPieceIndex + 12;
+            var newImageIndex = BackColor == _boardPanel.LightSquaresColor ? DisplayedPieceIndex : DisplayedPieceIndex + 12;
             BackgroundImage = _images[newImageIndex];
         }
 
