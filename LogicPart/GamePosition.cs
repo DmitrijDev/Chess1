@@ -45,7 +45,7 @@ namespace Chess.LogicPart
                 return false;
             }
 
-            var otherPosition = (GamePosition)obj;
+            var otherPosition = (GamePosition) obj;
 
             if (otherPosition.MovingSide != MovingSide)
             {

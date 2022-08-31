@@ -119,7 +119,7 @@ namespace Chess.LogicPart
 
                     if (material[i] is King)
                     {
-                        White.King = (King)material[i];
+                        White.King = (King) material[i];
                     }
                 }
                 else
@@ -128,7 +128,7 @@ namespace Chess.LogicPart
 
                     if (material[i] is King)
                     {
-                        Black.King = (King)material[i];
+                        Black.King = (King) material[i];
                     }
                 }
             }
@@ -175,7 +175,7 @@ namespace Chess.LogicPart
                 throw new ArgumentException("Не указано имя фигуры");
             }
 
-            var pieces = new ChessPiece[2] { new King(color), new Rook(color) }; // Других фигур пока нет.
+            var pieces = new ChessPiece[3] { new King(color), new Rook(color), new Pawn(color) }; // Других фигур пока нет.
             var trimmedName = SharedItems.RemoveSpacesAndToLower(name);
 
             foreach (var piece in pieces)
@@ -232,6 +232,11 @@ namespace Chess.LogicPart
                     return false;
                 }
 
+                if (piece is Pawn && (piece.Horizontal == 0 || piece.Horizontal == 7))
+                {
+                    return false;
+                }
+
                 if (MovingSide == White && piece.GetAttackedSquares().Contains(Black.King.Position))
                 {
                     return false;
@@ -245,14 +250,16 @@ namespace Chess.LogicPart
                     return false;
                 }
 
+                if (piece is Pawn && (piece.Horizontal == 0 || piece.Horizontal == 7))
+                {
+                    return false;
+                }
+
                 if (MovingSide == Black && piece.GetAttackedSquares().Contains(White.King.Position))
                 {
-                    Status = GameStatus.IllegalPosition;
                     return false;
                 }
             }
-
-            // Когда будут пешки - добавить еще проверку, не стоит ли какая-нибудь пешка на крайней горизонтали.
 
             return true;
         }
@@ -270,7 +277,14 @@ namespace Chess.LogicPart
             {
                 foreach (var square in piece.GetLegalMoveSquares())
                 {
-                    _legalMoves.Add(new Move(piece, square)); // Пока нет пешек - их превращения можно не учитывать.
+                    if (!(piece is Pawn && (square.Horizontal == 0 || square.Horizontal == 7)))
+                    {
+                        _legalMoves.Add(new Move(piece, square));
+                    }
+                    else
+                    {
+                        _legalMoves.Add(new Move(piece, square, new Rook(piece.Color))); // Пешки пока превращаются только в ладьи.
+                    }
                 }
             }
 
@@ -278,7 +292,7 @@ namespace Chess.LogicPart
             return _legalMoves;
         }
 
-        // Пока нет других фигур, кроме ладей и королей - ничья фиксируется только если остались одни короли
+        // Пока нет других фигур, кроме королей, ладей и пешек - ничья фиксируется только если остались одни короли.
         public bool IsDrawByMaterial() => White.Material.Count + Black.Material.Count == 2;
 
         public bool IsDrawByThreeRepeats()
@@ -301,47 +315,55 @@ namespace Chess.LogicPart
                     {
                         return true;
                     }
-                }                
+                }
             }
 
             return false;
         }
 
-        public void MakeMove(int[] coordinates)
+        public void MakeMove(int[] moveParams)
         {
-            if (coordinates.Length < 4)
+            if (moveParams.Length < 4)
             {
                 throw new ArgumentException("Некорректный аргумент: неподходящий по длине массив");
             }
 
-            MakeMove(coordinates[0], coordinates[1], coordinates[2], coordinates[3]);
+            MakeMove(moveParams[0], moveParams[1], moveParams[2], moveParams[3], moveParams.Length < 5 ? 0 : moveParams[4]);
         }
 
-        public void MakeMove(int startVertical, int startHorizontal, int destinationVertical, int destinationHorizontal) =>
-            MakeMove(_board[startVertical, startHorizontal].ContainedPiece, _board[destinationVertical, destinationHorizontal]);
+        public void MakeMove(int startVertical, int startHorizontal, int destinationVertical, int destinationHorizontal, int newPieceIndex) =>
+            MakeMove(_board[startVertical, startHorizontal].ContainedPiece, _board[destinationVertical, destinationHorizontal], newPieceIndex);
 
-        private void MakeMove(ChessPiece piece, Square moveSquare)
+        private void MakeMove(ChessPiece movingPiece, Square moveSquare, int newPieceIndex)
         {
-            if (piece == null)
+            if (movingPiece == null)
             {
                 throw new ArgumentException("В качестве начального поля хода указано пустое поле.");
             }
 
-            if (piece.Color != MovingSideColor)
+            if (movingPiece.Color != MovingSideColor)
             {
-                throw new InvalidOperationException("Указанный ход невозможен т.к. очередь хода за другой стороной.");
+                throw new IllegalMoveException("Указанный ход невозможен т.к. очередь хода за другой стороной.");
             }
 
             foreach (var move in RenewLegalMoves())
             {
-                if (move.MovingPiece == piece && move.MoveSquare == moveSquare)
+                if (move.MovingPiece == movingPiece && move.MoveSquare == moveSquare)
                 {
-                    MakeMove(move);
-                    return;
+                    if ((!move.IsPawnPromotion && newPieceIndex == 0) || (move.IsPawnPromotion && newPieceIndex == move.NewPiece.NumeralIndex))
+                    {
+                        MakeMove(move);
+                        return;
+                    }
+
+                    if (move.IsPawnPromotion && newPieceIndex == 0)
+                    {
+                        throw new NewPieceNotSelectedException();
+                    }
                 }
             }
 
-            throw new InvalidOperationException("Невозможный ход.");
+            throw new IllegalMoveException("Невозможный ход.");
         }
 
         private void MakeMove(Move move)
@@ -351,8 +373,18 @@ namespace Chess.LogicPart
                 MovingSide.Enemy.Material.Remove(move.MoveSquare.ContainedPiece);
             }
 
-            move.MovingPiece.Position = move.MoveSquare;  // Когда будут пешки - рассмотреть здесь еще превращение пешки.
-            move.MovingPiece.HasMoved = true;
+            if (!move.IsPawnPromotion)
+            {
+                move.MovingPiece.Position = move.MoveSquare;
+                move.MovingPiece.HasMoved = true;
+            }
+            else
+            {
+                move.MovingPiece.Position = null;
+                MovingSide.Material.Remove(move.MovingPiece);
+                move.NewPiece.Position = move.MoveSquare;
+                MovingSide.Material.Add(move.NewPiece);
+            }
 
             if (move.IsCastleKingside)
             {
@@ -372,7 +404,7 @@ namespace Chess.LogicPart
 
             MovingSide = MovingSide.Enemy;
 
-            if (!move.IsCapture) // И если ход не пешкой - но пешек пока нет.
+            if (!move.IsCapture && !move.IsPawnMove)
             {
                 ++MovesAfterCaptureOrPawnMoveCount;
             }
@@ -410,8 +442,8 @@ namespace Chess.LogicPart
             }
         }
 
-        public List<int[]> GetLegalMoves() => RenewLegalMoves().Select(move => new int[4] { move.MovingPiece.Vertical, move.MovingPiece.Horizontal, move.MoveSquare.Vertical,
-            move.MoveSquare.Horizontal}).ToList();
+        public List<int[]> GetLegalMoves() => RenewLegalMoves().Select(move => new int[5] { move.MovingPiece.Vertical, move.MovingPiece.Horizontal, move.MoveSquare.Vertical,
+            move.MoveSquare.Horizontal, move.IsPawnPromotion ? move.NewPiece.NumeralIndex : 0}).ToList();
 
         public GamePosition CurrentPosition => _positions.Count > 0 ? _positions[_positions.Count - 1] : new GamePosition(this);
 

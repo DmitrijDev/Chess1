@@ -13,7 +13,7 @@ namespace Chess
 
         private readonly SquareButton[,] _buttons = new SquareButton[8, 8];
 
-        private readonly List<int> _clickedButtons = new();
+        private List<int> _clickedButtons = new();
         private int[] _lastMove = new int[0];
         private int _movesCount;
         private PieceColor _movingSideColor = PieceColor.White;
@@ -28,6 +28,8 @@ namespace Chess
         public int InitialButtonSize { get; } = Screen.PrimaryScreen.WorkingArea.Height / 16;
 
         public int ButtonSize { get; private set; }
+
+        public int[] UserMove { get; private set; }
 
         public BoardPanel(GameForm form)
         {
@@ -51,7 +53,7 @@ namespace Chess
             Height = Width;
             MinimumSize = new Size(Width, Height);
             MaximumSize = MinimumSize;
-           
+
             var buttonColor = LightSquaresColor;
             var buttonX = shift;
             var buttonY = shift;
@@ -87,7 +89,7 @@ namespace Chess
                 buttonColor = buttonColor == LightSquaresColor ? DarkSquaresColor : LightSquaresColor;
                 buttonX += ButtonSize;
                 buttonY = shift;
-            }      
+            }
         }
 
         public void SetSizeAndColors(int buttonSize, Color lightSquaresColor, Color darkSquaresColor)
@@ -110,10 +112,10 @@ namespace Chess
             _movingSideColor = PieceColor.White;
             _programMadeMove = false;
 
-            var whiteMaterial = new string[3] { "King", "Rook", "Rook" };
-            var whitePositions = new string[3] { "e1", "a1", "h1" };
-            var blackMaterial = new string[3] { "King", "Rook", "Rook" };
-            var blackPositions = new string[3] { "e8", "a8", "h8" };
+            var whiteMaterial = new string[11] { "King", "Rook", "Rook", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn" };
+            var whitePositions = new string[11] { "e1", "a1", "h1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
+            var blackMaterial = new string[11] { "King", "Rook", "Rook", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn" };
+            var blackPositions = new string[11] { "e8", "a8", "h8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
             _gameBoard.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, _movingSideColor);
             _whiteThinkingBoard = new ChessBoard(_gameBoard);
             _blackThinkingBoard = new ChessBoard(_gameBoard);
@@ -187,9 +189,10 @@ namespace Chess
             RemoveHighlightAt(_clickedButtons[0], _clickedButtons[1]);
             _clickedButtons.Add(x);
             _clickedButtons.Add(y);
-            var move = _clickedButtons.ToArray();
+            UserMove = new int[5];
+            Array.Copy(_clickedButtons.ToArray(), UserMove, 4);
             _clickedButtons.Clear();
-            MakeMove(move);
+            MakeMove(UserMove);
         }
 
         public void MakeMove(int[] move)
@@ -199,9 +202,15 @@ namespace Chess
                 _gameBoard.MakeMove(move);
             }
 
-            catch (Exception exception) // На случай, если ход не по правилам.
+            catch (IllegalMoveException exception) // На случай, если ход не по правилам.
             {
                 _form.ShowMessage(exception.Message);
+                return;
+            }
+
+            catch (NewPieceNotSelectedException)
+            {
+                new NewPieceMenu(this).Show(Cursor.Position.X, Cursor.Position.Y);
                 return;
             }
 
@@ -248,6 +257,12 @@ namespace Chess
                 _think = new Thread(Think);
                 _think.Start();
             }
+        }
+
+        public void SelectNewPiece(int newPieceIndex)
+        {
+            UserMove[4] = newPieceIndex;
+            MakeMove(UserMove);
         }
 
         public void RenewButtonsView(RenewMode renewMode)
@@ -335,5 +350,7 @@ namespace Chess
         public void RemoveHighlightAt(int x, int y) => _buttons[x, y].RemoveHighlight();
 
         public bool GameIsOver => _gameBoard.Status != GameStatus.GameCanContinue;
+
+        public PieceColor MovingSideColor => _movingSideColor;
     }
 }

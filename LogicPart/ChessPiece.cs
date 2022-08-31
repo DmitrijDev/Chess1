@@ -34,7 +34,7 @@ namespace Chess.LogicPart
 
         protected abstract List<Square> GetNewAttackedSquares();
 
-        // Реализация для всех фигур, кроме пешки и короля
+        // Реализация для всех фигур, кроме пешки и короля.
         public virtual List<Square> GetLegalMoveSquares()
         {
             var result = GetAttackedSquares().Where(square => square.IsEmpty || square.ContainedPiece.Color != Color).ToList();
@@ -47,14 +47,14 @@ namespace Chess.LogicPart
             return result;
         }
 
-        // Реализация для всех фигур, кроме короля
+        // Реализация для всех фигур, кроме короля.
         protected virtual List<Square> FilterSafeForKingMoves(List<Square> list)
         {
             var result = new List<Square>(list);
 
             if (FriendlyKing.IsMenaced())
             {
-                if (FriendlyKing.GetMenaces().Count > 1)
+                if (FriendlyKing.GetMenaces().Count > 1) // От двойного шаха не закроешься, и две фигуры одним ходом не возьмешь.
                 {
                     result.Clear();
                     return result;
@@ -76,7 +76,12 @@ namespace Chess.LogicPart
                     (menacingPiece.Vertical < square.Vertical && FriendlyKing.Vertical > square.Vertical))).ToList();
                 }
 
-                // Пока есть только короли и ладьи - можно рассматривать только горизонтальные и вертикальные шахи.
+                if (menacingPiece is Pawn)
+                {
+                    result.Clear();
+                }
+
+                // Пока нет ферзей, коней и слонов.
 
                 if (list.Contains(menacingPiece.Position))
                 {

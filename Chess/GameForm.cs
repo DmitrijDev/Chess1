@@ -6,8 +6,8 @@ namespace Chess
 {
     public partial class GameForm : Form
     {
-        private readonly MenuPanel _menuPanel;
-        private readonly BoardPanel _boardPanel;
+        private MenuPanel _menuPanel;
+        private BoardPanel _boardPanel;
 
         public VirtualPlayer WhiteVirtualPlayer { get; private set; } //= new VirtualPlayer(Strategies.SelectMoveForVirtualFool);
         // == null, если за эту сторону играет пользователь.
@@ -24,7 +24,11 @@ namespace Chess
             InitializeComponent();
             Text = "";
             BackColor = Color.LightBlue;
+            SetControls();            
+        }
 
+        public void SetControls()
+        {
             _boardPanel = new BoardPanel(this);
             _menuPanel = new MenuPanel(this);
 
@@ -34,7 +38,7 @@ namespace Chess
 
             _boardPanel.Location = new Point(_shift, _menuPanel.Height + _shift);
             Width = 0;
-            Height = 0;            
+            Height = 0;
             Controls.Add(_boardPanel);
             var minWidth = Width;
             var minHeight = Height;

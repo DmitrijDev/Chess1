@@ -7,7 +7,13 @@ namespace Chess.LogicPart
 
         public Square MoveSquare { get; }
 
+        public ChessPiece NewPiece { get; } // ==null, если ход не явл. превращением пешки.
+
         public bool IsCapture { get; }
+
+        public bool IsPawnMove { get; }
+
+        public bool IsPawnPromotion { get; }
 
         public bool IsCastleKingside { get; }
 
@@ -19,8 +25,15 @@ namespace Chess.LogicPart
             MoveSquare = moveSquare;
 
             IsCapture = !moveSquare.IsEmpty;
+            IsPawnMove = movingPiece is Pawn;
             IsCastleKingside = movingPiece is King && moveSquare.Vertical - movingPiece.Vertical == 2;
             IsCastleQueenside = movingPiece is King && movingPiece.Vertical - moveSquare.Vertical == 2;
+        }
+
+        public Move(ChessPiece movingPiece, Square moveSquare, ChessPiece newPiece) : this(movingPiece, moveSquare)
+        {
+            NewPiece = newPiece;
+            IsPawnPromotion = movingPiece is Pawn && newPiece != null;
         }
     }
 }
