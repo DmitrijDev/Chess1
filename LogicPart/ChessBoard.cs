@@ -187,7 +187,7 @@ namespace Chess.LogicPart
                 throw new ArgumentException("Не указано имя фигуры");
             }
 
-            var pieces = new ChessPiece[3] { new King(color), new Rook(color), new Pawn(color) }; // Других фигур пока нет.
+            var pieces = new ChessPiece[4] { new King(color), new Rook(color), new Bishop(color), new Pawn(color) }; // Других фигур пока нет.
             var trimmedName = SharedItems.RemoveSpacesAndToLower(name);
 
             foreach (var piece in pieces)
@@ -294,7 +294,8 @@ namespace Chess.LogicPart
                     }
                     else
                     {
-                        _legalMoves.Add(new Move(piece, square, new Rook(piece.Color))); // Пешки пока превращаются только в ладьи.
+                        _legalMoves.Add(new Move(piece, square, new Rook(piece.Color)));
+                        _legalMoves.Add(new Move(piece, square, new Bishop(piece.Color)));
                     }
                 }
             }
@@ -303,8 +304,65 @@ namespace Chess.LogicPart
             return _legalMoves;
         }
 
-        // Пока нет других фигур, кроме королей, ладей и пешек - ничья фиксируется только если остались одни короли.
-        public bool IsDrawByMaterial() => White.Material.Count + Black.Material.Count == 2;
+        public bool IsDrawByMaterial()
+        {
+            if (White.Material.Count + Black.Material.Count == 2)
+            {
+                return true;
+            }
+
+            if (White.Material.Count + Black.Material.Count == 3)
+            {
+                return White.Material.All(piece => piece is King || piece is Bishop) && Black.Material.All(piece => piece is King || piece is Bishop);
+            }
+
+            var lightSquaredBishopsPresent = false;
+            var darkSquaredBishopsPresent = false;
+
+            foreach (var piece in White.Material)
+            {
+                if (piece is Bishop)
+                {
+                    var bishop = (Bishop)piece;
+
+                    if (bishop.IsLightSquared)
+                    {
+                        lightSquaredBishopsPresent = true;
+                    }
+                    else
+                    {
+                        darkSquaredBishopsPresent = true;
+                    }
+                }
+                else if (piece is not King)
+                {
+                    return false;
+                }
+            }
+
+            foreach (var piece in Black.Material)
+            {
+                if (piece is Bishop)
+                {
+                    var bishop = (Bishop)piece;
+
+                    if (bishop.IsLightSquared)
+                    {
+                        lightSquaredBishopsPresent = true;
+                    }
+                    else
+                    {
+                        darkSquaredBishopsPresent = true;
+                    }
+                }
+                else if (piece is not King)
+                {
+                    return false;
+                }
+            }
+
+            return !lightSquaredBishopsPresent || !darkSquaredBishopsPresent;
+        }
 
         public bool IsDrawByThreeRepeats()
         {
@@ -385,7 +443,7 @@ namespace Chess.LogicPart
                     MovingSide == White ? _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal - 1].ContainedPiece :
                     _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal + 1].ContainedPiece;
 
-                move.CapturedPiece.Position = null; 
+                move.CapturedPiece.Position = null;
                 MovingSide.Enemy.Material.Remove(move.CapturedPiece);
             }
 
@@ -428,7 +486,7 @@ namespace Chess.LogicPart
                 {
                     _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal - 1].IsLegalForEnPassantCapture = true;
                 }
-                else 
+                else
                 {
                     _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal + 1].IsLegalForEnPassantCapture = true;
                 }

@@ -61,7 +61,10 @@ namespace Chess.LogicPart
                     result = result.Where(square => square.Horizontal != Horizontal || square == menacingPiece.Position).ToList();
                 }
 
-                // Пока нет ни ферзя, ни слона - диагональные шахи можно не рассматривать.
+                if (IsOnSameDiagonal(menacingPiece) && menacingPiece is not Pawn)
+                {
+                    result = result.Where(square => !square.IsOnSameDiagonal(menacingPiece) || square == menacingPiece.Position).ToList();
+                }
             }
 
             return result;

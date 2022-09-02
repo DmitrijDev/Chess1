@@ -76,12 +76,17 @@ namespace Chess.LogicPart
                     (menacingPiece.Vertical < square.Vertical && FriendlyKing.Vertical > square.Vertical))).ToList();
                 }
 
+                if (menacingPiece.IsOnSameDiagonal(FriendlyKing) && menacingPiece is not Pawn)
+                {
+                    result = result.Where(square => square.IsOnSameDiagonal(FriendlyKing) && square.IsOnSameDiagonal(menacingPiece) &&
+                    ((FriendlyKing.Vertical < square.Vertical && menacingPiece.Vertical > square.Vertical) ||
+                    (menacingPiece.Vertical < square.Vertical && FriendlyKing.Vertical > square.Vertical))).ToList();
+                }
+
                 if (menacingPiece is Pawn)
                 {
                     result.Clear();
                 }
-
-                // Пока нет ферзей, коней и слонов.
 
                 if (list.Contains(menacingPiece.Position))
                 {
@@ -101,7 +106,20 @@ namespace Chess.LogicPart
 
             if (IsPinnedHorizontally())
             {
-                result = result.Where(square => square.Horizontal == Horizontal).ToList();
+                return result.Where(square => square.Horizontal == Horizontal).ToList();
+            }
+
+            if (!IsOnSameDiagonal(FriendlyKing))
+            {
+                return result;
+            }
+
+            foreach (var enemyPiece in FriendlySide.Enemy.Material)
+            {
+                if (IsPinnedByDiagonal(enemyPiece))
+                {
+                    return result.Where(square => square.IsOnSameDiagonal(FriendlyKing) && square.IsOnSameDiagonal(enemyPiece)).ToList();
+                }
             }
 
             return result;
@@ -176,6 +194,40 @@ namespace Chess.LogicPart
 
             return true;
         }
+
+        private bool IsPinnedByDiagonal(ChessPiece enemyPiece)
+        {
+            if (enemyPiece is not Bishop)
+            {
+                return false;
+            }
+
+            if (!(enemyPiece.IsOnSameDiagonal(FriendlyKing) && IsOnSameDiagonal(enemyPiece)))
+            {
+                return false;
+            }
+
+            if (!(FriendlyKing.Vertical < Vertical && enemyPiece.Vertical > Vertical) && !(enemyPiece.Vertical < Vertical && FriendlyKing.Vertical > Vertical))
+            {
+                return false;
+            }
+
+            var leftPiece = FriendlyKing.Vertical < Vertical ? FriendlyKing : enemyPiece;
+            var rightPiece = FriendlyKing.Vertical > Vertical ? FriendlyKing : enemyPiece;
+
+            for (int i = leftPiece.Vertical + 1, j = rightPiece.Horizontal > leftPiece.Horizontal ? leftPiece.Horizontal + 1 : leftPiece.Horizontal - 1;
+                i < rightPiece.Vertical; ++i, j = rightPiece.Horizontal > leftPiece.Horizontal ? j + 1 : j - 1)
+            {
+                if (!Board[i, j].IsEmpty && i != Vertical)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        protected bool IsOnSameDiagonal(ChessPiece otherPiece) => _position != null && otherPiece != null && _position.IsOnSameDiagonal(otherPiece._position);
 
         public bool IsMenaced() => FriendlySide == Board.MovingSide && _position.IsMenaced();
 

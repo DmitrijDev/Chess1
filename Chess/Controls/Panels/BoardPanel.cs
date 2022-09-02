@@ -118,10 +118,10 @@ namespace Chess
             _movingSideColor = PieceColor.White;
             _programMadeMove = false;
 
-            var whiteMaterial = new string[11] { "King", "Rook", "Rook", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn" };
-            var whitePositions = new string[11] { "e1", "a1", "h1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
-            var blackMaterial = new string[11] { "King", "Rook", "Rook", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn" };
-            var blackPositions = new string[11] { "e8", "a8", "h8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
+            var whiteMaterial = new string[13] { "King", "Rook", "Rook", "Bishop", "Bishop", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn" };
+            var whitePositions = new string[13] { "e1", "a1", "h1", "c1", "f1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
+            var blackMaterial = new string[13] { "King", "Rook", "Rook", "Bishop", "Bishop", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn" };
+            var blackPositions = new string[13] { "e8", "a8", "h8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
             _gameBoard.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, _movingSideColor);
             _programThinkingBoard = new ChessBoard(_gameBoard);
 

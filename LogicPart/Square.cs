@@ -52,7 +52,9 @@ namespace Chess.LogicPart
             return _lastMenacesListClearMoment == Board.MovesCount && _menaces.Count > 0;
         }
 
-        public override string ToString() => Name;
+        public bool IsOnSameDiagonal(Square otherSquare) => otherSquare != null && Math.Abs(Vertical - otherSquare.Vertical) == Math.Abs(Horizontal - otherSquare.Horizontal);
+
+        public bool IsOnSameDiagonal(ChessPiece piece) => piece != null && IsOnSameDiagonal(piece.Position);
 
         public string Name
         {
