@@ -73,14 +73,14 @@ namespace Chess.LogicPart
 
             return result;
         }
-
+      
         public override string EnglishName => "Pawn";
 
         public override string RussianName => "Пешка";
 
-        public override string ShortEnglishName => "p";
+        public override string ShortEnglishName => "";
 
-        public override string ShortRussianName => "п";
+        public override string ShortRussianName => "";
 
         public override int NumeralIndex => Color == PieceColor.White ? 6 : 12;
     }

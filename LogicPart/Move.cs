@@ -33,7 +33,7 @@ namespace Chess.LogicPart
         public Move(ChessPiece movingPiece, Square moveSquare, ChessPiece newPiece) : this(movingPiece, moveSquare)
         {
             NewPiece = newPiece;
-            IsPawnPromotion = movingPiece is Pawn && newPiece != null;
+            IsPawnPromotion = newPiece != null;
         }
     }
 }

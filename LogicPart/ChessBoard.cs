@@ -50,6 +50,13 @@ namespace Chess.LogicPart
             var blackMaterial = otherBoard.Black.Material.Select(piece => piece.RussianName);
             var blackPositions = otherBoard.Black.Material.Select(piece => piece.Position.Name);
             SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, otherBoard.MovingSide.Color);
+
+            _positions = new List<GamePosition>(otherBoard._positions);
+            MovingSide = otherBoard.MovingSide == otherBoard.White ? White : Black;
+
+            MovesCount = otherBoard.MovesCount;
+            MovesAfterCaptureOrPawnMoveCount = otherBoard.MovesAfterCaptureOrPawnMoveCount;
+            Status = otherBoard.Status;
         }
 
         internal Square this[int vertical, int horizontal]
@@ -119,7 +126,7 @@ namespace Chess.LogicPart
 
                     if (material[i] is King)
                     {
-                        White.King = (King) material[i];
+                        White.King = (King)material[i];
                     }
                 }
                 else
@@ -128,7 +135,7 @@ namespace Chess.LogicPart
 
                     if (material[i] is King)
                     {
-                        Black.King = (King) material[i];
+                        Black.King = (King)material[i];
                     }
                 }
             }
@@ -180,14 +187,13 @@ namespace Chess.LogicPart
 
             foreach (var piece in pieces)
             {
-                if (SharedItems.RemoveSpacesAndToLower(piece.EnglishName) == trimmedName || SharedItems.RemoveSpacesAndToLower(piece.RussianName) == trimmedName
-                    || SharedItems.RemoveSpacesAndToLower(piece.ShortEnglishName) == trimmedName || SharedItems.RemoveSpacesAndToLower(piece.ShortRussianName) == trimmedName)
+                if (SharedItems.RemoveSpacesAndToLower(piece.EnglishName) == trimmedName || SharedItems.RemoveSpacesAndToLower(piece.RussianName) == trimmedName)
                 {
                     return piece;
                 }
             }
 
-            throw new ArgumentException("Фигуры с указанным именем не существует");
+            throw new ArgumentException("Фигуры с указанным полным именем не существует");
         }
 
         public void Clear()

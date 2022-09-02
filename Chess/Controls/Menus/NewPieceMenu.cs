@@ -6,15 +6,15 @@ namespace Chess
     {
         private readonly BoardPanel _boardPanel;
 
-        internal NewPieceMenu(BoardPanel boardPanel)
+        public NewPieceMenu(BoardPanel boardPanel)
         {
             _boardPanel = boardPanel;
             var items = new ToolStripMenuItem[1] { new ToolStripMenuItem("Ладья") };
             Items.AddRange(items);
-            Array.ForEach(items, item => item.Click += new EventHandler(SelectNewPiece));
+            Array.ForEach(items, item => item.Click += new EventHandler(PromotePawn));
         }
 
-        public void SelectNewPiece(object sender, EventArgs e)
+        private void PromotePawn(object sender, EventArgs e)
         {
             var menuItem = (ToolStripMenuItem) sender;
             var texts = new string[6] { "", "", "Ферзь", "Ладья", "Конь", "Слон" };
@@ -34,7 +34,7 @@ namespace Chess
                 newPieceIndex += 6;
             }
 
-            _boardPanel.SelectNewPiece(newPieceIndex);
+            _boardPanel.PromotePawn(newPieceIndex);
         }
     }
 }

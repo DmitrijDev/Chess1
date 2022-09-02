@@ -19,7 +19,7 @@ namespace Chess.LogicPart
             Board = board;
             Vertical = vertical;
             Horizontal = horizontal;
-        }
+        }        
 
         public void SetDefaultValues()
         {

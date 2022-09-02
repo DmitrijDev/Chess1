@@ -118,7 +118,7 @@ namespace Chess.LogicPart
 
             return true;
         }
-
+      
         public override string EnglishName => "King";
 
         public override string RussianName => "Король";

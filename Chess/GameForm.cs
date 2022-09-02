@@ -1,5 +1,4 @@
 using Chess.LogicPart;
-using Chess.Players;
 using Timer = System.Windows.Forms.Timer;
 
 namespace Chess
@@ -8,12 +7,6 @@ namespace Chess
     {
         private MenuPanel _menuPanel;
         private BoardPanel _boardPanel;
-
-        public VirtualPlayer WhiteVirtualPlayer { get; private set; } //= new VirtualPlayer(Strategies.SelectMoveForVirtualFool);
-        // == null, если за эту сторону играет пользователь.
-
-        public VirtualPlayer BlackVirtualPlayer { get; private set; } = new VirtualPlayer(Strategies.SelectMoveForVirtualFool);
-        //Аналогично.
 
         public bool HidesMenus { get; set; }
 
@@ -24,7 +17,7 @@ namespace Chess
             InitializeComponent();
             Text = "";
             BackColor = Color.LightBlue;
-            SetControls();            
+            SetControls();
         }
 
         public void SetControls()
@@ -32,18 +25,18 @@ namespace Chess
             _boardPanel = new BoardPanel(this);
             _menuPanel = new MenuPanel(this);
 
-            var _shift = Screen.PrimaryScreen.WorkingArea.Height / 16;
+            var shift = Screen.PrimaryScreen.WorkingArea.Height / 16;
             AutoSize = true;
             AutoSizeMode = AutoSizeMode.GrowOnly;
 
-            _boardPanel.Location = new Point(_shift, _menuPanel.Height + _shift);
+            _boardPanel.Location = new Point(shift, _menuPanel.Height + shift);
             Width = 0;
             Height = 0;
             Controls.Add(_boardPanel);
             var minWidth = Width;
             var minHeight = Height;
-            Width += _shift;
-            Height += _shift;
+            Width += shift;
+            Height += shift;
             MinimumSize = new Size(Width, Height);
             MaximumSize = new Size(Width, Height);
 
@@ -57,9 +50,8 @@ namespace Chess
 
         public void StartNewGame() => _boardPanel.StartNewGame();
 
-        public void ShowMessage(string message) => MessageBox.Show(message, "", MessageBoxButtons.OK);
+        public void ChangePlayer(PieceColor pieceColor) => _boardPanel.ChangePlayer(pieceColor);
 
-        public bool ProgramPlaysFor(PieceColor color) => color == PieceColor.White ? WhiteVirtualPlayer != null : BlackVirtualPlayer != null;
-        // Программа может играть и сама с собой.
+        public void ShowMessage(string message) => MessageBox.Show(message, "", MessageBoxButtons.OK);        
     }
 }

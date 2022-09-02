@@ -20,6 +20,6 @@ namespace Chess
             hideMenusItem.Click += new EventHandler(ChangeHideMenusItemState);            
         }
 
-        public void ChangeHideMenusItemState(object sender, EventArgs e) => _form.HidesMenus = !_form.HidesMenus;
+        private void ChangeHideMenusItemState(object sender, EventArgs e) => _form.HidesMenus = !_form.HidesMenus;
     }
 }

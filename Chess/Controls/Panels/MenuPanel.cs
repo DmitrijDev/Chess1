@@ -20,7 +20,7 @@ namespace Chess
             _form.MouseMove += new MouseEventHandler(MovePanel);
         }
 
-        public void MovePanel(object sender, EventArgs e)
+        private void MovePanel(object sender, EventArgs e)
         {
             if (!_form.HidesMenus)
             {
@@ -39,6 +39,6 @@ namespace Chess
             }
         }
 
-        public void ChangeWidth(object sender, EventArgs e) => Width = _form.Width;
+        private void ChangeWidth(object sender, EventArgs e) => Width = _form.Width;
     }
 }
