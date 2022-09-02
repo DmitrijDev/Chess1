@@ -39,12 +39,12 @@ namespace Chess.LogicPart
         {
             var result = GetAttackedSquares().Where(square => square.IsEmpty || square.ContainedPiece.Color != Color).ToList();
 
-            if (result.Count > 0)
+            if (result.Count == 0)
             {
-                return FilterSafeForKingMoves(result);
+                return result;
             }
 
-            return result;
+            return FilterSafeForKingMoves(result);
         }
 
         // Реализация для всех фигур, кроме короля.
@@ -143,7 +143,7 @@ namespace Chess.LogicPart
                 }
             }
 
-            if (nearestPiece == null || nearestPiece is not Rook || nearestPiece.Color == Color)
+            if (nearestPiece == null || (nearestPiece is not Queen && nearestPiece is not Rook) || nearestPiece.Color == Color)
             {
                 return false;
             }
@@ -178,7 +178,7 @@ namespace Chess.LogicPart
                 }
             }
 
-            if (nearestPiece == null || nearestPiece is not Rook || nearestPiece.Color == Color)
+            if (nearestPiece == null || (nearestPiece is not Queen && nearestPiece is not Rook) || nearestPiece.Color == Color)
             {
                 return false;
             }
@@ -197,7 +197,7 @@ namespace Chess.LogicPart
 
         private bool IsPinnedByDiagonal(ChessPiece enemyPiece)
         {
-            if (enemyPiece is not Bishop)
+            if (enemyPiece is not Queen && enemyPiece is not Bishop)
             {
                 return false;
             }

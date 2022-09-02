@@ -9,7 +9,7 @@ namespace Chess
         public NewPieceMenu(BoardPanel boardPanel)
         {
             _boardPanel = boardPanel;
-            var items = new ToolStripMenuItem[2] { new ToolStripMenuItem("Ладья"), new ToolStripMenuItem("Слон") };
+            var items = new ToolStripMenuItem[3] { new ToolStripMenuItem("Ферзь"), new ToolStripMenuItem("Ладья"), new ToolStripMenuItem("Слон") };
             Items.AddRange(items);
             Array.ForEach(items, item => item.Click += new EventHandler(PromotePawn));
         }

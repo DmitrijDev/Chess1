@@ -79,7 +79,6 @@ namespace Chess.LogicPart
 
         public void SetPosition(IEnumerable<string> whiteMaterial, IEnumerable<string> whitePositions, IEnumerable<string> blackMaterial, IEnumerable<string> blackPositions,
             PieceColor movingSide)
-
         {
             var whiteMaterialArray = whiteMaterial.Select(name => GetNewPiece(name, PieceColor.White)).ToArray();
             var whitePositionsArray = whitePositions.ToArray();
@@ -187,7 +186,7 @@ namespace Chess.LogicPart
                 throw new ArgumentException("Не указано имя фигуры");
             }
 
-            var pieces = new ChessPiece[4] { new King(color), new Rook(color), new Bishop(color), new Pawn(color) }; // Других фигур пока нет.
+            var pieces = new ChessPiece[5] { new King(color), new Queen(color), new Rook(color), new Bishop(color), new Pawn(color) }; // Других фигур пока нет.
             var trimmedName = SharedItems.RemoveSpacesAndToLower(name);
 
             foreach (var piece in pieces)
@@ -294,6 +293,7 @@ namespace Chess.LogicPart
                     }
                     else
                     {
+                        _legalMoves.Add(new Move(piece, square, new Queen(piece.Color)));
                         _legalMoves.Add(new Move(piece, square, new Rook(piece.Color)));
                         _legalMoves.Add(new Move(piece, square, new Bishop(piece.Color)));
                     }

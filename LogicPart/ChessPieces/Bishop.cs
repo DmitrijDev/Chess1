@@ -1,6 +1,4 @@
 ﻿
-using System.Drawing;
-
 namespace Chess.LogicPart
 {
     internal class Bishop : ChessPiece
