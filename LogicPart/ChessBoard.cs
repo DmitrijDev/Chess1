@@ -43,20 +43,19 @@ namespace Chess.LogicPart
             SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, movingSide);
         }
 
-        public ChessBoard(ChessBoard otherBoard) : this()
+        public ChessBoard(ChessBoard sourceBoard) : this()
         {
-            var whiteMaterial = otherBoard.White.Material.Select(piece => piece.RussianName);
-            var whitePositions = otherBoard.White.Material.Select(piece => piece.Position.Name);
-            var blackMaterial = otherBoard.Black.Material.Select(piece => piece.RussianName);
-            var blackPositions = otherBoard.Black.Material.Select(piece => piece.Position.Name);
-            SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, otherBoard.MovingSide.Color);
+            var whiteMaterial = sourceBoard.White.Material.Select(piece => piece.Copy());
+            var whitePositions = sourceBoard.White.Material.Select(piece => piece.Position.Name);
+            var blackMaterial = sourceBoard.Black.Material.Select(piece => piece.Copy());
+            var blackPositions = sourceBoard.Black.Material.Select(piece => piece.Position.Name);
+            SetPosition(whiteMaterial.Concat(blackMaterial).ToArray(), whitePositions.Concat(blackPositions).ToArray(), sourceBoard.MovingSideColor);
 
-            _positions = new List<GamePosition>(otherBoard._positions);
-            MovingSide = otherBoard.MovingSide == otherBoard.White ? White : Black;
+            _positions.Clear();
+            Array.ForEach(sourceBoard._positions.ToArray(), position => _positions.Add(new GamePosition(position)));
 
-            MovesCount = otherBoard.MovesCount;
-            MovesAfterCaptureOrPawnMoveCount = otherBoard.MovesAfterCaptureOrPawnMoveCount;
-            Status = otherBoard.Status;
+            MovesCount = sourceBoard.MovesCount;
+            MovesAfterCaptureOrPawnMoveCount = sourceBoard.MovesAfterCaptureOrPawnMoveCount;
         }
 
         internal Square this[int vertical, int horizontal]

@@ -52,6 +52,13 @@ namespace Chess.LogicPart
             return result;
         }
 
+        public override ChessPiece Copy()
+        {
+            var newRook = new Rook(Color);
+            newRook.HasMoved = HasMoved;
+            return newRook;
+        }
+
         public override string EnglishName => "Rook";
 
         public override string RussianName => "Ладья";

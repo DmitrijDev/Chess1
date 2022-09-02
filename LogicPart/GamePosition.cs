@@ -5,7 +5,7 @@ namespace Chess.LogicPart
     {
         private readonly int[,] _board = new int[8, 8];
 
-        public PieceColor MovingSide { get; private set; }
+        public PieceColor MovingSideColor { get; private set; }
 
         public GamePosition(ChessBoard board)
         {
@@ -17,7 +17,20 @@ namespace Chess.LogicPart
                 }
             }
 
-            MovingSide = board.MovingSideColor;
+            MovingSideColor = board.MovingSideColor;
+        }
+
+        public GamePosition(GamePosition sourcePosition)
+        {
+            for (var i = 0; i < 8; ++i)
+            {
+                for (var j = 0; j < 8; ++j)
+                {
+                    _board[i, j] = sourcePosition._board[i, j];
+                }
+            }
+
+            MovingSideColor = sourcePosition.MovingSideColor;
         }
 
         public int this[int vertical, int horizontal]
@@ -47,7 +60,7 @@ namespace Chess.LogicPart
 
             var otherPosition = (GamePosition) obj;
 
-            if (otherPosition.MovingSide != MovingSide)
+            if (otherPosition.MovingSideColor != MovingSideColor)
             {
                 return false;
             }

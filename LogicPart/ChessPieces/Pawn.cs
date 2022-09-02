@@ -73,7 +73,14 @@ namespace Chess.LogicPart
 
             return result;
         }
-      
+
+        public override ChessPiece Copy()
+        {
+            var newPawn = new Pawn(Color);
+            newPawn.HasMoved = HasMoved;
+            return newPawn;
+        }
+
         public override string EnglishName => "Pawn";
 
         public override string RussianName => "Пешка";

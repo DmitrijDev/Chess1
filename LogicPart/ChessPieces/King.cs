@@ -118,7 +118,14 @@ namespace Chess.LogicPart
 
             return true;
         }
-      
+
+        public override ChessPiece Copy()
+        {
+            var newKing = new King(Color);
+            newKing.HasMoved = HasMoved;
+            return newKing;
+        }
+
         public override string EnglishName => "King";
 
         public override string RussianName => "Король";

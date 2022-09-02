@@ -181,6 +181,8 @@ namespace Chess.LogicPart
 
         public List<ChessPiece> GetMenaces() => FriendlySide == Board.MovingSide ? _position.GetMenaces() : new List<ChessPiece>();
 
+        public abstract ChessPiece Copy();
+
         public Square Position
         {
             get => _position;
