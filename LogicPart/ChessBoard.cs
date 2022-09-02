@@ -51,6 +51,12 @@ namespace Chess.LogicPart
             var blackPositions = sourceBoard.Black.Material.Select(piece => piece.Position.Name);
             SetPosition(whiteMaterial.Concat(blackMaterial).ToArray(), whitePositions.Concat(blackPositions).ToArray(), sourceBoard.MovingSideColor);
 
+            for (var i = 0; i < 8; ++i)
+            {
+                _board[i, 2].IsLegalForEnPassantCapture = sourceBoard._board[i, 2].IsLegalForEnPassantCapture;
+                _board[i, 5].IsLegalForEnPassantCapture = sourceBoard._board[i, 5].IsLegalForEnPassantCapture;
+            }
+
             _positions.Clear();
             Array.ForEach(sourceBoard._positions.ToArray(), position => _positions.Add(new GamePosition(position)));
 
@@ -373,9 +379,14 @@ namespace Chess.LogicPart
 
         private void MakeMove(Move move)
         {
-            if (move.IsCapture) // Когда будут пешки - рассмотреть здесь еще взятие на проходе.
+            if (move.IsCapture)
             {
-                MovingSide.Enemy.Material.Remove(move.MoveSquare.ContainedPiece);
+                move.CapturedPiece = !move.IsEnPassantCapture ? move.MoveSquare.ContainedPiece :
+                    MovingSide == White ? _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal - 1].ContainedPiece :
+                    _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal + 1].ContainedPiece;
+
+                move.CapturedPiece.Position = null; 
+                MovingSide.Enemy.Material.Remove(move.CapturedPiece);
             }
 
             if (!move.IsPawnPromotion)
@@ -405,7 +416,23 @@ namespace Chess.LogicPart
                 rook.HasMoved = true;
             }
 
-            // Когда будут пешки - рассмотреть здесь: какие поля теперь доступны для взятия на проходе.
+            for (var i = 0; i < 8; ++i)
+            {
+                _board[i, 2].IsLegalForEnPassantCapture = false;
+                _board[i, 5].IsLegalForEnPassantCapture = false;
+            }
+
+            if (move.IsPawnJump)
+            {
+                if (MovingSide == White)
+                {
+                    _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal - 1].IsLegalForEnPassantCapture = true;
+                }
+                else 
+                {
+                    _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal + 1].IsLegalForEnPassantCapture = true;
+                }
+            }
 
             MovingSide = MovingSide.Enemy;
 

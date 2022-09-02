@@ -14,12 +14,14 @@ namespace Chess.LogicPart
 
         public int Horizontal { get; }
 
+        public bool IsLegalForEnPassantCapture { get; set; }
+
         public Square(ChessBoard board, int vertical, int horizontal)
         {
             Board = board;
             Vertical = vertical;
             Horizontal = horizontal;
-        }        
+        }
 
         public void SetDefaultValues()
         {

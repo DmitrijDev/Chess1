@@ -39,7 +39,7 @@ namespace Chess.LogicPart
 
         public override List<Square> GetLegalMoveSquares()
         {
-            var result = GetAttackedSquares().Where(square => !square.IsEmpty && square.ContainedPiece.Color != Color).ToList();
+            var result = GetAttackedSquares().Where(square => (!square.IsEmpty && square.ContainedPiece.Color != Color) || square.IsLegalForEnPassantCapture).ToList();
 
             if (Color == PieceColor.White)
             {
