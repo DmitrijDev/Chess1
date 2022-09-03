@@ -66,12 +66,12 @@ namespace Chess.LogicPart
                 }
             }
 
-            if (result.Count > 0)
+            if (result.Count == 0)
             {
-                return FilterSafeForKingMoves(result);
+                return result;
             }
 
-            return result;
+            return FilterSafeForKingMoves(result);
         }
 
         public override ChessPiece Copy()

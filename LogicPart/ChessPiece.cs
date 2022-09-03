@@ -83,7 +83,7 @@ namespace Chess.LogicPart
                     (menacingPiece.Vertical < square.Vertical && FriendlyKing.Vertical > square.Vertical))).ToList();
                 }
 
-                if (menacingPiece is Pawn)
+                if (menacingPiece is Knight || menacingPiece is Pawn)
                 {
                     result.Clear();
                 }

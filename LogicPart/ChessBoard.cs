@@ -186,7 +186,7 @@ namespace Chess.LogicPart
                 throw new ArgumentException("Не указано имя фигуры");
             }
 
-            var pieces = new ChessPiece[5] { new King(color), new Queen(color), new Rook(color), new Bishop(color), new Pawn(color) }; // Других фигур пока нет.
+            var pieces = new ChessPiece[6] { new King(color), new Queen(color), new Rook(color), new Knight(color), new Bishop(color), new Pawn(color) };
             var trimmedName = SharedItems.RemoveSpacesAndToLower(name);
 
             foreach (var piece in pieces)
@@ -295,6 +295,7 @@ namespace Chess.LogicPart
                     {
                         _legalMoves.Add(new Move(piece, square, new Queen(piece.Color)));
                         _legalMoves.Add(new Move(piece, square, new Rook(piece.Color)));
+                        _legalMoves.Add(new Move(piece, square, new Knight(piece.Color)));
                         _legalMoves.Add(new Move(piece, square, new Bishop(piece.Color)));
                     }
                 }
@@ -313,7 +314,8 @@ namespace Chess.LogicPart
 
             if (White.Material.Count + Black.Material.Count == 3)
             {
-                return White.Material.All(piece => piece is King || piece is Bishop) && Black.Material.All(piece => piece is King || piece is Bishop);
+                return White.Material.All(piece => piece is King || piece is Knight || piece is Bishop)
+                    && Black.Material.All(piece => piece is King || piece is Knight || piece is Bishop);
             }
 
             var lightSquaredBishopsPresent = false;
