@@ -5,13 +5,11 @@ namespace Chess.LogicPart
     {
         public Queen(PieceColor color) => Color = color;
 
-        protected override List<Square> GetNewAttackedSquares()
+        public override IEnumerable<Square> GetAttackedSquares()
         {
-            var result = new List<Square>();
-
             for (var i = Vertical + 1; i < 8; ++i)
             {
-                result.Add(Board[i, Horizontal]);
+                yield return Board[i, Horizontal];
 
                 if (!Board[i, Horizontal].IsEmpty)
                 {
@@ -21,7 +19,7 @@ namespace Chess.LogicPart
 
             for (var i = Vertical - 1; i >= 0; --i)
             {
-                result.Add(Board[i, Horizontal]);
+                yield return Board[i, Horizontal];
 
                 if (!Board[i, Horizontal].IsEmpty)
                 {
@@ -31,7 +29,7 @@ namespace Chess.LogicPart
 
             for (var i = Horizontal + 1; i < 8; ++i)
             {
-                result.Add(Board[Vertical, i]);
+                yield return Board[Vertical, i];
 
                 if (!Board[Vertical, i].IsEmpty)
                 {
@@ -41,7 +39,7 @@ namespace Chess.LogicPart
 
             for (var i = Horizontal - 1; i >= 0; --i)
             {
-                result.Add(Board[Vertical, i]);
+                yield return Board[Vertical, i];
 
                 if (!Board[Vertical, i].IsEmpty)
                 {
@@ -51,7 +49,7 @@ namespace Chess.LogicPart
 
             for (int i = Vertical + 1, j = Horizontal + 1; i < 8 && j < 8; ++i, ++j)
             {
-                result.Add(Board[i, j]);
+                yield return Board[i, j];
 
                 if (!Board[i, j].IsEmpty)
                 {
@@ -61,7 +59,7 @@ namespace Chess.LogicPart
 
             for (int i = Vertical - 1, j = Horizontal - 1; i >= 0 && j >= 0; --i, --j)
             {
-                result.Add(Board[i, j]);
+                yield return Board[i, j];
 
                 if (!Board[i, j].IsEmpty)
                 {
@@ -71,7 +69,7 @@ namespace Chess.LogicPart
 
             for (int i = Vertical + 1, j = Horizontal - 1; i < 8 && j >= 0; ++i, --j)
             {
-                result.Add(Board[i, j]);
+                yield return Board[i, j];
 
                 if (!Board[i, j].IsEmpty)
                 {
@@ -81,21 +79,19 @@ namespace Chess.LogicPart
 
             for (int i = Vertical - 1, j = Horizontal + 1; i >= 0 && j < 8; --i, ++j)
             {
-                result.Add(Board[i, j]);
+                yield return Board[i, j];
 
                 if (!Board[i, j].IsEmpty)
                 {
                     break;
                 }
-            }
-
-            return result;
+            }            
         }
 
         public override ChessPiece Copy()
         {
             var newQueen = new Queen(Color);
-            newQueen.HasMoved = HasMoved;
+            newQueen.FirstMoveMoment = FirstMoveMoment;
             return newQueen;
         }
 

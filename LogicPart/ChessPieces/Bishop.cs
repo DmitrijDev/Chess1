@@ -5,13 +5,11 @@ namespace Chess.LogicPart
     {
         public Bishop(PieceColor color) => Color = color;
 
-        protected override List<Square> GetNewAttackedSquares()
+        public override IEnumerable<Square> GetAttackedSquares()
         {
-            var result = new List<Square>();
-
             for (int i = Vertical + 1, j = Horizontal + 1; i < 8 && j < 8; ++i, ++j)
             {
-                result.Add(Board[i, j]);
+                yield return Board[i, j];
 
                 if (!Board[i, j].IsEmpty)
                 {
@@ -21,7 +19,7 @@ namespace Chess.LogicPart
 
             for (int i = Vertical - 1, j = Horizontal - 1; i >= 0 && j >= 0; --i, --j)
             {
-                result.Add(Board[i, j]);
+                yield return Board[i, j];
 
                 if (!Board[i, j].IsEmpty)
                 {
@@ -31,7 +29,7 @@ namespace Chess.LogicPart
 
             for (int i = Vertical + 1, j = Horizontal - 1; i < 8 && j >= 0; ++i, --j)
             {
-                result.Add(Board[i, j]);
+                yield return Board[i, j];
 
                 if (!Board[i, j].IsEmpty)
                 {
@@ -41,21 +39,19 @@ namespace Chess.LogicPart
 
             for (int i = Vertical - 1, j = Horizontal + 1; i >= 0 && j < 8; --i, ++j)
             {
-                result.Add(Board[i, j]);
+                yield return Board[i, j];
 
                 if (!Board[i, j].IsEmpty)
                 {
                     break;
                 }
             }
-
-            return result;
         }
 
         public override ChessPiece Copy()
         {
             var newBishop = new Bishop(Color);
-            newBishop.HasMoved = HasMoved;
+            newBishop.FirstMoveMoment = FirstMoveMoment;
             return newBishop;
         }
 

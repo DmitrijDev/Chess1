@@ -11,8 +11,8 @@ namespace Chess.Players
                 return null;
             }
 
-            var legalMoves = board.GetLegalMoves();
-            var moveIndex = new Random().Next(legalMoves.Count);
+            var legalMoves = board.LegalMovesToInt().ToArray();
+            var moveIndex = new Random().Next(legalMoves.Length);
             return legalMoves[moveIndex];
         }
     }

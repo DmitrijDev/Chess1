@@ -5,79 +5,80 @@ namespace Chess.LogicPart
     {
         public Pawn(PieceColor color) => Color = color;
 
-        protected override List<Square> GetNewAttackedSquares()
+        public override IEnumerable<Square> GetAttackedSquares()
         {
-            var result = new List<Square>();
-
-            if (Color == PieceColor.White)
+            if (Vertical > 0)
             {
-                if (Vertical > 0)
-                {
-                    result.Add(Board[Vertical - 1, Horizontal + 1]);
-                }
-
-                if (Vertical < 7)
-                {
-                    result.Add(Board[Vertical + 1, Horizontal + 1]);
-                }
-            }
-            else
-            {
-                if (Vertical > 0)
-                {
-                    result.Add(Board[Vertical - 1, Horizontal - 1]);
-                }
-
-                if (Vertical < 7)
-                {
-                    result.Add(Board[Vertical + 1, Horizontal - 1]);
-                }
+                yield return Board[Vertical - 1, Color == PieceColor.White ? Horizontal + 1 : Horizontal - 1];
             }
 
-            return result;
+            if (Vertical < 7)
+            {
+                yield return Board[Vertical + 1, Color == PieceColor.White ? Horizontal + 1 : Horizontal - 1];
+            }
         }
 
-        public override List<Square> GetLegalMoveSquares()
+        public override IEnumerable<Square> GetLegalMoveSquares(bool savesUnsafeForKingSquares, out IEnumerable<Square> unsafeForKingSquares)
         {
-            var result = GetAttackedSquares().Where(square => (!square.IsEmpty && square.ContainedPiece.Color != Color) || square.IsLegalForEnPassantCapture).ToList();
+            if (Board.Status != GameStatus.GameCanContinue || FriendlySide != Board.MovingSide)
+            {
+                unsafeForKingSquares = savesUnsafeForKingSquares ? Enumerable.Empty<Square>() : null;
+                return Enumerable.Empty<Square>();
+            }
+
+            var moveSquares = GetAttackedSquares().
+                Where(square => (!square.IsEmpty && square.ContainedPiece.Color != Color) || square == Board.PassedByPawnSquare);
 
             if (Color == PieceColor.White)
             {
                 if (Board[Vertical, Horizontal + 1].IsEmpty)
                 {
-                    result.Add(Board[Vertical, Horizontal + 1]);
+                    moveSquares = moveSquares.Append(Board[Vertical, Horizontal + 1]);
                 }
 
-                if (Horizontal == 1 && Board[Vertical, Horizontal + 1].IsEmpty && Board[Vertical, Horizontal + 2].IsEmpty)
+                if (Horizontal == 1 && Board[Vertical, 2].IsEmpty && Board[Vertical, 3].IsEmpty)
                 {
-                    result.Add(Board[Vertical, Horizontal + 2]);
+                    moveSquares = moveSquares.Append(Board[Vertical, 3]);
                 }
             }
-            else 
+            else
             {
                 if (Board[Vertical, Horizontal - 1].IsEmpty)
                 {
-                    result.Add(Board[Vertical, Horizontal - 1]);
+                    moveSquares = moveSquares.Append(Board[Vertical, Horizontal - 1]);
                 }
 
-                if (Horizontal == 6 && Board[Vertical, Horizontal - 1].IsEmpty && Board[Vertical, Horizontal - 2].IsEmpty)
+                if (Horizontal == 6 && Board[Vertical, 5].IsEmpty && Board[Vertical, 4].IsEmpty)
                 {
-                    result.Add(Board[Vertical, Horizontal - 2]);
+                    moveSquares = moveSquares.Append(Board[Vertical, 4]);
                 }
             }
 
-            if (result.Count == 0)
-            {
-                return result;
-            }
+            return FilterSafeForKingMoves(moveSquares, savesUnsafeForKingSquares, out unsafeForKingSquares);
+        }
 
-            return FilterSafeForKingMoves(result);
+        public override IEnumerable<Move> GetLegalMoves()
+        {
+            foreach (var square in GetLegalMoveSquares())
+            {
+                if (square.Horizontal != 0 && square.Horizontal != 7)
+                {
+                    yield return new Move(this, square);
+                }
+                else
+                {
+                    yield return new Move(this, square, new Queen(Color));
+                    yield return new Move(this, square, new Rook(Color));
+                    yield return new Move(this, square, new Knight(Color));
+                    yield return new Move(this, square, new Bishop(Color));
+                }
+            }
         }
 
         public override ChessPiece Copy()
         {
             var newPawn = new Pawn(Color);
-            newPawn.HasMoved = HasMoved;
+            newPawn.FirstMoveMoment = FirstMoveMoment;
             return newPawn;
         }
 

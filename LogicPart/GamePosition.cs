@@ -17,7 +17,7 @@ namespace Chess.LogicPart
                 }
             }
 
-            MovingSideColor = board.MovingSideColor;
+            MovingSideColor = board.MovingSide.Color;
         }
 
         public GamePosition(GamePosition sourcePosition)

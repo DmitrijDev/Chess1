@@ -5,13 +5,11 @@ namespace Chess.LogicPart
     {
         public Rook(PieceColor color) => Color = color;
 
-        protected override List<Square> GetNewAttackedSquares()
+        public override IEnumerable<Square> GetAttackedSquares()
         {
-            var result = new List<Square>();
-
             for (var i = Vertical + 1; i < 8; ++i)
             {
-                result.Add(Board[i, Horizontal]);
+                yield return Board[i, Horizontal];
 
                 if (!Board[i, Horizontal].IsEmpty)
                 {
@@ -21,7 +19,7 @@ namespace Chess.LogicPart
 
             for (var i = Vertical - 1; i >= 0; --i)
             {
-                result.Add(Board[i, Horizontal]);
+                yield return Board[i, Horizontal];
 
                 if (!Board[i, Horizontal].IsEmpty)
                 {
@@ -31,7 +29,7 @@ namespace Chess.LogicPart
 
             for (var i = Horizontal + 1; i < 8; ++i)
             {
-                result.Add(Board[Vertical, i]);
+                yield return Board[Vertical, i];
 
                 if (!Board[Vertical, i].IsEmpty)
                 {
@@ -41,21 +39,19 @@ namespace Chess.LogicPart
 
             for (var i = Horizontal - 1; i >= 0; --i)
             {
-                result.Add(Board[Vertical, i]);
+                yield return Board[Vertical, i];
 
                 if (!Board[Vertical, i].IsEmpty)
                 {
                     break;
                 }
             }
-
-            return result;
         }
 
         public override ChessPiece Copy()
         {
             var newRook = new Rook(Color);
-            newRook.HasMoved = HasMoved;
+            newRook.FirstMoveMoment = FirstMoveMoment;
             return newRook;
         }
 

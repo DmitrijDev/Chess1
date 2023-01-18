@@ -1,4 +1,5 @@
 using Chess.LogicPart;
+using System.Windows.Forms;
 using Timer = System.Windows.Forms.Timer;
 
 namespace Chess
@@ -6,9 +7,8 @@ namespace Chess
     public partial class GameForm : Form
     {
         private MenuPanel _menuPanel;
+        private TimePanel _timePanel;
         private BoardPanel _boardPanel;
-
-        public bool HidesMenus { get; set; }
 
         public Timer Timer { get; } = new() { Interval = 1000 };
 
@@ -22,14 +22,17 @@ namespace Chess
 
         public void SetControls()
         {
-            _boardPanel = new BoardPanel(this);
             _menuPanel = new MenuPanel(this);
+            _timePanel = new TimePanel(this);
+            _boardPanel = new BoardPanel(this);
 
             var shift = Screen.PrimaryScreen.WorkingArea.Height / 16;
             AutoSize = true;
             AutoSizeMode = AutoSizeMode.GrowOnly;
 
-            _boardPanel.Location = new Point(shift, _menuPanel.Height + shift);
+            _timePanel.Location = new Point(0, _menuPanel.Height);
+            _boardPanel.Location = new Point(shift, _timePanel.Height + _menuPanel.Height + shift);
+
             Width = 0;
             Height = 0;
             Controls.Add(_boardPanel);
@@ -40,7 +43,9 @@ namespace Chess
             MinimumSize = new Size(Width, Height);
             MaximumSize = new Size(Width, Height);
 
+            _timePanel.Width = Width;
             _menuPanel.Width = Width;
+            Controls.Add(_timePanel);
             Controls.Add(_menuPanel);
 
             AutoSize = false;
@@ -53,5 +58,9 @@ namespace Chess
         public void ChangePlayer(PieceColor pieceColor) => _boardPanel.ChangePlayer(pieceColor);
 
         public void ShowMessage(string message) => MessageBox.Show(message, "", MessageBoxButtons.OK);        
+
+        public Color PanelColor => DefaultBackColor;
+
+        public int TimeFontSize => _menuPanel.Font.Height;
     }
 }

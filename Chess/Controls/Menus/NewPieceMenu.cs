@@ -16,11 +16,11 @@ namespace Chess
 
         private void PromotePawn(object sender, EventArgs e)
         {
-            var menuItem = (ToolStripMenuItem) sender;
-            var texts = new string[6] { "", "", "Ферзь", "Ладья", "Конь", "Слон" };
-            var newPieceIndex = 0;
+            var menuItem = (ToolStripMenuItem)sender;
+            var texts = new string[6] { null, null, "Ферзь", "Ладья", "Конь", "Слон" };
+            int newPieceIndex;
 
-            for (var i = 2; i < texts.Length; ++i)
+            for (var i = 2; ; ++i)
             {
                 if (texts[i] == menuItem.Text)
                 {
