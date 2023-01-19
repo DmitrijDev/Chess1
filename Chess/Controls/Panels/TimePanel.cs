@@ -1,6 +1,6 @@
 ﻿
+using Chess.LogicPart;
 using System.Text;
-using System.Windows.Forms;
 
 namespace Chess
 {
@@ -8,8 +8,13 @@ namespace Chess
     {
         private readonly GameForm _form;
 
-        private readonly Label _whiteTimeBox = new();
-        private readonly Label _blackTimeBox = new();
+        private readonly Panel _whiteTimer = new();
+        private readonly Panel _blackTimer = new();
+
+        private readonly Label _whiteTimeLabel = new();
+        private readonly Label _blackTimeLabel = new();
+
+        private readonly int _timerWidth;
 
         public TimePanel(GameForm form)
         {
@@ -17,40 +22,52 @@ namespace Chess
             BorderStyle = BorderStyle.FixedSingle;
             BackColor = _form.PanelColor;
 
-            SetTimeBoxProperties(_whiteTimeBox);
-            SetTimeBoxProperties(_blackTimeBox);
+            BuildTimer(PieceColor.White);
+            BuildTimer(PieceColor.Black);
+            _timerWidth = _whiteTimer.Width;
 
-            Height = _whiteTimeBox.Height;
+            AutoSize = false;
+            Width = _timerWidth * 5;
+            Height = _whiteTimer.Height;
 
-            _whiteTimeBox.Location = new Point(_whiteTimeBox.Width, 0);
-            _blackTimeBox.Location = new Point(Width - _blackTimeBox.Width * 2, 0);
+            _whiteTimer.Location = new Point(_timerWidth, 0);
+            _blackTimer.Location = new Point(Width - _timerWidth * 2, 0);
+
+            Controls.Add(_whiteTimer);
+            Controls.Add(_blackTimer);
 
             MinimumSize = new Size(Width, Height);
-            MaximumSize = new Size(Width, Height);
-            AutoSize = false;
-
-            Controls.Add(_whiteTimeBox);
-            Controls.Add(_blackTimeBox);
+            MaximumSize = new Size(int.MaxValue, Height);
 
             _form.SizeChanged += new EventHandler(ChangeWidth);
+            SizeChanged += new EventHandler(MoveBlackTimer);
         }
 
-        private void SetTimeBoxProperties(Label timeBox)
+        private void BuildTimer(PieceColor color)
         {
-            timeBox.BackColor = Color.Cyan;
-            timeBox.ForeColor = Color.Black;
-            timeBox.BorderStyle = BorderStyle.None;
+            var panel = color == PieceColor.White ? _whiteTimer : _blackTimer;
+            var label = color == PieceColor.White ? _whiteTimeLabel : _blackTimeLabel;
 
-            timeBox.Font = new Font("TimesNewRoman", _form.TimeFontSize, FontStyle.Bold);
+            panel.BackColor = Color.Cyan;
+            label.BackColor = panel.BackColor;
+            label.ForeColor = Color.Black;
+            panel.BorderStyle = BorderStyle.None;
 
-            timeBox.MinimumSize = new Size(0, timeBox.Font.Height);
-            timeBox.MaximumSize = new Size(int.MaxValue, timeBox.MinimumSize.Height);
-            timeBox.AutoSize = true;
+            label.Font = new Font("TimesNewRoman", _form.TimeFontSize, FontStyle.Bold);
+            label.AutoSize = true;
+            ShowTime(label, 300);
 
-            ShowTime(timeBox, 300);            
+            label.Location = new Point(0, 0);
+            panel.Controls.Add(label);
+
+            panel.Width = label.Width;
+            panel.Height = label.Height;
+
+            panel.MinimumSize = new Size(panel.Width, panel.Height);
+            panel.MaximumSize = new Size(panel.Width, panel.Height);
         }
 
-        private static void ShowTime(Label timeBox, int time)
+        private static void ShowTime(Label timeLabel, int time)
         {
             var hours = time / 3600;
             var minutes = (time % 3600) / 60;
@@ -72,20 +89,11 @@ namespace Chess
 
             newText.Append(seconds);
 
-            timeBox.Text = newText.ToString();
+            timeLabel.Text = newText.ToString();
         }
 
-        private void ChangeWidth(object sender, EventArgs e)
-        {
-            MinimumSize = new Size(0, Height);
-            MaximumSize = new Size(int.MaxValue, Height);
+        private void ChangeWidth(object sender, EventArgs e) => Width = _form.Width;
 
-            Width = _form.Width;
-
-            MinimumSize = new Size(Width, Height);
-            MaximumSize = new Size(Width, Height);
-
-            _blackTimeBox.Location = new Point(Width - _blackTimeBox.Width * 2, 0);
-        }
+        private void MoveBlackTimer(object sender, EventArgs e) => _blackTimer.Location = new Point(_form.ClientRectangle.Width - _timerWidth * 2, 0);
     }
 }

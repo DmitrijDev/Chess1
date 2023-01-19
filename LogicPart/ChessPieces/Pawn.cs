@@ -18,7 +18,7 @@ namespace Chess.LogicPart
             }
         }
 
-        public override IEnumerable<Square> GetLegalMoveSquares(bool savesUnsafeForKingSquares, out IEnumerable<Square> unsafeForKingSquares)
+        protected override IEnumerable<Square> GetLegalMoveSquares(bool savesUnsafeForKingSquares, out IEnumerable<Square> unsafeForKingSquares)
         {
             if (Board.Status != GameStatus.GameCanContinue || FriendlySide != Board.MovingSide)
             {

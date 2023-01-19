@@ -18,7 +18,7 @@ namespace Chess.LogicPart
         public bool Attacks(ChessPiece otherPiece) => otherPiece != null && Attacks(otherPiece._position);
 
         // Реализация для всех фигур, кроме пешки и короля.
-        public virtual IEnumerable<Square> GetLegalMoveSquares(bool savesUnsafeForKingSquares, out IEnumerable<Square> unsafeForKingSquares)
+        protected virtual IEnumerable<Square> GetLegalMoveSquares(bool savesUnsafeForKingSquares, out IEnumerable<Square> unsafeForKingSquares)
         {
             if (Board.Status != GameStatus.GameCanContinue || FriendlySide != Board.MovingSide)
             {
@@ -96,9 +96,9 @@ namespace Chess.LogicPart
             return false;
         }
 
-        public bool IsPinnedVertically()
+        private bool IsPinnedVertically()
         {
-            if (FriendlyKing.Vertical != Vertical || this is King)
+            if (FriendlyKing.Vertical != Vertical)
             {
                 return false;
             }
@@ -122,9 +122,9 @@ namespace Chess.LogicPart
             return false;
         }
 
-        public bool IsPinnedHorizontally()
+        private bool IsPinnedHorizontally()
         {
-            if (FriendlyKing.Horizontal != Horizontal || this is King)
+            if (FriendlyKing.Horizontal != Horizontal)
             {
                 return false;
             }
@@ -148,9 +148,9 @@ namespace Chess.LogicPart
             return false;
         }
 
-        public bool IsPinnedByDiagonal()
+        private bool IsPinnedByDiagonal()
         {
-            if (!IsOnSameDiagonal(FriendlyKing) || this is King)
+            if (!IsOnSameDiagonal(FriendlyKing))
             {
                 return false;
             }

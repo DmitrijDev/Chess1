@@ -322,21 +322,11 @@ namespace Chess.LogicPart
 
         private void MakeMove(ChessPiece movingPiece, Square moveSquare, int newPieceIndex)
         {
-            if (movingPiece == null)
-            {
-                throw new ArgumentException("В качестве начального поля хода указано пустое поле.");
-            }
-
-            if (movingPiece.Color != MovingSide.Color)
-            {
-                throw new IllegalMoveException("Указанный ход невозможен т.к. очередь хода за другой стороной.");
-            }
-
             foreach (var move in movingPiece.GetLegalMoves())
             {
                 if (move.MoveSquare == moveSquare)
                 {
-                    if (!move.IsPawnPromotion || (move.IsPawnPromotion && newPieceIndex == move.NewPiece.NumeralIndex))
+                    if (!move.IsPawnPromotion || newPieceIndex == move.NewPiece.NumeralIndex)
                     {
                         MakeMove(move);
                         return;
@@ -422,7 +412,7 @@ namespace Chess.LogicPart
             {
                 Status = GameStatus.Draw;
             }
-        }        
+        }
 
         public IEnumerable<int[]> LegalMovesToInt() => GetLegalMoves().Select(move => new int[5] { move.MovingPiece.Vertical, move.MovingPiece.Horizontal, move.MoveSquare.Vertical,
             move.MoveSquare.Horizontal, move.IsPawnPromotion ? move.NewPiece.NumeralIndex : 0});
