@@ -10,6 +10,7 @@ namespace Chess
             _form = form;
             var menuStrip = new MenuStrip();
             Height = menuStrip.Height;
+            Width = _form.ClientRectangle.Width;
             _form.SizeChanged += new EventHandler(ChangeWidth);
             BorderStyle = BorderStyle.None;
             BackColor = _form.PanelColor;
@@ -19,6 +20,6 @@ namespace Chess
             menuStrip.Items.Add(new ViewMenu(_form));
         }
 
-        private void ChangeWidth(object sender, EventArgs e) => Width = _form.Width;
+        private void ChangeWidth(object sender, EventArgs e) => Width = _form.ClientRectangle.Width;
     }
 }

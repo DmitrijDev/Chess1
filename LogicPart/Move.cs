@@ -66,7 +66,7 @@ namespace Chess.LogicPart
                 return false;
             }
 
-            if (moveSquare.Vertical - movingPiece.Vertical != 2 || moveSquare.Horizontal != movingPiece.Horizontal)
+            if (moveSquare != movingPiece.Board[6,movingPiece.Horizontal])
             {
                 return false;
             }
@@ -93,7 +93,7 @@ namespace Chess.LogicPart
                 return false;
             }
 
-            if (movingPiece.Vertical - moveSquare.Vertical != 2 || moveSquare.Horizontal != movingPiece.Horizontal)
+            if (moveSquare != movingPiece.Board[2, movingPiece.Horizontal])
             {
                 return false;
             }

@@ -19,7 +19,9 @@ namespace Chess.LogicPart
 
         internal Square PassedByPawnSquare { get; private set; }
 
-        public GameStatus Status { get; private set; }
+        public GameStatus Status { get; set; }
+
+        public DrawReason DrawReason { get; private set; }
 
         public ChessBoard()
         {
@@ -144,16 +146,19 @@ namespace Chess.LogicPart
             if (!CheckPositionLegacy())
             {
                 Status = GameStatus.IllegalPosition;
+                DrawReason = DrawReason.None;
                 return;
             }
 
             if (IsDrawByMaterial())
             {
                 Status = GameStatus.Draw;
+                DrawReason = DrawReason.NotEnoughMaterial;
                 return;
             }
 
             Status = GameStatus.GameCanContinue;
+            DrawReason = DrawReason.None;
 
             if (!HasLegalMoves())
             {
@@ -170,6 +175,7 @@ namespace Chess.LogicPart
                 }
 
                 Status = GameStatus.Draw;
+                DrawReason = DrawReason.Stalemate;
             }
         }
 
@@ -389,7 +395,11 @@ namespace Chess.LogicPart
             }
 
             _positions.Push(new GamePosition(this));
+            CheckGameResult();
+        }
 
+        private void CheckGameResult()
+        {
             if (!HasLegalMoves())
             {
                 if (White.King.IsMenaced())
@@ -405,12 +415,28 @@ namespace Chess.LogicPart
                 }
 
                 Status = GameStatus.Draw;
+                DrawReason = DrawReason.Stalemate;
                 return;
             }
 
-            if (IsDrawByMaterial() || _positions.Count > 100 || IsDrawByThreeRepeats())
+            if (IsDrawByMaterial())
             {
                 Status = GameStatus.Draw;
+                DrawReason = DrawReason.NotEnoughMaterial;
+                return;
+            }
+
+            if (IsDrawByThreeRepeats())
+            {
+                Status = GameStatus.Draw;
+                DrawReason = DrawReason.ThreeRepeatsRule;
+                return;
+            }
+
+            if (_positions.Count > 100)
+            {
+                Status = GameStatus.Draw;
+                DrawReason = DrawReason.FiftyMovesRule;
             }
         }
 

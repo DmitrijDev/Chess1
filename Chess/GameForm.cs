@@ -1,6 +1,4 @@
 using Chess.LogicPart;
-using System.Windows.Forms;
-using Timer = System.Windows.Forms.Timer;
 
 namespace Chess
 {
@@ -8,9 +6,7 @@ namespace Chess
     {
         private MenuPanel _menuPanel;
         private TimePanel _timePanel;
-        private BoardPanel _boardPanel;
-
-        public Timer Timer { get; } = new() { Interval = 1000 };
+        private BoardPanel _boardPanel;        
 
         public GameForm()
         {
@@ -18,9 +14,10 @@ namespace Chess
             Text = "";
             BackColor = Color.LightBlue;
             SetControls();
+            StartNewGame();
         }
 
-        public void SetControls()
+        private void SetControls()
         {
             _menuPanel = new MenuPanel(this);
             _timePanel = new TimePanel(this);
@@ -43,8 +40,6 @@ namespace Chess
             MinimumSize = new Size(Width, Height);
             MaximumSize = new Size(Width, Height);
 
-            _timePanel.Width = Width;
-            _menuPanel.Width = Width;
             Controls.Add(_timePanel);
             Controls.Add(_menuPanel);
 
@@ -53,11 +48,15 @@ namespace Chess
             MaximumSize = new Size(int.MaxValue, int.MaxValue);
         }
 
-        public void StartNewGame() => _boardPanel.StartNewGame();
+        internal void ShowTime(int whiteTimeLeft, int blackTimeLeft) => _timePanel.ShowTime(whiteTimeLeft, blackTimeLeft);
 
-        public void ChangePlayer(PieceColor pieceColor) => _boardPanel.ChangePlayer(pieceColor);
+        internal void ShowTime(PieceColor color, int time) => _timePanel.ShowTime(color, time);
 
-        public void ShowMessage(string message) => MessageBox.Show(message, "", MessageBoxButtons.OK);        
+        internal void StartNewGame() => _boardPanel.StartNewGame();
+
+        internal void ChangePlayer(PieceColor pieceColor) => _boardPanel.ChangePlayer(pieceColor);
+
+        internal void ShowMessage(string message) => MessageBox.Show(message, "", MessageBoxButtons.OK);
 
         public Color PanelColor => DefaultBackColor;
 
