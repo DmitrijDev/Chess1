@@ -4,11 +4,11 @@ namespace Chess
 {
     internal class NewPieceMenu : ContextMenuStrip
     {
-        private readonly BoardPanel _boardPanel;
+        private readonly GamePanel _gamePanel;
 
-        public NewPieceMenu(BoardPanel boardPanel)
+        public NewPieceMenu(GamePanel gamePanel)
         {
-            _boardPanel = boardPanel;
+            _gamePanel = gamePanel;
             var items = new ToolStripMenuItem[4] { new ToolStripMenuItem("Ферзь"), new ToolStripMenuItem("Ладья"), new ToolStripMenuItem("Конь"), new ToolStripMenuItem("Слон") };
             Items.AddRange(items);
             Array.ForEach(items, item => item.Click += new EventHandler(PromotePawn));
@@ -29,12 +29,12 @@ namespace Chess
                 }
             }
 
-            if (_boardPanel.MovingSideColor == PieceColor.Black)
+            if (_gamePanel.MovingSideColor == PieceColor.Black)
             {
                 newPieceIndex += 6;
             }
 
-            _boardPanel.PromotePawn(newPieceIndex);
+            _gamePanel.PromotePawn(newPieceIndex);
         }
     }
 }

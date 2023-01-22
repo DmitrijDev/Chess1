@@ -6,6 +6,7 @@ namespace Chess.LogicPart
     {
         private readonly Square[,] _board = new Square[8, 8];
         private readonly Stack<GamePosition> _positions = new();
+        private GameStatus _status;
 
         internal GameSide White { get; private set; }
 
@@ -17,9 +18,7 @@ namespace Chess.LogicPart
 
         public int LastMenacesRenewMoment { get; internal set; } = -1;
 
-        internal Square PassedByPawnSquare { get; private set; }
-
-        public GameStatus Status { get; set; }
+        internal Square PassedByPawnSquare { get; private set; }        
 
         public DrawReason DrawReason { get; private set; }
 
@@ -36,7 +35,7 @@ namespace Chess.LogicPart
             White = new GameSide(PieceColor.White, this);
             Black = new GameSide(PieceColor.Black, this);
             MovingSide = White;
-            Status = GameStatus.ClearBoard;
+            _status = GameStatus.ClearBoard;
         }
 
         public ChessBoard(IEnumerable<string> whiteMaterial, IEnumerable<string> whitePositions, IEnumerable<string> blackMaterial, IEnumerable<string> blackPositions,
@@ -59,7 +58,7 @@ namespace Chess.LogicPart
             }
 
             MovesCount = sourceBoard.MovesCount;
-            Status = sourceBoard.Status;
+            _status = sourceBoard._status;
         }
 
         internal Square this[int vertical, int horizontal]
@@ -110,7 +109,7 @@ namespace Chess.LogicPart
 
         private void SetPosition(ChessPiece[] material, string[] squareNames, PieceColor movingSideColor)
         {
-            if (Status != GameStatus.ClearBoard)
+            if (_status != GameStatus.ClearBoard)
             {
                 Clear();
             }
@@ -145,36 +144,36 @@ namespace Chess.LogicPart
 
             if (!CheckPositionLegacy())
             {
-                Status = GameStatus.IllegalPosition;
+                _status = GameStatus.IllegalPosition;
                 DrawReason = DrawReason.None;
                 return;
             }
 
             if (IsDrawByMaterial())
             {
-                Status = GameStatus.Draw;
+                _status = GameStatus.Draw;
                 DrawReason = DrawReason.NotEnoughMaterial;
                 return;
             }
 
-            Status = GameStatus.GameCanContinue;
+            _status = GameStatus.GameCanContinue;
             DrawReason = DrawReason.None;
 
             if (!HasLegalMoves())
             {
                 if (White.King.IsMenaced())
                 {
-                    Status = GameStatus.BlackWin;
+                    _status = GameStatus.BlackWin;
                     return;
                 }
 
                 if (Black.King.IsMenaced())
                 {
-                    Status = GameStatus.WhiteWin;
+                    _status = GameStatus.WhiteWin;
                     return;
                 }
 
-                Status = GameStatus.Draw;
+                _status = GameStatus.Draw;
                 DrawReason = DrawReason.Stalemate;
             }
         }
@@ -196,7 +195,7 @@ namespace Chess.LogicPart
 
             MovesCount = 0;
             LastMenacesRenewMoment = -1;
-            Status = GameStatus.ClearBoard;
+            _status = GameStatus.ClearBoard;
         }
 
         private Square GetSquare(string squareName)
@@ -239,7 +238,7 @@ namespace Chess.LogicPart
         {
             var result = Enumerable.Empty<Move>();
 
-            if (Status != GameStatus.GameCanContinue)
+            if (_status != GameStatus.GameCanContinue)
             {
                 return result;
             }
@@ -404,44 +403,59 @@ namespace Chess.LogicPart
             {
                 if (White.King.IsMenaced())
                 {
-                    Status = GameStatus.BlackWin;
+                    _status = GameStatus.BlackWin;
                     return;
                 }
 
                 if (Black.King.IsMenaced())
                 {
-                    Status = GameStatus.WhiteWin;
+                    _status = GameStatus.WhiteWin;
                     return;
                 }
 
-                Status = GameStatus.Draw;
+                _status = GameStatus.Draw;
                 DrawReason = DrawReason.Stalemate;
                 return;
             }
 
             if (IsDrawByMaterial())
             {
-                Status = GameStatus.Draw;
+                _status = GameStatus.Draw;
                 DrawReason = DrawReason.NotEnoughMaterial;
                 return;
             }
 
             if (IsDrawByThreeRepeats())
             {
-                Status = GameStatus.Draw;
+                _status = GameStatus.Draw;
                 DrawReason = DrawReason.ThreeRepeatsRule;
                 return;
             }
 
             if (_positions.Count > 100)
             {
-                Status = GameStatus.Draw;
+                _status = GameStatus.Draw;
                 DrawReason = DrawReason.FiftyMovesRule;
             }
-        }
+        }        
 
         public IEnumerable<int[]> LegalMovesToInt() => GetLegalMoves().Select(move => new int[5] { move.MovingPiece.Vertical, move.MovingPiece.Horizontal, move.MoveSquare.Vertical,
             move.MoveSquare.Horizontal, move.IsPawnPromotion ? move.NewPiece.NumeralIndex : 0});
+
+        public GameStatus Status
+        {
+            get => _status;
+
+            set
+            {
+                if (_status != GameStatus.GameCanContinue || !(value == GameStatus.WhiteWin || value == GameStatus.BlackWin))
+                {
+                    throw new InvalidOperationException();
+                }
+
+                _status = value;
+            }
+        }
 
         public GamePosition CurrentPosition => new(this);
 

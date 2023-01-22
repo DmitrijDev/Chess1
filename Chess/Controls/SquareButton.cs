@@ -3,7 +3,7 @@ namespace Chess
 {
     internal class SquareButton : Button
     {
-        private readonly BoardPanel _boardPanel;
+        private readonly GamePanel _boardPanel;
         private readonly int _x;
         private readonly int _y;
         private static Bitmap[] _images;
@@ -11,7 +11,7 @@ namespace Chess
 
         public int DisplayedPieceIndex { get; set; } // 0 - пустое поле, 1-6 - белые фигуры, 7-12 -черные.       
 
-        public SquareButton(BoardPanel boardPanel, int x, int y)
+        public SquareButton(GamePanel boardPanel, int x, int y)
         {
             _boardPanel = boardPanel;
             _x = x;

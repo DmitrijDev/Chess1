@@ -4,7 +4,7 @@ using Timer = System.Windows.Forms.Timer;
 
 namespace Chess
 {
-    internal class BoardPanel : Panel
+    internal class GamePanel : Panel
     {
         private readonly GameForm _form;
 
@@ -37,7 +37,9 @@ namespace Chess
 
         public int ButtonSize { get; private set; }
 
-        public BoardPanel(GameForm form)
+        public bool ThinkingDisabled { get; private set; }
+
+        public GamePanel(GameForm form)
         {
             _form = form;
             BackColor = Color.Maroon;
@@ -103,10 +105,7 @@ namespace Chess
         public void StartNewGame()
         {
             _timer.Stop();
-
-            while (_thinkingThread != null && _thinkingThread.ThreadState == ThreadState.Running)
-            { }
-
+            StopThinking();
             CancelPieceChoice();
             _lastMove = null;
             _programMadeMove = false;
@@ -140,10 +139,7 @@ namespace Chess
         public void ChangePlayer(PieceColor pieceColor)
         {
             _timer.Stop();
-
-            while (_thinkingThread != null && _thinkingThread.ThreadState == ThreadState.Running)
-            { }
-
+            StopThinking();
             CancelPieceChoice();
             _programMadeMove = false;
 
@@ -263,6 +259,7 @@ namespace Chess
             RenewButtonsView(RenewMode.RenewIfNeeded);
             OutlineButton(_lastMove[0], _lastMove[1]);
             OutlineButton(_lastMove[2], _lastMove[3]);
+            _lastMove = null;
 
             if (GameIsOver)
             {
@@ -327,13 +324,18 @@ namespace Chess
             _programMadeMove = true;
         }
 
+        private void StopThinking()
+        {
+            ThinkingDisabled = true;
+
+            while (_thinkingThread != null && _thinkingThread.ThreadState == ThreadState.Running)
+            { }
+
+            ThinkingDisabled = false;
+        }
+
         private void HandleTimerTick(object sender, EventArgs e)
         {
-            if (GameIsOver)
-            {
-                return;
-            }
-
             if (_programMadeMove)
             {
                 _programMadeMove = false;
@@ -349,12 +351,13 @@ namespace Chess
                 if (_whiteTimeLeft == 0)
                 {
                     _timer.Stop();
+                    StopThinking();
                     _gameBoard.Status = GameStatus.BlackWin;
                     CancelPieceChoice();
                     ShowEndGameMessage();
                 }
             }
-            else 
+            else
             {
                 --_blackTimeLeft;
                 _form.ShowTime(PieceColor.Black, _blackTimeLeft);
@@ -362,11 +365,12 @@ namespace Chess
                 if (_blackTimeLeft == 0)
                 {
                     _timer.Stop();
+                    StopThinking();
                     _gameBoard.Status = GameStatus.WhiteWin;
                     CancelPieceChoice();
                     ShowEndGameMessage();
                 }
-            }            
+            }
         }
 
         private void ShowEndGameMessage()
@@ -383,28 +387,25 @@ namespace Chess
                 return;
             }
 
-            if (_gameBoard.Status == GameStatus.Draw)
+            if (_gameBoard.DrawReason == DrawReason.Stalemate)
             {
-                if (_gameBoard.DrawReason == DrawReason.Stalemate)
-                {
-                    _form.ShowMessage("Пат.");
-                    return;
-                }
-
-                if (_gameBoard.DrawReason == DrawReason.NotEnoughMaterial)
-                {
-                    _form.ShowMessage("Ничья. Недостаточно материала для мата.");
-                    return;
-                }
-
-                if (_gameBoard.DrawReason == DrawReason.ThreeRepeatsRule)
-                {
-                    _form.ShowMessage("Ничья. Трехкратное повторение позиции.");
-                    return;
-                }
-
-                _form.ShowMessage("Ничья по правилу 50 ходов.");
+                _form.ShowMessage("Пат.");
+                return;
             }
+
+            if (_gameBoard.DrawReason == DrawReason.NotEnoughMaterial)
+            {
+                _form.ShowMessage("Ничья. Недостаточно материала для мата.");
+                return;
+            }
+
+            if (_gameBoard.DrawReason == DrawReason.ThreeRepeatsRule)
+            {
+                _form.ShowMessage("Ничья. Трехкратное повторение позиции.");
+                return;
+            }
+
+            _form.ShowMessage("Ничья по правилу 50 ходов.");
         }
 
         private void OutlineButton(int x, int y) => _buttons[x, y].FlatAppearance.BorderSize = 2;
