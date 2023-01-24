@@ -15,6 +15,7 @@ namespace Chess
         private Thread _thinkingThread;
 
         private readonly SquareButton[,] _buttons = new SquareButton[8, 8];
+        private readonly int _initialButtonSize = Screen.PrimaryScreen.WorkingArea.Height / 16;
         private List<int> _clicksCoordinates;
         private int[] _lastMove;
         private bool _programMadeMove;
@@ -22,6 +23,7 @@ namespace Chess
         private int _whiteTimeLeft;
         private int _blackTimeLeft;
         private readonly Timer _timer = new() { Interval = 1000 };
+        private int _timeForGame = 300;
 
         public Color WhitePiecesColor { get; private set; } = Color.White;
 
@@ -31,9 +33,7 @@ namespace Chess
 
         public Color DarkSquaresColor { get; private set; } = Color.SaddleBrown;
 
-        public Color HighlightColor { get; private set; } = Color.Blue;
-
-        public int InitialButtonSize { get; } = Screen.PrimaryScreen.WorkingArea.Height / 16;
+        public Color HighlightColor { get; private set; } = Color.Blue;        
 
         public int ButtonSize { get; private set; }
 
@@ -44,14 +44,14 @@ namespace Chess
             _form = form;
             BackColor = Color.Maroon;
             BorderStyle = BorderStyle.FixedSingle;
-            ButtonSize = InitialButtonSize;
+            ButtonSize = _initialButtonSize;
             _timer.Tick += new EventHandler(HandleTimerTick);
             SetButtons();
         }
 
         private void SetButtons()
         {
-            var shift = InitialButtonSize / 2;
+            var shift = _initialButtonSize / 2;
             Width = ButtonSize * 8 + shift * 2;
             Height = Width;
 
@@ -129,11 +129,22 @@ namespace Chess
                 _thinkingThread = new Thread(Think);
                 _thinkingThread.Start();
             }
-
-            _whiteTimeLeft = 300;
-            _blackTimeLeft = 300;
-            _form.ShowTime(_whiteTimeLeft, _blackTimeLeft);
+            
+            SetTimeLeft(_timeForGame);
             _timer.Start();
+        }
+
+        private void SetTimeLeft(int timeLeft)
+        {
+            _whiteTimeLeft = timeLeft;
+            _blackTimeLeft = timeLeft;
+            _form.TimePanel.ShowTime(_whiteTimeLeft, _blackTimeLeft);
+        }
+
+        public void SetTimeControl(int timeForGame)
+        {
+            _timeForGame = timeForGame;
+            SetTimeLeft(timeForGame);
         }
 
         public void ChangePlayer(PieceColor pieceColor)
@@ -346,7 +357,7 @@ namespace Chess
             if (_gameBoard.MovingSideColor == PieceColor.White)
             {
                 --_whiteTimeLeft;
-                _form.ShowTime(PieceColor.White, _whiteTimeLeft);
+                _form.TimePanel.ShowTime(PieceColor.White, _whiteTimeLeft);
 
                 if (_whiteTimeLeft == 0)
                 {
@@ -360,7 +371,7 @@ namespace Chess
             else
             {
                 --_blackTimeLeft;
-                _form.ShowTime(PieceColor.Black, _blackTimeLeft);
+                _form.TimePanel.ShowTime(PieceColor.Black, _blackTimeLeft);
 
                 if (_blackTimeLeft == 0)
                 {

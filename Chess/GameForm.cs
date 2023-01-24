@@ -1,47 +1,49 @@
-using Chess.LogicPart;
 
 namespace Chess
 {
     public partial class GameForm : Form
-    {
-        private MenuPanel _menuPanel;
-        private TimePanel _timePanel;
-        private GamePanel _gamePanel;
+    {        
         private Point _oldGamePanelLocation;
         private bool _wasMaximized;
+
+        internal MenuPanel MenuPanel { get; private set; }
+
+        internal TimePanel TimePanel { get; private set; }
+
+        internal GamePanel GamePanel { get; private set; }
 
         public GameForm()
         {
             InitializeComponent();
             Text = "";
-            BackColor = Color.Silver;
+            BackColor = Color.Olive;
             SetPanels();
             SizeChanged += new EventHandler(MoveGamePanel);
-            _gamePanel.LocationChanged += new EventHandler(SaveGamePanelLocation);
-            StartNewGame();
+            GamePanel.LocationChanged += new EventHandler(SaveGamePanelLocation);
+            GamePanel.StartNewGame();
         }
 
         private void SetPanels()
         {
-            _menuPanel = new MenuPanel(this);
-            _timePanel = new TimePanel(this);
-            _gamePanel = new GamePanel(this);
+            MenuPanel = new MenuPanel(this);
+            TimePanel = new TimePanel(this);
+            GamePanel = new GamePanel(this);
 
             var shift = Screen.PrimaryScreen.WorkingArea.Height / 16;
-            Width = Math.Max(shift * 2 + _gamePanel.Width, _timePanel.MinimumSize.Width);
+            Width = Math.Max(shift * 2 + GamePanel.Width, TimePanel.MinimumSize.Width);
             Width += Width - ClientRectangle.Width;
-            Height = shift * 2 + _menuPanel.Height + _timePanel.Height + _gamePanel.Height;
+            Height = shift * 2 + MenuPanel.Height + TimePanel.Height + GamePanel.Height;
             Height += Height - ClientRectangle.Height;
 
-            _timePanel.Location = new Point(0, _menuPanel.Height);
+            TimePanel.Location = new Point(0, MenuPanel.Height);
             PutGamePanelToCenter();
 
-            Controls.Add(_menuPanel);
-            Controls.Add(_timePanel);
-            Controls.Add(_gamePanel);
-            _oldGamePanelLocation = _gamePanel.Location;
+            Controls.Add(MenuPanel);
+            Controls.Add(TimePanel);
+            Controls.Add(GamePanel);
+            _oldGamePanelLocation = GamePanel.Location;
 
-            var minWidth = Math.Max(Width - shift * 2, _timePanel.MinimumSize.Width);
+            var minWidth = Math.Max(Width - shift * 2, TimePanel.MinimumSize.Width);
             var minHeight = Height - shift * 2;
             MinimumSize = new Size(minWidth, minHeight);
         }
@@ -57,56 +59,48 @@ namespace Chess
 
             if (_wasMaximized)
             {
-                _gamePanel.Location = _oldGamePanelLocation;
+                GamePanel.Location = _oldGamePanelLocation;
                 _wasMaximized = false;
                 return;
             }
 
-            var newGamePanelX = _gamePanel.Location.X;
-            var newGamePanelY = _gamePanel.Location.Y;
+            var newGamePanelX = GamePanel.Location.X;
+            var newGamePanelY = GamePanel.Location.Y;
 
-            if (ClientRectangle.Width < _gamePanel.Location.X + _gamePanel.Width)
+            if (ClientRectangle.Width < GamePanel.Location.X + GamePanel.Width)
             {
-                newGamePanelX -= _gamePanel.Location.X + _gamePanel.Width - ClientRectangle.Width;
+                newGamePanelX -= GamePanel.Location.X + GamePanel.Width - ClientRectangle.Width;
             }
 
-            if (ClientRectangle.Height < _gamePanel.Location.Y + _gamePanel.Height)
+            if (ClientRectangle.Height < GamePanel.Location.Y + GamePanel.Height)
             {
-                newGamePanelY -= _gamePanel.Location.Y + _gamePanel.Height - ClientRectangle.Height;
+                newGamePanelY -= GamePanel.Location.Y + GamePanel.Height - ClientRectangle.Height;
             }
 
-            _gamePanel.Location = new Point(newGamePanelX, newGamePanelY);
+            GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
         }
 
         internal void PutGamePanelToCenter(object sender, EventArgs e) => PutGamePanelToCenter();
 
         private void PutGamePanelToCenter()
         {
-            var gamePanelX = (ClientRectangle.Width - _gamePanel.Width) / 2;
-            var gamePanelY = _menuPanel.Height + _timePanel.Height + (ClientRectangle.Height - _menuPanel.Height - _timePanel.Height - _gamePanel.Height) / 2;
-            _gamePanel.Location = new Point(gamePanelX, gamePanelY);
+            var gamePanelX = (ClientRectangle.Width - GamePanel.Width) / 2;
+            var gamePanelY = MenuPanel.Height + TimePanel.Height + (ClientRectangle.Height - MenuPanel.Height - TimePanel.Height - GamePanel.Height) / 2;
+            GamePanel.Location = new Point(gamePanelX, gamePanelY);
         }
 
         private void SaveGamePanelLocation(object sender, EventArgs e)
         {
             if (WindowState != FormWindowState.Maximized)
             {
-                _oldGamePanelLocation = _gamePanel.Location;
+                _oldGamePanelLocation = GamePanel.Location;
             }
-        }
-
-        internal void ShowTime(int whiteTimeLeft, int blackTimeLeft) => _timePanel.ShowTime(whiteTimeLeft, blackTimeLeft);
-
-        internal void ShowTime(PieceColor color, int time) => _timePanel.ShowTime(color, time);
-
-        internal void StartNewGame() => _gamePanel.StartNewGame();
-
-        internal void ChangePlayer(PieceColor pieceColor) => _gamePanel.ChangePlayer(pieceColor);
+        }        
 
         internal void ShowMessage(string message) => MessageBox.Show(message, "", MessageBoxButtons.OK);
 
         public Color PanelColor => DefaultBackColor;
 
-        public int TimeFontSize => _menuPanel.Font.Height;
+        public int TimeFontSize => MenuPanel.Font.Height;
     }
 }

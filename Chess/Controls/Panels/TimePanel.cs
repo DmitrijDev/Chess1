@@ -14,41 +14,39 @@ namespace Chess
         private readonly Label _whiteTimeLeft = new();
         private readonly Label _blackTimeLeft = new();
 
-        private readonly int _timerWidth;
-
         public TimePanel(GameForm form)
         {
             _form = form;
             BorderStyle = BorderStyle.FixedSingle;
             BackColor = _form.PanelColor;
 
-            BuildTimer(PieceColor.White);
-            BuildTimer(PieceColor.Black);
-            _timerWidth = _whiteTimer.Width;
+            CreateTimer(PieceColor.White);
+            CreateTimer(PieceColor.Black);
+            var timerWidth = _whiteTimer.Width;
+            var interval = timerWidth + timerWidth / 2;
 
-            AutoSize = false;
-            Width = Math.Max(_form.ClientRectangle.Width, _timerWidth * 7);
+            Width = Math.Max(_form.ClientRectangle.Width, timerWidth * 2 + interval);
             Height = _whiteTimer.Height;
 
-            _whiteTimer.Location = new Point(_timerWidth * 2, 0);
-            _blackTimer.Location = new Point(Width - _timerWidth * 3, 0);
+            _whiteTimer.Location = new Point(Width / 2 - interval / 2 - timerWidth, 0);
+            _blackTimer.Location = new Point(Width / 2 + interval / 2, 0);
 
             Controls.Add(_whiteTimer);
             Controls.Add(_blackTimer);
 
-            MinimumSize = new Size(_timerWidth * 7, Height);
+            MinimumSize = new Size(timerWidth * 2 + interval, Height);
             MaximumSize = new Size(int.MaxValue, Height);
 
             _form.SizeChanged += new EventHandler(ChangeWidth);
-            SizeChanged += new EventHandler(MoveBlackTimer);
+            SizeChanged += new EventHandler(MoveTimers);
         }
 
-        private void BuildTimer(PieceColor color)
+        private void CreateTimer(PieceColor color)
         {
             var panel = color == PieceColor.White ? _whiteTimer : _blackTimer;
             var label = color == PieceColor.White ? _whiteTimeLeft : _blackTimeLeft;
 
-            panel.BackColor = Color.PaleGreen;
+            panel.BackColor = Color.LightSlateGray;
             label.BackColor = panel.BackColor;
             label.ForeColor = Color.Black;
             panel.BorderStyle = BorderStyle.None;
@@ -103,6 +101,12 @@ namespace Chess
 
         private void ChangeWidth(object sender, EventArgs e) => Width = _form.ClientRectangle.Width;
 
-        private void MoveBlackTimer(object sender, EventArgs e) => _blackTimer.Location = new Point(Width - _timerWidth * 3, 0);
+        private void MoveTimers(object sender, EventArgs e)
+        {
+            var timerWidth = _whiteTimer.Width;
+            var interval = timerWidth + timerWidth / 2;
+            _whiteTimer.Location = new Point(Width / 2 - interval / 2 - timerWidth, 0);
+            _blackTimer.Location = new Point(Width / 2 + interval / 2, 0);
+        }
     }
 }
