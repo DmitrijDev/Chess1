@@ -16,6 +16,8 @@ namespace Chess
 
         private readonly SquareButton[,] _buttons = new SquareButton[8, 8];
         private readonly int _initialButtonSize = Screen.PrimaryScreen.WorkingArea.Height / 16;
+        private Orientation _orientation = Orientation.Normal;
+
         private List<int> _clicksCoordinates;
         private int[] _lastMove;
         private bool _programMadeMove;
@@ -33,7 +35,7 @@ namespace Chess
 
         public Color DarkSquaresColor { get; private set; } = Color.SaddleBrown;
 
-        public Color HighlightColor { get; private set; } = Color.Blue;        
+        public Color HighlightColor { get; private set; } = Color.Blue;
 
         public int ButtonSize { get; private set; }
 
@@ -51,56 +53,57 @@ namespace Chess
 
         private void SetButtons()
         {
-            var shift = _initialButtonSize / 2;
+            var shift = Math.Min(_initialButtonSize / 2, ButtonSize / 2);
             Width = ButtonSize * 8 + shift * 2;
             Height = Width;
 
             var buttonColor = LightSquaresColor;
-            var buttonX = shift;
-            var buttonY = shift;
+            var buttonX = _orientation == Orientation.Normal ? shift : Width - shift - ButtonSize;
+            var buttonY = _orientation == Orientation.Normal ? shift : Height - shift - ButtonSize;
 
             for (var i = 0; i < 8; ++i)
             {
                 for (var j = 7; j >= 0; --j)
                 {
-                    var borderSize = 0;
-
-                    // Если кнопки ранее уже созданы, а теперь мы хотим изменить размер полей, то старые кнопки нужно удалить.
-                    if (_buttons[i, j] != null)
+                    // Возможно, кнопки уже созданы, и теперь нужно только изменить их размер.
+                    if (_buttons[i, j] == null)
                     {
-                        borderSize = _buttons[i, j].FlatAppearance.BorderSize;
-                        Controls.Remove(_buttons[i, j]);
+                        _buttons[i, j] = new SquareButton(this, i, j)
+                        {
+                            BackColor = buttonColor
+                        };
+
+                        Controls.Add(_buttons[i, j]);
                     }
 
-                    var newButton = new SquareButton(this, i, j)
-                    {
-                        BackColor = buttonColor,
-                        Location = new Point(buttonX, buttonY)
-                    };
-
-                    newButton.FlatAppearance.BorderSize = borderSize;
-
-                    _buttons[i, j] = newButton;
-                    Controls.Add(newButton);
+                    _buttons[i, j].Width = ButtonSize;
+                    _buttons[i, j].Height = ButtonSize;
+                    _buttons[i, j].Location = new Point(buttonX, buttonY);
 
                     buttonColor = buttonColor == LightSquaresColor ? DarkSquaresColor : LightSquaresColor;
-                    buttonY += ButtonSize;
+                    buttonY += _orientation == Orientation.Normal ? ButtonSize : -ButtonSize;
                 }
 
                 buttonColor = buttonColor == LightSquaresColor ? DarkSquaresColor : LightSquaresColor;
-                buttonX += ButtonSize;
-                buttonY = shift;
+                buttonX += _orientation == Orientation.Normal ? ButtonSize : -ButtonSize;
+                buttonY = _orientation == Orientation.Normal ? shift : Height - shift - ButtonSize;
             }
         }
 
-        public void SetSizeAndColors(int buttonSize, Color lightSquaresColor, Color darkSquaresColor)
+        public void Rotate()
+        {
+            _orientation = _orientation == Orientation.Normal ? Orientation.Reversed : Orientation.Normal;
+            SetButtons();
+        }
+
+        /*public void SetSizeAndColors(int buttonSize, Color lightSquaresColor, Color darkSquaresColor)
         {
             ButtonSize = buttonSize;
             LightSquaresColor = lightSquaresColor;
             DarkSquaresColor = darkSquaresColor;
             SetButtons();
             RenewButtonsView(RenewMode.FullRenew);
-        }
+        }*/
 
         public void StartNewGame()
         {
@@ -122,15 +125,15 @@ namespace Chess
                 _gameBoard.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, PieceColor.White);
             }
 
-            RenewButtonsView(RenewMode.RenewIfNeeded);
+            RenewButtonsView();
+            SetTimeLeft(_timeForGame);
 
             if (ProgramPlaysFor(PieceColor.White))
             {
                 _thinkingThread = new Thread(Think);
                 _thinkingThread.Start();
             }
-            
-            SetTimeLeft(_timeForGame);
+
             _timer.Start();
         }
 
@@ -150,8 +153,12 @@ namespace Chess
         public void ChangePlayer(PieceColor pieceColor)
         {
             _timer.Stop();
-            StopThinking();
-            CancelPieceChoice();
+
+            if (ProgramPlaysFor(_gameBoard.MovingSideColor))
+            {
+                StopThinking();
+            }
+
             _programMadeMove = false;
 
             if (pieceColor == PieceColor.White)
@@ -177,18 +184,23 @@ namespace Chess
                 }
             }
 
+            if (ProgramPlaysFor(_gameBoard.MovingSideColor))
+            {
+                CancelPieceChoice();
+            }
+
             if (GameIsOver)
             {
                 return;
             }
-
-            _timer.Start();
 
             if (ProgramPlaysFor(_gameBoard.MovingSideColor))
             {
                 _thinkingThread = new Thread(Think);
                 _thinkingThread.Start();
             }
+
+            _timer.Start();
         }
 
         public void HandleClickAt(int x, int y)
@@ -267,7 +279,7 @@ namespace Chess
                 return;
             }
 
-            RenewButtonsView(RenewMode.RenewIfNeeded);
+            RenewButtonsView();
             OutlineButton(_lastMove[0], _lastMove[1]);
             OutlineButton(_lastMove[2], _lastMove[3]);
             _lastMove = null;
@@ -287,7 +299,7 @@ namespace Chess
             }
         }
 
-        private void RenewButtonsView(RenewMode renewMode)
+        private void RenewButtonsView()
         {
             var currentPosition = _gameBoard.CurrentPosition;
 
@@ -295,13 +307,6 @@ namespace Chess
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    if (renewMode == RenewMode.FullRenew)
-                    {
-                        _buttons[i, j].DisplayedPieceIndex = currentPosition[i, j];
-                        _buttons[i, j].RenewImage();
-                        continue;
-                    }
-
                     _buttons[i, j].FlatAppearance.BorderSize = 0;
 
                     if (_buttons[i, j].DisplayedPieceIndex != currentPosition[i, j])
@@ -323,15 +328,11 @@ namespace Chess
         {
             var player = _gameBoard.MovingSideColor == PieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
 
-            int[] programMove;
-
             lock (_gameBoard)
             {
-                programMove = player.SelectMove(_gameBoard);
+                _lastMove = player.SelectMove(_gameBoard);
             }
 
-            _lastMove = new int[programMove.Length];
-            Array.Copy(programMove, _lastMove, programMove.Length);
             _programMadeMove = true;
         }
 

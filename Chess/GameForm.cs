@@ -78,11 +78,9 @@ namespace Chess
             }
 
             GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
-        }
+        }        
 
-        internal void PutGamePanelToCenter(object sender, EventArgs e) => PutGamePanelToCenter();
-
-        private void PutGamePanelToCenter()
+        internal void PutGamePanelToCenter()
         {
             var gamePanelX = (ClientRectangle.Width - GamePanel.Width) / 2;
             var gamePanelY = MenuPanel.Height + TimePanel.Height + (ClientRectangle.Height - MenuPanel.Height - TimePanel.Height - GamePanel.Height) / 2;
