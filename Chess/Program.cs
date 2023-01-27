@@ -1,18 +1,15 @@
-using System.Diagnostics;
 
 namespace Chess
 {
     internal static class Program
     {
-        public static void EndWork(object sender, EventArgs e) => Process.GetCurrentProcess().Kill(); // ≈сли пользователь закрыл форму.
+        public static bool ThinkingDisabled { get; internal set; } // ѕарти€ может быть прервана, пока программа думает, тогда ей нужно перестать думать. 
 
         [STAThread]
         static void Main()
         {
             ApplicationConfiguration.Initialize();
-            var form = new GameForm();
-            form.FormClosed += new FormClosedEventHandler(EndWork);
-            Application.Run(form);
+            Application.Run(new GameForm());
         }
     }
 }

@@ -11,25 +11,23 @@ namespace Chess
             _gamePanel = gamePanel;
             var items = new ToolStripMenuItem[4] { new ToolStripMenuItem("Ферзь"), new ToolStripMenuItem("Ладья"), new ToolStripMenuItem("Конь"), new ToolStripMenuItem("Слон") };
             Items.AddRange(items);
-            Array.ForEach(items, item => item.Click += new EventHandler(PromotePawn));
+            Array.ForEach(items, item => item.Click += Item_Click);
         }
 
-        private void PromotePawn(object sender, EventArgs e)
+        private void Item_Click(object sender, EventArgs e)
         {
-            var menuItem = (ToolStripMenuItem)sender;
-            var texts = new string[6] { null, null, "Ферзь", "Ладья", "Конь", "Слон" };
             int newPieceIndex;
 
-            for (var i = 2; ; ++i)
+            for (var i = 2; ; ++i)  // Ферзь - первая фигура в меню - имеет св-во NumeralIndex == 2, если белый.
             {
-                if (texts[i] == menuItem.Text)
+                if (Items[i - 2] == sender)
                 {
                     newPieceIndex = i;
                     break;
                 }
             }
 
-            if (_gamePanel.MovingSideColor == PieceColor.Black)
+            if (_gamePanel.MovingSideColor == PieceColor.Black) // Черная фигура имеет св-во NumeralIndex на 6 больше одноименной белой.
             {
                 newPieceIndex += 6;
             }

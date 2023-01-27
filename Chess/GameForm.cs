@@ -2,9 +2,11 @@
 namespace Chess
 {
     public partial class GameForm : Form
-    {        
+    {
         private Point _oldGamePanelLocation;
         private bool _wasMaximized;
+        private int _shiftFromDragStartPointToGamePanelLeftSide;
+        private int _shiftFromDragStartPointToGamePanelTop;
 
         internal MenuPanel MenuPanel { get; private set; }
 
@@ -12,14 +14,20 @@ namespace Chess
 
         internal GamePanel GamePanel { get; private set; }
 
+        public bool DraggingGamePanelAllowed { get; internal set; } = true;
+
         public GameForm()
         {
             InitializeComponent();
             Text = "";
             BackColor = Color.Olive;
             SetPanels();
-            SizeChanged += new EventHandler(MoveGamePanel);
-            GamePanel.LocationChanged += new EventHandler(SaveGamePanelLocation);
+
+            SizeChanged += Form_SizeChanged;
+            GamePanel.LocationChanged += GamePanel_LocationChanged;
+            GamePanel.MouseDown += GamePanel_MouseDown;
+            QueryContinueDrag += DragGamePanel;
+
             GamePanel.StartNewGame();
         }
 
@@ -48,7 +56,56 @@ namespace Chess
             MinimumSize = new Size(minWidth, minHeight);
         }
 
-        private void MoveGamePanel(object sender, EventArgs e)
+        internal void PutGamePanelToCenter()
+        {
+            var gamePanelX = (ClientRectangle.Width - GamePanel.Width) / 2;
+            var gamePanelY = MenuPanel.Height + TimePanel.Height + (ClientRectangle.Height - MenuPanel.Height - TimePanel.Height - GamePanel.Height) / 2;
+            GamePanel.Location = new Point(gamePanelX, gamePanelY);
+        }
+
+        internal void ShowMessage(string message) => MessageBox.Show(message, "", MessageBoxButtons.OK);
+
+        internal void GamePanel_MouseDown(object sender, EventArgs e)
+        {
+            if (!DraggingGamePanelAllowed)
+            {
+                return;
+            }
+
+            _shiftFromDragStartPointToGamePanelLeftSide = Cursor.Position.X - GamePanel.Location.X;
+            _shiftFromDragStartPointToGamePanelTop = Cursor.Position.Y - GamePanel.Location.Y;
+            DoDragDrop(GamePanel, DragDropEffects.None);
+        }
+
+        private void DragGamePanel(object sender, EventArgs e)
+        {
+            var newGamePanelX = Cursor.Position.X - _shiftFromDragStartPointToGamePanelLeftSide;
+            var newGamePanelY = Cursor.Position.Y - _shiftFromDragStartPointToGamePanelTop;
+
+            if (newGamePanelX < 0)
+            {
+                newGamePanelX = 0;
+            }
+
+            if (newGamePanelX > ClientRectangle.Width - GamePanel.Width)
+            {
+                newGamePanelX = ClientRectangle.Width - GamePanel.Width;
+            }
+
+            if (newGamePanelY < MenuPanel.Height + TimePanel.Height)
+            {
+                newGamePanelY = MenuPanel.Height + TimePanel.Height;
+            }
+
+            if (newGamePanelY > ClientRectangle.Height - GamePanel.Height)
+            {
+                newGamePanelY = ClientRectangle.Height - GamePanel.Height;
+            }
+
+            GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
+        }
+
+        private void Form_SizeChanged(object sender, EventArgs e)
         {
             if (WindowState == FormWindowState.Maximized)
             {
@@ -78,24 +135,15 @@ namespace Chess
             }
 
             GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
-        }        
-
-        internal void PutGamePanelToCenter()
-        {
-            var gamePanelX = (ClientRectangle.Width - GamePanel.Width) / 2;
-            var gamePanelY = MenuPanel.Height + TimePanel.Height + (ClientRectangle.Height - MenuPanel.Height - TimePanel.Height - GamePanel.Height) / 2;
-            GamePanel.Location = new Point(gamePanelX, gamePanelY);
         }
 
-        private void SaveGamePanelLocation(object sender, EventArgs e)
+        private void GamePanel_LocationChanged(object sender, EventArgs e)
         {
             if (WindowState != FormWindowState.Maximized)
             {
                 _oldGamePanelLocation = GamePanel.Location;
             }
-        }        
-
-        internal void ShowMessage(string message) => MessageBox.Show(message, "", MessageBoxButtons.OK);
+        }
 
         public Color PanelColor => DefaultBackColor;
 

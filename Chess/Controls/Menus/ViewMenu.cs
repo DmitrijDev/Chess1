@@ -4,6 +4,7 @@ namespace Chess
     internal class ViewMenu : ToolStripMenuItem
     {
         private readonly GameForm _form;
+        private readonly ToolStripMenuItem _allowGamePanelDragItem = new("Перетаскивание доски мышью");
 
         public ViewMenu(GameForm form) : base("Вид")
         {
@@ -11,15 +12,16 @@ namespace Chess
 
             var menuItem = new ToolStripMenuItem("Доску по центру");
             DropDownItems.Add(menuItem);
-            menuItem.Click += new EventHandler(PutGamePanelToCenter);
+            menuItem.Click += (sender, e) => _form.PutGamePanelToCenter();
 
             menuItem = new ToolStripMenuItem("Развернуть доску");
             DropDownItems.Add(menuItem);
-            menuItem.Click += new EventHandler(RotateGamePanel);
+            menuItem.Click += (sender, e) => _form.GamePanel.Rotate();
+
+            DropDownItems.Add(_allowGamePanelDragItem);
+            _allowGamePanelDragItem.CheckOnClick = true;
+            _allowGamePanelDragItem.Checked = true;
+            _allowGamePanelDragItem.Click += (sender, e) => _form.DraggingGamePanelAllowed = _allowGamePanelDragItem.Checked;
         }
-
-        private void PutGamePanelToCenter(object sender, EventArgs e) => _form.PutGamePanelToCenter();
-
-        private void RotateGamePanel(object sender, EventArgs e) => _form.GamePanel.Rotate();
     }
 }

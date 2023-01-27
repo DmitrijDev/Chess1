@@ -457,7 +457,7 @@ namespace Chess.LogicPart
             }
         }
 
-        public GamePosition CurrentPosition => new(this);
+        public GamePosition GetCurrentPosition() => new(this);
 
         public PieceColor MovingSideColor => MovingSide.Color;
     }

@@ -37,8 +37,8 @@ namespace Chess
             MinimumSize = new Size(timerWidth * 2 + interval, Height);
             MaximumSize = new Size(int.MaxValue, Height);
 
-            _form.SizeChanged += new EventHandler(ChangeWidth);
-            SizeChanged += new EventHandler(MoveTimers);
+            _form.SizeChanged += (sender, e) => Width = _form.ClientRectangle.Width;
+            SizeChanged += Size_Changed;
         }
 
         private void CreateTimer(PieceColor color)
@@ -99,9 +99,7 @@ namespace Chess
 
         public void ShowTime(PieceColor color, int time) => ShowTime(color == PieceColor.White ? _whiteTimeLeft : _blackTimeLeft, time);
 
-        private void ChangeWidth(object sender, EventArgs e) => Width = _form.ClientRectangle.Width;
-
-        private void MoveTimers(object sender, EventArgs e)
+        private void Size_Changed(object sender, EventArgs e)
         {
             var timerWidth = _whiteTimer.Width;
             var interval = timerWidth + timerWidth / 2;

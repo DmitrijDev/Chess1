@@ -4,18 +4,20 @@ namespace Chess
     internal class SquareButton : Button
     {
         private readonly GamePanel _gamePanel;
-        private readonly int _x;
-        private readonly int _y;
         private static Bitmap[] _images;
         // 1-6, 13-18, 25-30 - белые фигуры, 7-12, 19-24, 31-36 - черные. 1-12 - фигуры на белом поле, 13-24 - на черном, > 24 - на подсвеченном поле.
 
-        public int DisplayedPieceIndex { get; set; } // 0 - пустое поле, 1-6 - белые фигуры, 7-12 -черные.       
+        public int X { get; }
 
+        public int Y { get; }
+
+        public int DisplayedPieceIndex { get; set; } // 0 - пустое поле, 1-6 - белые фигуры, 7-12 -черные.
+                                                      
         public SquareButton(GamePanel gamePanel, int x, int y)
         {
             _gamePanel = gamePanel;
-            _x = x;
-            _y = y;
+            X = x;
+            Y = y;
 
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
@@ -26,8 +28,6 @@ namespace Chess
             {
                 CreateImages();
             }
-
-            Click += new EventHandler(HandleClick);
         }
 
         private void CreateImages()
@@ -45,8 +45,6 @@ namespace Chess
             }
         }
 
-        private void HandleClick(object sender, EventArgs e) => _gamePanel.HandleClickAt(_x, _y);
-
         public void RenewImage()
         {
             if (DisplayedPieceIndex == 0)
@@ -55,17 +53,7 @@ namespace Chess
                 return;
             }
 
-            for (var i = 25; i < _images.Length; ++i)
-            {
-                if (_images[i] == BackgroundImage)
-                {
-                    BackgroundImage = _images[DisplayedPieceIndex + 24];
-                    return;
-                }
-            }
-
-            var newImageIndex = BackColor == _gamePanel.LightSquaresColor ? DisplayedPieceIndex : DisplayedPieceIndex + 12;
-            BackgroundImage = _images[newImageIndex];
+            BackgroundImage = BackColor == _gamePanel.LightSquaresColor ? _images[DisplayedPieceIndex] : _images[DisplayedPieceIndex + 12];
         }
 
         public void Highlight()
@@ -77,5 +65,9 @@ namespace Chess
         }
 
         public void RemoveHighlight() => BackgroundImage = BackColor == _gamePanel.LightSquaresColor ? _images[DisplayedPieceIndex] : _images[DisplayedPieceIndex + 12];
+
+        public void Outline() => FlatAppearance.BorderSize = 2;
+
+        public void RemoveOutline() => FlatAppearance.BorderSize = 0;
     }
 }

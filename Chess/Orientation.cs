@@ -1,5 +1,5 @@
 ﻿
 namespace Chess
 {
-    public enum Orientation { Normal, Reversed };
+    public enum Orientation { Standart, Reversed };
 }
