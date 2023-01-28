@@ -39,6 +39,12 @@ namespace Chess
 
         public int ButtonSize { get; private set; }
 
+        public Color[][] Colors { get; } =
+        {
+            new Color[5] {Color.Goldenrod, Color.SaddleBrown, Color.Blue, Color.Maroon, Color.Olive},
+            new Color[5] {Color.DarkGray, Color.Gray, Color.DarkSlateGray, Color.Black, Color.LightGray}
+        };
+
         public GamePanel(GameForm form)
         {
             _form = form;
@@ -96,14 +102,28 @@ namespace Chess
             SetButtons();
         }
 
-        /*public void SetSizeAndColors(int buttonSize, Color lightSquaresColor, Color darkSquaresColor)
+        public void SetColors(int colorsArrayIndex)
         {
-            ButtonSize = buttonSize;
-            LightSquaresColor = lightSquaresColor;
-            DarkSquaresColor = darkSquaresColor;
-            SetButtons();
-            RenewButtonsView(RenewMode.FullRenew);
-        }*/
+            var colors = Colors[colorsArrayIndex];
+
+            LightSquaresColor = colors[0];
+            DarkSquaresColor = colors[1];
+            HighlightColor = colors[2];
+            BackColor = colors[3];
+            _form.BackColor = colors[4];
+
+            _buttons[0, 0].CreateImages();
+
+            for (var i = 0; i < 8; ++i)
+            {
+                for (var j = 0; j < 8; ++j)
+                {
+                    _buttons[i, j].BackColor = i % 2 == j % 2 ? DarkSquaresColor : LightSquaresColor;
+                    _buttons[i, j].FlatAppearance.BorderColor = HighlightColor;
+                    _buttons[i, j].RenewImage();
+                }
+            }
+        }
 
         public void StartNewGame()
         {
@@ -432,7 +452,7 @@ namespace Chess
                     ShowEndGameMessage();
                 }
             }
-        }                
+        }
 
         public bool GameIsOver => _gameBoard.Status != GameStatus.GameCanContinue;
 

@@ -1,13 +1,10 @@
-using System.Windows;
 
 namespace Chess
 {
     public partial class GameForm : Form
     {
-        private Point _oldGamePanelLocation;
-        private bool _wasMaximized;
-        private int _fromCursorToGamePanelLeft;
-        private int _fromCursorToGamePanelTop;
+        private int _fromDragCursorToGamePanelLeft;
+        private int _fromDragCursorToGamePanelTop;
 
         internal MenuPanel MenuPanel { get; private set; }
 
@@ -25,7 +22,6 @@ namespace Chess
             SetPanels();
 
             SizeChanged += Form_SizeChanged;
-            GamePanel.LocationChanged += GamePanel_LocationChanged;
             GamePanel.MouseDown += GamePanel_MouseDown;
             QueryContinueDrag += DragGamePanel;
 
@@ -50,14 +46,13 @@ namespace Chess
             Controls.Add(MenuPanel);
             Controls.Add(TimePanel);
             Controls.Add(GamePanel);
-            _oldGamePanelLocation = GamePanel.Location;
 
             var minWidth = Math.Max(Width - shift * 2, TimePanel.MinimumSize.Width);
             var minHeight = Height - shift * 2;
             MinimumSize = new Size(minWidth, minHeight);
         }
 
-        public int GetTitleHeight()
+        public int GetCaptionHeight()
         {
             var clientRectangleToScreen = RectangleToScreen(ClientRectangle);
             return clientRectangleToScreen.Top - Top;
@@ -79,40 +74,40 @@ namespace Chess
                 return;
             }
 
-            var titleHeight = GetTitleHeight();
-            _fromCursorToGamePanelLeft = Cursor.Position.X - Location.X - GamePanel.Location.X;
-            _fromCursorToGamePanelTop = (Cursor.Position.Y - Location.Y) - (titleHeight + GamePanel.Location.Y);
+            var captionHeight = GetCaptionHeight();
+            _fromDragCursorToGamePanelLeft = (Cursor.Position.X - Location.X) - GamePanel.Location.X;
+            _fromDragCursorToGamePanelTop = (Cursor.Position.Y - Location.Y) - (captionHeight + GamePanel.Location.Y);
             DoDragDrop(GamePanel, DragDropEffects.None);
         }
 
         private void DragGamePanel(object sender, EventArgs e)
         {
-            var titleHeight = GetTitleHeight();
-            var newGamePanelX = Cursor.Position.X - Location.X - _fromCursorToGamePanelLeft;
-            var newGamePanelY = Cursor.Position.Y - (Location.Y + titleHeight) - _fromCursorToGamePanelTop;
+            var captionHeight = GetCaptionHeight();
+            var newGamePanelX = (Cursor.Position.X - Location.X) - _fromDragCursorToGamePanelLeft;
+            var newGamePanelY = Cursor.Position.Y - (Location.Y + captionHeight) - _fromDragCursorToGamePanelTop;
 
             if (newGamePanelX < 0)
             {
                 newGamePanelX = 0;
-                _fromCursorToGamePanelLeft = Math.Max(Cursor.Position.X - Location.X, 0);
+                _fromDragCursorToGamePanelLeft = Math.Max(Cursor.Position.X - Location.X, 0);
             }
 
             if (newGamePanelX > ClientRectangle.Width - GamePanel.Width)
             {
                 newGamePanelX = ClientRectangle.Width - GamePanel.Width;
-                _fromCursorToGamePanelLeft = Math.Min(Cursor.Position.X - (Location.X + ClientRectangle.Width - GamePanel.Width), GamePanel.Width);
+                _fromDragCursorToGamePanelLeft = Math.Min(Cursor.Position.X - (Location.X + ClientRectangle.Width - GamePanel.Width), GamePanel.Width);
             }
 
             if (newGamePanelY < MenuPanel.Height + TimePanel.Height)
             {
                 newGamePanelY = MenuPanel.Height + TimePanel.Height;
-                _fromCursorToGamePanelTop = Math.Max((Cursor.Position.Y - Location.Y) - (titleHeight + MenuPanel.Height + TimePanel.Height), 0);
+                _fromDragCursorToGamePanelTop = Math.Max((Cursor.Position.Y - Location.Y) - (captionHeight + MenuPanel.Height + TimePanel.Height), 0);
             }
 
             if (newGamePanelY > ClientRectangle.Height - GamePanel.Height)
             {
                 newGamePanelY = ClientRectangle.Height - GamePanel.Height;
-                _fromCursorToGamePanelTop = Math.Min(Cursor.Position.Y - (Location.Y + titleHeight + GamePanel.Location.Y), GamePanel.Height);
+                _fromDragCursorToGamePanelTop = Math.Min(Cursor.Position.Y - (Location.Y + captionHeight + GamePanel.Location.Y), GamePanel.Height);
             }
 
             GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
@@ -120,20 +115,6 @@ namespace Chess
 
         private void Form_SizeChanged(object sender, EventArgs e)
         {
-            if (WindowState == FormWindowState.Maximized)
-            {
-                PutGamePanelToCenter();
-                _wasMaximized = true;
-                return;
-            }
-
-            if (_wasMaximized)
-            {
-                GamePanel.Location = _oldGamePanelLocation;
-                _wasMaximized = false;
-                return;
-            }
-
             var newGamePanelX = GamePanel.Location.X;
             var newGamePanelY = GamePanel.Location.Y;
 
@@ -149,15 +130,7 @@ namespace Chess
 
             GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
         }
-
-        private void GamePanel_LocationChanged(object sender, EventArgs e)
-        {
-            if (WindowState != FormWindowState.Maximized)
-            {
-                _oldGamePanelLocation = GamePanel.Location;
-            }
-        }
-
+        
         public Color PanelColor => DefaultBackColor;
 
         public int TimeFontSize => MenuPanel.Font.Height;

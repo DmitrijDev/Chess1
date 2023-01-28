@@ -12,7 +12,9 @@ namespace Chess
         public int Y { get; }
 
         public int DisplayedPieceIndex { get; set; } // 0 - пустое поле, 1-6 - белые фигуры, 7-12 -черные.
-                                                      
+
+        public bool IsHighlighted { get; private set; }
+
         public SquareButton(GamePanel gamePanel, int x, int y)
         {
             _gamePanel = gamePanel;
@@ -30,7 +32,7 @@ namespace Chess
             }
         }
 
-        private void CreateImages()
+        internal void CreateImages()
         {
             _images = new Bitmap[37];
 
@@ -53,6 +55,12 @@ namespace Chess
                 return;
             }
 
+            if (IsHighlighted)
+            {
+                BackgroundImage = _images[DisplayedPieceIndex + 24];
+                return;
+            }
+
             BackgroundImage = BackColor == _gamePanel.LightSquaresColor ? _images[DisplayedPieceIndex] : _images[DisplayedPieceIndex + 12];
         }
 
@@ -62,9 +70,15 @@ namespace Chess
             {
                 BackgroundImage = _images[DisplayedPieceIndex + 24];
             }
+
+            IsHighlighted = true;
         }
 
-        public void RemoveHighlight() => BackgroundImage = BackColor == _gamePanel.LightSquaresColor ? _images[DisplayedPieceIndex] : _images[DisplayedPieceIndex + 12];
+        public void RemoveHighlight()
+        {
+            BackgroundImage = BackColor == _gamePanel.LightSquaresColor ? _images[DisplayedPieceIndex] : _images[DisplayedPieceIndex + 12];
+            IsHighlighted = false;
+        }
 
         public void Outline() => FlatAppearance.BorderSize = 2;
 
