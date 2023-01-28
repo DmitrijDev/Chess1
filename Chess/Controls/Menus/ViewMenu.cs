@@ -20,7 +20,7 @@ namespace Chess
 
             DropDownItems.Add(_allowGamePanelDragItem);
             _allowGamePanelDragItem.CheckOnClick = true;
-            _allowGamePanelDragItem.Checked = true;
+            _allowGamePanelDragItem.Checked = _form.DraggingGamePanelAllowed;
             _allowGamePanelDragItem.Click += (sender, e) => _form.DraggingGamePanelAllowed = _allowGamePanelDragItem.Checked;
         }
     }

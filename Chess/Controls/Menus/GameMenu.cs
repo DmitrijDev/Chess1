@@ -119,9 +119,14 @@ namespace Chess
 
             foreach (var obj in _timeMenu.DropDownItems)
             {
+                if (obj == sender)
+                {
+                    continue;
+                }
+
                 var menuItem = (ToolStripMenuItem)obj;
 
-                if (menuItem.Checked && obj != sender)
+                if (menuItem.Checked)
                 {
                     menuItem.Checked = false;
                     break;

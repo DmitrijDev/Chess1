@@ -212,7 +212,7 @@ namespace Chess
             }
         }
 
-        private void MakeMove()
+        private void MakeSelectedMove()
         {
             try
             {
@@ -276,7 +276,7 @@ namespace Chess
         public void PromotePawn(int newPieceIndex)
         {
             _selectedMove[4] = newPieceIndex;
-            MakeMove();
+            MakeSelectedMove();
         }
 
         private void Think()
@@ -336,6 +336,9 @@ namespace Chess
             _form.ShowMessage("Ничья по правилу 50 ходов.");
         }
 
+        public bool ProgramPlaysFor(PieceColor color) => color == PieceColor.White ? _whiteVirtualPlayer != null : _blackVirtualPlayer != null;
+        // Программа может играть и сама с собой.
+
         private void ClickButton(object sender, EventArgs e)
         {
             if (ProgramPlaysFor(_gameBoard.MovingSideColor) || GameIsOver)
@@ -359,7 +362,7 @@ namespace Chess
                     return;
                 }
 
-                _clicksCoordinates = new List<int>();
+                _clicksCoordinates = new();
                 _clicksCoordinates.Add(button.X);
                 _clicksCoordinates.Add(button.Y);
                 button.Highlight();
@@ -389,7 +392,7 @@ namespace Chess
             _selectedMove = new int[5];
             Array.Copy(_clicksCoordinates.ToArray(), _selectedMove, 4);
             _clicksCoordinates = null;
-            MakeMove();
+            MakeSelectedMove();
         }
 
         private void Timer_Tick(object sender, EventArgs e)
@@ -397,7 +400,7 @@ namespace Chess
             if (_programSelectedMove)
             {
                 _programSelectedMove = false;
-                MakeMove();
+                MakeSelectedMove();
                 return;
             }
 
@@ -429,13 +432,10 @@ namespace Chess
                     ShowEndGameMessage();
                 }
             }
-        }
+        }                
 
-        private bool GameIsOver => _gameBoard.Status != GameStatus.GameCanContinue;
+        public bool GameIsOver => _gameBoard.Status != GameStatus.GameCanContinue;
 
         public PieceColor MovingSideColor => _gameBoard.MovingSideColor;
-
-        private bool ProgramPlaysFor(PieceColor color) => color == PieceColor.White ? _whiteVirtualPlayer != null : _blackVirtualPlayer != null;
-        // Программа может играть и сама с собой.
     }
 }
