@@ -42,7 +42,6 @@
             this.textBox.Name = "textBox";
             this.textBox.Size = new System.Drawing.Size(48, 23);
             this.textBox.TabIndex = 0;
-            this.textBox.TextChanged += (sender, e) => { };//new System.EventHandler(this.TextBox_TextChanged);
             // 
             // label
             // 
@@ -55,7 +54,7 @@
             // 
             // selectButton
             // 
-            this.selectButton.Location = new System.Drawing.Point(24, 137);
+            this.selectButton.Location = new System.Drawing.Point(34, 137);
             this.selectButton.Name = "selectButton";
             this.selectButton.Size = new System.Drawing.Size(74, 23);
             this.selectButton.TabIndex = 2;
@@ -65,17 +64,16 @@
             // 
             // cancelButton
             // 
-            this.cancelButton.Location = new System.Drawing.Point(143, 137);
+            this.cancelButton.Location = new System.Drawing.Point(131, 137);
             this.cancelButton.Name = "cancelButton";
             this.cancelButton.Size = new System.Drawing.Size(75, 23);
             this.cancelButton.TabIndex = 3;
             this.cancelButton.Text = "Отмена";
             this.cancelButton.UseVisualStyleBackColor = true;
-            this.cancelButton.Click += (sender, e) => Close();
             // 
             // plusButton
             // 
-            this.plusButton.Location = new System.Drawing.Point(24, 50);
+            this.plusButton.Location = new System.Drawing.Point(34, 51);
             this.plusButton.Name = "plusButton";
             this.plusButton.Size = new System.Drawing.Size(29, 23);
             this.plusButton.TabIndex = 4;
@@ -84,7 +82,7 @@
             // 
             // minusButton
             // 
-            this.minusButton.Location = new System.Drawing.Point(189, 51);
+            this.minusButton.Location = new System.Drawing.Point(177, 50);
             this.minusButton.Name = "minusButton";
             this.minusButton.Size = new System.Drawing.Size(29, 23);
             this.minusButton.TabIndex = 5;
@@ -95,7 +93,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(240, 185);
+            this.ClientSize = new System.Drawing.Size(238, 185);
             this.Controls.Add(this.minusButton);
             this.Controls.Add(this.plusButton);
             this.Controls.Add(this.cancelButton);
@@ -105,6 +103,8 @@
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "GamePanelSizeForm";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
+            this.Load += new System.EventHandler(this.GamePanelSizeForm_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 
