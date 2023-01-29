@@ -40,10 +40,11 @@ namespace Chess
         public int ButtonSize { get; private set; }
 
         public Color[][] Colors { get; } =
-        {
-            new Color[5] {Color.Goldenrod, Color.SaddleBrown, Color.Blue, Color.Maroon, Color.Olive},
-            new Color[5] {Color.DarkGray, Color.Gray, Color.DarkSlateGray, Color.Black, Color.LightGray}
-        };
+        {   new Color[7] {Color.White, Color.Black, Color.Goldenrod, Color.SaddleBrown, Color.Blue, Color.Maroon, Color.Olive},
+            new Color[7] {Color.White, Color.Black, Color.DarkGray, Color.Gray, Color.DarkSlateGray, Color.Black, Color.LightGray},
+            new Color[7] {Color.White, Color.Black, Color.Gray, Color.SeaGreen, Color.YellowGreen, Color.DimGray, Color.LightSkyBlue},
+            new Color[7] {Color.White, Color.Black, Color.DarkKhaki, Color.Chocolate, Color.DarkBlue, Color.SaddleBrown, Color.SandyBrown},
+            new Color[7] {Color.Goldenrod, Color.DarkRed, Color.White, Color.Black, Color.LawnGreen, Color.Black, Color.Khaki} };
 
         public GamePanel(GameForm form)
         {
@@ -106,13 +107,15 @@ namespace Chess
         {
             var colors = Colors[colorsArrayIndex];
 
-            LightSquaresColor = colors[0];
-            DarkSquaresColor = colors[1];
-            HighlightColor = colors[2];
-            BackColor = colors[3];
-            _form.BackColor = colors[4];
+            WhitePiecesColor = colors[0];
+            BlackPiecesColor = colors[1];
+            LightSquaresColor = colors[2];
+            DarkSquaresColor = colors[3];
+            HighlightColor = colors[4];
+            BackColor = colors[5];
+            _form.BackColor = colors[6];
 
-            _buttons[0, 0].CreateImages();
+            SquareButton.CreateImages(this);
 
             for (var i = 0; i < 8; ++i)
             {

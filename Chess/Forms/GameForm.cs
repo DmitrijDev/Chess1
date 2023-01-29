@@ -12,13 +12,13 @@ namespace Chess
 
         internal GamePanel GamePanel { get; private set; }
 
-        public bool DraggingGamePanelAllowed { get; internal set; } = true;
+        public bool GamePanelDragEnabled { get; internal set; } = true;
 
         public GameForm()
         {
             InitializeComponent();
             Text = "";
-            BackColor = Color.Olive;
+            BackColor = Color.Olive;            
             SetPanels();
 
             SizeChanged += Form_SizeChanged;
@@ -69,45 +69,45 @@ namespace Chess
 
         private void GamePanel_MouseDown(object sender, EventArgs e)
         {
-            if (!DraggingGamePanelAllowed)
+            if (!GamePanelDragEnabled)
             {
                 return;
             }
 
             var captionHeight = GetCaptionHeight();
-            _fromDragCursorToGamePanelLeft = (Cursor.Position.X - Location.X) - GamePanel.Location.X;
-            _fromDragCursorToGamePanelTop = (Cursor.Position.Y - Location.Y) - (captionHeight + GamePanel.Location.Y);
+            _fromDragCursorToGamePanelLeft = (Cursor.Position.X - Location.X) - (ClientRectangle.Left + GamePanel.Location.X);
+            _fromDragCursorToGamePanelTop = (Cursor.Position.Y - Location.Y) - (ClientRectangle.Top + captionHeight + GamePanel.Location.Y);
             DoDragDrop(GamePanel, DragDropEffects.None);
         }
 
         private void DragGamePanel(object sender, EventArgs e)
         {
             var captionHeight = GetCaptionHeight();
-            var newGamePanelX = (Cursor.Position.X - Location.X) - _fromDragCursorToGamePanelLeft;
-            var newGamePanelY = Cursor.Position.Y - (Location.Y + captionHeight) - _fromDragCursorToGamePanelTop;
+            var newGamePanelX = (Cursor.Position.X - (Location.X + ClientRectangle.Left)) - _fromDragCursorToGamePanelLeft;
+            var newGamePanelY = (Cursor.Position.Y - (Location.Y + ClientRectangle.Top + captionHeight)) - _fromDragCursorToGamePanelTop;
 
             if (newGamePanelX < 0)
             {
                 newGamePanelX = 0;
-                _fromDragCursorToGamePanelLeft = Math.Max(Cursor.Position.X - Location.X, 0);
+                _fromDragCursorToGamePanelLeft = Math.Max(Cursor.Position.X - (Location.X + ClientRectangle.Left), 0);
             }
 
             if (newGamePanelX > ClientRectangle.Width - GamePanel.Width)
             {
                 newGamePanelX = ClientRectangle.Width - GamePanel.Width;
-                _fromDragCursorToGamePanelLeft = Math.Min(Cursor.Position.X - (Location.X + ClientRectangle.Width - GamePanel.Width), GamePanel.Width);
+                _fromDragCursorToGamePanelLeft = Math.Min(Cursor.Position.X - (Location.X + ClientRectangle.Left + ClientRectangle.Width - GamePanel.Width), GamePanel.Width);
             }
 
             if (newGamePanelY < MenuPanel.Height + TimePanel.Height)
             {
                 newGamePanelY = MenuPanel.Height + TimePanel.Height;
-                _fromDragCursorToGamePanelTop = Math.Max((Cursor.Position.Y - Location.Y) - (captionHeight + MenuPanel.Height + TimePanel.Height), 0);
+                _fromDragCursorToGamePanelTop = Math.Max((Cursor.Position.Y - Location.Y) - (ClientRectangle.Top + captionHeight + MenuPanel.Height + TimePanel.Height), 0);
             }
 
             if (newGamePanelY > ClientRectangle.Height - GamePanel.Height)
             {
                 newGamePanelY = ClientRectangle.Height - GamePanel.Height;
-                _fromDragCursorToGamePanelTop = Math.Min(Cursor.Position.Y - (Location.Y + captionHeight + GamePanel.Location.Y), GamePanel.Height);
+                _fromDragCursorToGamePanelTop = Math.Min(Cursor.Position.Y - (Location.Y + ClientRectangle.Top + captionHeight + GamePanel.Location.Y), GamePanel.Height);
             }
 
             GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
@@ -130,9 +130,14 @@ namespace Chess
 
             GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
         }
-        
+
         public Color PanelColor => DefaultBackColor;
 
         public int TimeFontSize => MenuPanel.Font.Height;
+
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

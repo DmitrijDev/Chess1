@@ -37,7 +37,6 @@
             this.ClientSize = new System.Drawing.Size(800, 450);
             this.Name = "GameForm";
             this.ShowInTaskbar = false;
-            this.Text = "Form1";
             this.ResumeLayout(false);
 
         }

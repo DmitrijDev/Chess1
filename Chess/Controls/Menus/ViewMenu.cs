@@ -3,36 +3,43 @@ namespace Chess
 {
     internal class ViewMenu : ToolStripMenuItem
     {
-        private readonly GameForm _form;
-        private readonly ToolStripMenuItem _allowGamePanelDragItem = new("Перетаскивание доски мышью");
-        private readonly ToolStripMenuItem _colorsMenu = new("Выбор цветов полей");
+        private readonly GameForm _gameForm;
+        private readonly ToolStripMenuItem _enableGamePanelDragItem = new("Перетаскивание доски мышью");
+        private readonly ToolStripMenuItem _colorsMenu = new("Выбор цветов");
 
         public ViewMenu(GameForm form) : base("Вид")
         {
-            _form = form;
+            _gameForm = form;
 
             var menuItem = new ToolStripMenuItem("Доску по центру");
             DropDownItems.Add(menuItem);
-            menuItem.Click += (sender, e) => _form.PutGamePanelToCenter();
+            menuItem.Click += (sender, e) => _gameForm.PutGamePanelToCenter();
 
             menuItem = new ToolStripMenuItem("Развернуть доску");
             DropDownItems.Add(menuItem);
-            menuItem.Click += (sender, e) => _form.GamePanel.Rotate();
+            menuItem.Click += (sender, e) => _gameForm.GamePanel.Rotate();
 
-            DropDownItems.Add(_allowGamePanelDragItem);
-            _allowGamePanelDragItem.CheckOnClick = true;
-            _allowGamePanelDragItem.Checked = _form.DraggingGamePanelAllowed;
-            _allowGamePanelDragItem.Click += (sender, e) => _form.DraggingGamePanelAllowed = _allowGamePanelDragItem.Checked;
+            DropDownItems.Add(_enableGamePanelDragItem);
+            _enableGamePanelDragItem.CheckOnClick = true;
+            _enableGamePanelDragItem.Checked = _gameForm.GamePanelDragEnabled;
+            _enableGamePanelDragItem.Click += (sender, e) => _gameForm.GamePanelDragEnabled = _enableGamePanelDragItem.Checked;
 
             DropDownItems.Add(_colorsMenu);
-            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Желтые и коричневые") { CheckOnClick = true, Checked = true });
-            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Серые") { CheckOnClick = true, Checked = false });
+            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Осень") { CheckOnClick = true, Checked = true });
+            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Зима") { CheckOnClick = true, Checked = false });
+            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Весна") { CheckOnClick = true, Checked = false });
+            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Лето") { CheckOnClick = true, Checked = false });
+            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Черно-белые поля, цветные фигуры") { CheckOnClick = true, Checked = false });
 
             foreach (var obj in _colorsMenu.DropDownItems)
             {
                 var item = (ToolStripMenuItem)obj;
                 item.Click += ColorsMenuItem_Click;
             }
+
+            menuItem = new ToolStripMenuItem("Изменить размер доски");
+            DropDownItems.Add(menuItem);
+            menuItem.Click += (sender, e) => new GamePanelSizeForm().ShowDialog();
         }
 
         private void ColorsMenuItem_Click(object sender, EventArgs e)
@@ -65,7 +72,7 @@ namespace Chess
             {
                 if (_colorsMenu.DropDownItems[i] == sender)
                 {
-                    _form.GamePanel.SetColors(i);
+                    _gameForm.GamePanel.SetColors(i);
                     return;
                 }
             }

@@ -28,11 +28,11 @@ namespace Chess
 
             if (_images == null)
             {
-                CreateImages();
+                CreateImages(_gamePanel);
             }
         }
 
-        internal void CreateImages()
+        internal static void CreateImages(GamePanel gamePanel)
         {
             _images = new Bitmap[37];
 
@@ -41,8 +41,8 @@ namespace Chess
 
             for (var i = 1; i < 37; ++i)
             {
-                var backColor = i <= 12 ? _gamePanel.LightSquaresColor : i <= 24 ? _gamePanel.DarkSquaresColor : _gamePanel.HighlightColor;
-                var imageColor = (i >= 1 && i <= 6) || (i >= 13 && i <= 18) || (i >= 25 && i <= 30) ? _gamePanel.WhitePiecesColor : _gamePanel.BlackPiecesColor;
+                var backColor = i <= 12 ? gamePanel.LightSquaresColor : i <= 24 ? gamePanel.DarkSquaresColor : gamePanel.HighlightColor;
+                var imageColor = (i >= 1 && i <= 6) || (i >= 13 && i <= 18) || (i >= 25 && i <= 30) ? gamePanel.WhitePiecesColor : gamePanel.BlackPiecesColor;
                 _images[i] = Graphics.GetColoredPicture(originalImages[i % 6 > 0 ? i % 6 : 6], backColor, imageColor);
             }
         }
