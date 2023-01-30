@@ -80,6 +80,7 @@
             this.PlusButton.TabIndex = 4;
             this.PlusButton.Text = "+";
             this.PlusButton.UseVisualStyleBackColor = true;
+            this.PlusButton.Click += new System.EventHandler(this.PlusButton_Click);
             // 
             // MinusButton
             // 
@@ -89,6 +90,7 @@
             this.MinusButton.TabIndex = 5;
             this.MinusButton.Text = "-";
             this.MinusButton.UseVisualStyleBackColor = true;
+            this.MinusButton.Click += new System.EventHandler(this.MinusButton_Click);
             // 
             // GamePanelSizeForm
             // 

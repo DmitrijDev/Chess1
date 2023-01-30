@@ -1,6 +1,4 @@
 ﻿
-using System.Windows.Forms;
-
 namespace Chess
 {
     public partial class GamePanelSizeForm : Form
@@ -36,6 +34,38 @@ namespace Chess
             {
                 TextBox.Text = _gamePanel.MaximumButtonSize.ToString();
             }
+        }
+
+        private void PlusButton_Click(object sender, EventArgs e)
+        {
+            if (!int.TryParse(TextBox.Text, out var buttonSize))
+            {
+                TextBox.Text = _gamePanel.ButtonSize < _gamePanel.MaximumButtonSize ? (_gamePanel.ButtonSize + 1).ToString() : _gamePanel.ButtonSize.ToString();
+                return;
+            }
+
+            if (buttonSize == _gamePanel.MaximumButtonSize)
+            {
+                return;
+            }
+
+            TextBox.Text = (buttonSize + 1).ToString();
+        }
+
+        private void MinusButton_Click(object sender, EventArgs e)
+        {
+            if (!int.TryParse(TextBox.Text, out var buttonSize))
+            {
+                TextBox.Text = _gamePanel.ButtonSize > _gamePanel.MinimumButtonSize ? (_gamePanel.ButtonSize - 1).ToString() : _gamePanel.ButtonSize.ToString();
+                return;
+            }
+
+            if (buttonSize == _gamePanel.MinimumButtonSize)
+            {
+                return;
+            }
+
+            TextBox.Text = (buttonSize - 1).ToString();
         }
 
         private void SelectButton_Click(object sender, EventArgs e)
