@@ -28,83 +28,83 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.textBox = new System.Windows.Forms.TextBox();
-            this.label = new System.Windows.Forms.Label();
-            this.selectButton = new System.Windows.Forms.Button();
-            this.cancelButton = new System.Windows.Forms.Button();
-            this.plusButton = new System.Windows.Forms.Button();
-            this.minusButton = new System.Windows.Forms.Button();
+            this.TextBox = new System.Windows.Forms.TextBox();
+            this.Label = new System.Windows.Forms.Label();
+            this.SelectButton = new System.Windows.Forms.Button();
+            this.CancelButton = new System.Windows.Forms.Button();
+            this.PlusButton = new System.Windows.Forms.Button();
+            this.MinusButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
-            // textBox
+            // TextBox
             // 
-            this.textBox.Location = new System.Drawing.Point(96, 51);
-            this.textBox.Name = "textBox";
-            this.textBox.Size = new System.Drawing.Size(48, 23);
-            this.textBox.TabIndex = 0;
+            this.TextBox.Location = new System.Drawing.Point(96, 51);
+            this.TextBox.Name = "TextBox";
+            this.TextBox.Size = new System.Drawing.Size(48, 23);
+            this.TextBox.TabIndex = 0;
+            this.TextBox.Leave += new System.EventHandler(this.TextBox_Leave);
             // 
-            // label
+            // Label
             // 
-            this.label.AutoSize = true;
-            this.label.Location = new System.Drawing.Point(60, 22);
-            this.label.Name = "label";
-            this.label.Size = new System.Drawing.Size(130, 15);
-            this.label.TabIndex = 1;
-            this.label.Text = "Выбрать размер поля:";
+            this.Label.AutoSize = true;
+            this.Label.Location = new System.Drawing.Point(60, 22);
+            this.Label.Name = "Label";
+            this.Label.Size = new System.Drawing.Size(130, 15);
+            this.Label.TabIndex = 1;
+            this.Label.Text = "Выбрать размер поля:";
             // 
-            // selectButton
+            // SelectButton
             // 
-            this.selectButton.Location = new System.Drawing.Point(34, 137);
-            this.selectButton.Name = "selectButton";
-            this.selectButton.Size = new System.Drawing.Size(74, 23);
-            this.selectButton.TabIndex = 2;
-            this.selectButton.Text = "Выбрать";
-            this.selectButton.UseVisualStyleBackColor = true;
-            this.selectButton.Click += new System.EventHandler(this.SelectButton_Click);
+            this.SelectButton.Location = new System.Drawing.Point(34, 137);
+            this.SelectButton.Name = "SelectButton";
+            this.SelectButton.Size = new System.Drawing.Size(74, 23);
+            this.SelectButton.TabIndex = 2;
+            this.SelectButton.Text = "Выбрать";
+            this.SelectButton.UseVisualStyleBackColor = true;
+            this.SelectButton.Click += new System.EventHandler(this.SelectButton_Click);
             // 
-            // cancelButton
+            // CancelButton
             // 
-            this.cancelButton.Location = new System.Drawing.Point(131, 137);
-            this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(75, 23);
-            this.cancelButton.TabIndex = 3;
-            this.cancelButton.Text = "Отмена";
-            this.cancelButton.UseVisualStyleBackColor = true;
+            this.CancelButton.Location = new System.Drawing.Point(131, 137);
+            this.CancelButton.Name = "CancelButton";
+            this.CancelButton.Size = new System.Drawing.Size(75, 23);
+            this.CancelButton.TabIndex = 3;
+            this.CancelButton.Text = "Отмена";
+            this.CancelButton.UseVisualStyleBackColor = true;
             // 
-            // plusButton
+            // PlusButton
             // 
-            this.plusButton.Location = new System.Drawing.Point(34, 51);
-            this.plusButton.Name = "plusButton";
-            this.plusButton.Size = new System.Drawing.Size(29, 23);
-            this.plusButton.TabIndex = 4;
-            this.plusButton.Text = "+";
-            this.plusButton.UseVisualStyleBackColor = true;
+            this.PlusButton.Location = new System.Drawing.Point(34, 51);
+            this.PlusButton.Name = "PlusButton";
+            this.PlusButton.Size = new System.Drawing.Size(29, 23);
+            this.PlusButton.TabIndex = 4;
+            this.PlusButton.Text = "+";
+            this.PlusButton.UseVisualStyleBackColor = true;
             // 
-            // minusButton
+            // MinusButton
             // 
-            this.minusButton.Location = new System.Drawing.Point(177, 50);
-            this.minusButton.Name = "minusButton";
-            this.minusButton.Size = new System.Drawing.Size(29, 23);
-            this.minusButton.TabIndex = 5;
-            this.minusButton.Text = "-";
-            this.minusButton.UseVisualStyleBackColor = true;
+            this.MinusButton.Location = new System.Drawing.Point(177, 50);
+            this.MinusButton.Name = "MinusButton";
+            this.MinusButton.Size = new System.Drawing.Size(29, 23);
+            this.MinusButton.TabIndex = 5;
+            this.MinusButton.Text = "-";
+            this.MinusButton.UseVisualStyleBackColor = true;
             // 
             // GamePanelSizeForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(238, 185);
-            this.Controls.Add(this.minusButton);
-            this.Controls.Add(this.plusButton);
-            this.Controls.Add(this.cancelButton);
-            this.Controls.Add(this.selectButton);
-            this.Controls.Add(this.label);
-            this.Controls.Add(this.textBox);
+            this.Controls.Add(this.MinusButton);
+            this.Controls.Add(this.PlusButton);
+            this.Controls.Add(this.CancelButton);
+            this.Controls.Add(this.SelectButton);
+            this.Controls.Add(this.Label);
+            this.Controls.Add(this.TextBox);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "GamePanelSizeForm";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Load += new System.EventHandler(this.GamePanelSizeForm_Load);
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -112,11 +112,11 @@
 
         #endregion
 
-        private TextBox textBox;
-        private Label label;
-        private Button selectButton;
-        private Button cancelButton;
-        private Button plusButton;
-        private Button minusButton;
+        private TextBox TextBox;
+        private Label Label;
+        private Button SelectButton;
+        private Button CancelButton;
+        private Button PlusButton;
+        private Button MinusButton;
     }
 }

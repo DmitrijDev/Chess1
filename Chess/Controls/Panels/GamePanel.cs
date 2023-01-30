@@ -15,46 +15,59 @@ namespace Chess
         private Thread _thinkingThread;
 
         private readonly SquareButton[,] _buttons = new SquareButton[8, 8];
-        private readonly int _defaultButtonSize = Screen.PrimaryScreen.WorkingArea.Height / 16;
+        private readonly int _defaultButtonSize;
+
         private Orientation _orientation = Orientation.Standart;
 
         private List<int> _clicksCoordinates;
         private int[] _selectedMove;
-        private bool _programSelectedMove;
 
         private int _whiteTimeLeft;
         private int _blackTimeLeft;
         private readonly Timer _timer = new() { Interval = 1000 };
         private int _timeForGame = 300; // В секундах.
 
-        public Color WhitePiecesColor { get; private set; } = Color.White;
+        public Color WhitePiecesColor { get; private set; }
 
-        public Color BlackPiecesColor { get; private set; } = Color.Black;
+        public Color BlackPiecesColor { get; private set; }
 
-        public Color LightSquaresColor { get; private set; } = Color.Goldenrod;
+        public Color LightSquaresColor { get; private set; }
 
-        public Color DarkSquaresColor { get; private set; } = Color.SaddleBrown;
+        public Color DarkSquaresColor { get; private set; }
 
-        public Color HighlightColor { get; private set; } = Color.Blue;
+        public Color HighlightColor { get; private set; }
 
         public int ButtonSize { get; private set; }
 
+        public int MinimumButtonSize { get; private set; }
+
+        public int MaximumButtonSize { get; private set; }
+
         public Color[][] Colors { get; } =
-        {   new Color[7] {Color.White, Color.Black, Color.Goldenrod, Color.SaddleBrown, Color.Blue, Color.Maroon, Color.Olive},
+        {
+            new Color[7] {Color.White, Color.Black, Color.SandyBrown, Color.Sienna, Color.Blue, Color.SaddleBrown, Color.Wheat},
+            new Color[7] {Color.Goldenrod, Color.DarkRed, Color.White, Color.Black, Color.LawnGreen, Color.Black, Color.Khaki},
             new Color[7] {Color.White, Color.Black, Color.DarkGray, Color.Gray, Color.DarkSlateGray, Color.Black, Color.LightGray},
             new Color[7] {Color.White, Color.Black, Color.Gray, Color.SeaGreen, Color.YellowGreen, Color.DimGray, Color.LightSkyBlue},
             new Color[7] {Color.White, Color.Black, Color.DarkKhaki, Color.Chocolate, Color.DarkBlue, Color.SaddleBrown, Color.SandyBrown},
-            new Color[7] {Color.Goldenrod, Color.DarkRed, Color.White, Color.Black, Color.LawnGreen, Color.Black, Color.Khaki} };
+            new Color[7] {Color.White, Color.Black, Color.Goldenrod, Color.SaddleBrown, Color.Blue, Color.Maroon, Color.Olive},
+        };
 
         public GamePanel(GameForm form)
         {
             _form = form;
-            BackColor = Color.Maroon;
             BorderStyle = BorderStyle.FixedSingle;
+
+            _defaultButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuPanel.Height - _form.TimePanel.Height) / 16;
+            MinimumButtonSize = _form.GetCaptionHeight();
+            MaximumButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuPanel.Height - _form.TimePanel.Height) / 9;
             ButtonSize = _defaultButtonSize;
+            
             _timer.Tick += Timer_Tick;
             _form.FormClosing += (sender, e) => StopThinking();
+
             SetButtons();
+            SetColors(0);
         }
 
         private void SetButtons()
@@ -103,6 +116,17 @@ namespace Chess
             SetButtons();
         }
 
+        public void SetButtonSize(int buttonSize)
+        {
+            if (buttonSize < MinimumButtonSize || buttonSize > MaximumButtonSize)
+            {
+                return;
+            }
+
+            ButtonSize = buttonSize;
+            SetButtons();
+        }
+
         public void SetColors(int colorsArrayIndex)
         {
             var colors = Colors[colorsArrayIndex];
@@ -134,7 +158,6 @@ namespace Chess
             StopThinking();
             CancelPieceChoice();
             _selectedMove = null;
-            _programSelectedMove = false;
 
             var whiteMaterial = new string[16] { "King", "Queen", "Rook", "Rook", "Knight", "Knight", "Bishop", "Bishop",
                 "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn" };
@@ -177,13 +200,6 @@ namespace Chess
         {
             _timer.Stop();
 
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor))
-            {
-                StopThinking();
-            }
-
-            _programSelectedMove = false;
-
             if (pieceColor == PieceColor.White)
             {
                 if (_whiteVirtualPlayer != null)
@@ -207,9 +223,18 @@ namespace Chess
                 }
             }
 
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor))
+            if (pieceColor == _gameBoard.MovingSideColor)
             {
-                CancelPieceChoice();
+                _selectedMove = null;
+
+                if (ProgramPlaysFor(_gameBoard.MovingSideColor))
+                {
+                    CancelPieceChoice();
+                }
+                else
+                {
+                    StopThinking();
+                }
             }
 
             if (GameIsOver)
@@ -310,8 +335,6 @@ namespace Chess
             {
                 _selectedMove = player.SelectMove(_gameBoard);
             }
-
-            _programSelectedMove = true;
         }
 
         private void StopThinking()
@@ -420,9 +443,8 @@ namespace Chess
 
         private void Timer_Tick(object sender, EventArgs e)
         {
-            if (_programSelectedMove)
+            if (_selectedMove != null && ProgramPlaysFor(_gameBoard.MovingSideColor))
             {
-                _programSelectedMove = false;
                 MakeSelectedMove();
                 return;
             }

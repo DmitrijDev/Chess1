@@ -18,10 +18,10 @@ namespace Chess
         {
             InitializeComponent();
             Text = "";
-            BackColor = Color.Olive;            
             SetPanels();
 
             SizeChanged += Form_SizeChanged;
+            GamePanel.SizeChanged += GamePanel_SizeChanged;
             GamePanel.MouseDown += GamePanel_MouseDown;
             QueryContinueDrag += DragGamePanel;
 
@@ -47,8 +47,8 @@ namespace Chess
             Controls.Add(TimePanel);
             Controls.Add(GamePanel);
 
-            var minWidth = Math.Max(Width - shift * 2, TimePanel.MinimumSize.Width);
-            var minHeight = Height - shift * 2;
+            var minWidth = Math.Max(GamePanel.Width, TimePanel.MinimumSize.Width);
+            var minHeight = GetCaptionHeight() + MenuPanel.Height + TimePanel.Height + GamePanel.Height;
             MinimumSize = new Size(minWidth, minHeight);
         }
 
@@ -131,13 +131,35 @@ namespace Chess
             GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
         }
 
+        private void GamePanel_SizeChanged(object sender, EventArgs e)
+        {
+            var minWidth = Math.Max(GamePanel.Width, TimePanel.MinimumSize.Width);
+            var minHeight = GetCaptionHeight() + MenuPanel.Height + TimePanel.Height + GamePanel.Height;
+            MinimumSize = new Size(minWidth, minHeight);
+
+            if (GamePanel.Width > ClientRectangle.Width)
+            {
+                Width += GamePanel.Width - ClientRectangle.Width;
+            }
+
+            if (GamePanel.Height > ClientRectangle.Height - MenuPanel.Height - TimePanel.Height)
+            {
+                Height += GamePanel.Height - (ClientRectangle.Height - MenuPanel.Height - TimePanel.Height);
+            }
+
+            if (GamePanel.Location.X + GamePanel.Width > ClientRectangle.Width)
+            {
+                GamePanel.Location = new Point(ClientRectangle.Width - GamePanel.Width, GamePanel.Location.Y);
+            }
+
+            if (GamePanel.Location.Y + GamePanel.Height > ClientRectangle.Height)
+            {
+                GamePanel.Location = new Point(GamePanel.Location.X, ClientRectangle.Height - GamePanel.Height);
+            }
+        }
+
         public Color PanelColor => DefaultBackColor;
 
         public int TimeFontSize => MenuPanel.Font.Height;
-
-        private void textBox1_TextChanged(object sender, EventArgs e)
-        {
-
-        }
     }
 }
