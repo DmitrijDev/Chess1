@@ -14,7 +14,7 @@ namespace Chess
         private readonly ChessBoard _gameBoard = new();
         private Thread _thinkingThread;
 
-        private readonly SquareButton[,] _buttons = new SquareButton[8, 8];
+        public readonly SquareButton[,] _buttons = new SquareButton[8, 8];
         private readonly int _defaultButtonSize;
 
         private Orientation _orientation = Orientation.Standart;
@@ -62,7 +62,7 @@ namespace Chess
             MinimumButtonSize = _form.GetCaptionHeight();
             MaximumButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuPanel.Height - _form.TimePanel.Height) / 9;
             ButtonSize = _defaultButtonSize;
-            
+
             _timer.Tick += Timer_Tick;
             _form.FormClosing += (sender, e) => StopThinking();
 
@@ -146,7 +146,7 @@ namespace Chess
                 for (var j = 0; j < 8; ++j)
                 {
                     _buttons[i, j].BackColor = i % 2 == j % 2 ? DarkSquaresColor : LightSquaresColor;
-                    _buttons[i, j].FlatAppearance.BorderColor = HighlightColor;
+                    _buttons[i, j].FlatAppearance.BorderColor = _buttons[i, j].IsHighlighted || _buttons[i, j].IsOutlined ? HighlightColor : _buttons[i, j].BackColor;
                     _buttons[i, j].RenewImage();
                 }
             }
@@ -272,7 +272,7 @@ namespace Chess
 
             catch (IllegalMoveException exception) // На случай, если ход не по правилам.
             {
-                _form.ShowMessage(exception.Message);
+                MessageBox.Show(exception.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -310,7 +310,10 @@ namespace Chess
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    _buttons[i, j].RemoveOutline();
+                    if (_buttons[i, j].IsOutlined)
+                    {
+                        _buttons[i, j].RemoveOutline();
+                    }
 
                     if (_buttons[i, j].DisplayedPieceIndex != currentPosition[i, j])
                     {
@@ -351,35 +354,37 @@ namespace Chess
         {
             if (_gameBoard.Status == GameStatus.WhiteWin)
             {
-                _form.ShowMessage(_blackTimeLeft > 0 ? "Мат черным." : "Время истекло. Победа белых.");
+                var message = _blackTimeLeft > 0 ? "Мат черным." : "Время истекло. Победа белых.";
+                MessageBox.Show(message, "", MessageBoxButtons.OK);
                 return;
             }
 
             if (_gameBoard.Status == GameStatus.BlackWin)
             {
-                _form.ShowMessage(_whiteTimeLeft > 0 ? "Мат белым." : "Время истекло. Победа черных.");
+                var message = _whiteTimeLeft > 0 ? "Мат белым." : "Время истекло. Победа черных.";
+                MessageBox.Show(message, "", MessageBoxButtons.OK);
                 return;
             }
 
             if (_gameBoard.DrawReason == DrawReason.Stalemate)
             {
-                _form.ShowMessage("Пат.");
+                MessageBox.Show("Пат.", "", MessageBoxButtons.OK);
                 return;
             }
 
             if (_gameBoard.DrawReason == DrawReason.NotEnoughMaterial)
             {
-                _form.ShowMessage("Ничья. Недостаточно материала для мата.");
+                MessageBox.Show("Ничья. Недостаточно материала для мата.", "", MessageBoxButtons.OK);
                 return;
             }
 
             if (_gameBoard.DrawReason == DrawReason.ThreeRepeatsRule)
             {
-                _form.ShowMessage("Ничья. Трехкратное повторение позиции.");
+                MessageBox.Show("Ничья. Трехкратное повторение позиции.", "", MessageBoxButtons.OK);
                 return;
             }
 
-            _form.ShowMessage("Ничья по правилу 50 ходов.");
+            MessageBox.Show("Ничья по правилу 50 ходов.", "", MessageBoxButtons.OK);
         }
 
         public bool ProgramPlaysFor(PieceColor color) => color == PieceColor.White ? _whiteVirtualPlayer != null : _blackVirtualPlayer != null;
@@ -404,7 +409,7 @@ namespace Chess
                 if ((_gameBoard.MovingSideColor == PieceColor.White && button.DisplayedPieceIndex > 6) ||
                     (_gameBoard.MovingSideColor == PieceColor.Black && button.DisplayedPieceIndex <= 6))
                 {
-                    _form.ShowMessage("Это не ваша фигура.");
+                    MessageBox.Show("Это не ваша фигура.", "", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
 

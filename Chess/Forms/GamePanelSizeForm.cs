@@ -3,36 +3,36 @@ namespace Chess
 {
     public partial class GamePanelSizeForm : Form
     {
-        private readonly GamePanel _gamePanel;
+        private readonly GameForm _gameForm;//GamePanel _gamePanel;
 
-        internal GamePanelSizeForm(GamePanel gamePanel)
+        internal GamePanelSizeForm(/*GamePanel gamePanel*/ GameForm gameForm)
         {
             InitializeComponent();
-            _gamePanel = gamePanel;
+            //_gamePanel = gamePanel;
+            _gameForm = gameForm;
 
             MinimumSize = new Size(Width, Height);
             MaximumSize = new Size(Width, Height);
 
-            TextBox.Text = _gamePanel.ButtonSize.ToString();
-
-            CancelButton.Click += (sender, e) => Close();
+            TextBox.Text = _gameForm.ButtonSize.ToString();            
         }
 
         private void TextBox_Leave(object sender, EventArgs e)
         {
             if (!int.TryParse(TextBox.Text, out var buttonSize))
             {
+                TextBox.Text = "";
                 return;
             }
 
-            if (buttonSize < _gamePanel.MinimumButtonSize)
+            if (buttonSize < _gameForm.MinimumButtonSize)
             {
-                TextBox.Text = _gamePanel.MinimumButtonSize.ToString();
+                TextBox.Text = _gameForm.MinimumButtonSize.ToString();
             }
 
-            if (buttonSize > _gamePanel.MaximumButtonSize)
+            if (buttonSize > _gameForm.MaximumButtonSize)
             {
-                TextBox.Text = _gamePanel.MaximumButtonSize.ToString();
+                TextBox.Text = _gameForm.MaximumButtonSize.ToString();
             }
         }
 
@@ -40,11 +40,11 @@ namespace Chess
         {
             if (!int.TryParse(TextBox.Text, out var buttonSize))
             {
-                TextBox.Text = _gamePanel.ButtonSize < _gamePanel.MaximumButtonSize ? (_gamePanel.ButtonSize + 1).ToString() : _gamePanel.ButtonSize.ToString();
+                TextBox.Text = _gameForm.ButtonSize < _gameForm.MaximumButtonSize ? (_gameForm.ButtonSize + 1).ToString() : _gameForm.ButtonSize.ToString();
                 return;
             }
 
-            if (buttonSize == _gamePanel.MaximumButtonSize)
+            if (buttonSize == _gameForm.MaximumButtonSize)
             {
                 return;
             }
@@ -56,11 +56,11 @@ namespace Chess
         {
             if (!int.TryParse(TextBox.Text, out var buttonSize))
             {
-                TextBox.Text = _gamePanel.ButtonSize > _gamePanel.MinimumButtonSize ? (_gamePanel.ButtonSize - 1).ToString() : _gamePanel.ButtonSize.ToString();
+                TextBox.Text = _gameForm.ButtonSize > _gameForm.MinimumButtonSize ? (_gameForm.ButtonSize - 1).ToString() : _gameForm.ButtonSize.ToString();
                 return;
             }
 
-            if (buttonSize == _gamePanel.MinimumButtonSize)
+            if (buttonSize == _gameForm.MinimumButtonSize)
             {
                 return;
             }
@@ -76,18 +76,17 @@ namespace Chess
                 return;
             }
 
-            if (buttonSize < _gamePanel.MinimumButtonSize)
+            if (buttonSize < _gameForm.MinimumButtonSize)
             {
-                TextBox.Text = _gamePanel.MinimumButtonSize.ToString();
+                TextBox.Text = _gameForm.MinimumButtonSize.ToString();
             }
 
-            if (buttonSize > _gamePanel.MaximumButtonSize)
+            if (buttonSize > _gameForm.MaximumButtonSize)
             {
-                TextBox.Text = _gamePanel.MaximumButtonSize.ToString();
+                TextBox.Text = _gameForm.MaximumButtonSize.ToString();
             }
 
-            _gamePanel.SetButtonSize(Convert.ToInt32(TextBox.Text));
-            Close();
+            _gameForm.SetButtonSize(Convert.ToInt32(TextBox.Text));
         }
     }
 }

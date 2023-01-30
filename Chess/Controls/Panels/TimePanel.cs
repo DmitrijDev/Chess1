@@ -34,7 +34,7 @@ namespace Chess
             Controls.Add(_whiteTimer);
             Controls.Add(_blackTimer);
 
-            MinimumSize = new Size(timerWidth * 2 + interval + (_form.Width - ClientRectangle.Width), Height);
+            MinimumSize = new Size(timerWidth * 2 + interval, Height);
             MaximumSize = new Size(int.MaxValue, Height);
 
             _form.SizeChanged += (sender, e) => Width = _form.ClientRectangle.Width;

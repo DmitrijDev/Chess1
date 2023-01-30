@@ -40,7 +40,7 @@ namespace Chess
 
             menuItem = new ToolStripMenuItem("Изменить размер доски");
             DropDownItems.Add(menuItem);
-            menuItem.Click += (sender, e) => new GamePanelSizeForm(_gameForm.GamePanel).ShowDialog();
+            menuItem.Click += (sender, e) => new GamePanelSizeForm(_gameForm).ShowDialog();
         }
 
         private void ColorsMenuItem_Click(object sender, EventArgs e)

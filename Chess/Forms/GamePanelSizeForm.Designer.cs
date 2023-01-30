@@ -31,17 +31,17 @@
             this.TextBox = new System.Windows.Forms.TextBox();
             this.Label = new System.Windows.Forms.Label();
             this.SelectButton = new System.Windows.Forms.Button();
-            this.CancelButton = new System.Windows.Forms.Button();
             this.PlusButton = new System.Windows.Forms.Button();
             this.MinusButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // TextBox
             // 
-            this.TextBox.Location = new System.Drawing.Point(96, 51);
+            this.TextBox.Location = new System.Drawing.Point(81, 51);
             this.TextBox.Name = "TextBox";
-            this.TextBox.Size = new System.Drawing.Size(48, 23);
+            this.TextBox.Size = new System.Drawing.Size(74, 23);
             this.TextBox.TabIndex = 0;
+            this.TextBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
             this.TextBox.Leave += new System.EventHandler(this.TextBox_Leave);
             // 
             // Label
@@ -55,22 +55,13 @@
             // 
             // SelectButton
             // 
-            this.SelectButton.Location = new System.Drawing.Point(34, 137);
+            this.SelectButton.Location = new System.Drawing.Point(81, 132);
             this.SelectButton.Name = "SelectButton";
             this.SelectButton.Size = new System.Drawing.Size(74, 23);
             this.SelectButton.TabIndex = 2;
             this.SelectButton.Text = "Выбрать";
             this.SelectButton.UseVisualStyleBackColor = true;
             this.SelectButton.Click += new System.EventHandler(this.SelectButton_Click);
-            // 
-            // CancelButton
-            // 
-            this.CancelButton.Location = new System.Drawing.Point(131, 137);
-            this.CancelButton.Name = "CancelButton";
-            this.CancelButton.Size = new System.Drawing.Size(75, 23);
-            this.CancelButton.TabIndex = 3;
-            this.CancelButton.Text = "Отмена";
-            this.CancelButton.UseVisualStyleBackColor = true;
             // 
             // PlusButton
             // 
@@ -99,7 +90,6 @@
             this.ClientSize = new System.Drawing.Size(238, 185);
             this.Controls.Add(this.MinusButton);
             this.Controls.Add(this.PlusButton);
-            this.Controls.Add(this.CancelButton);
             this.Controls.Add(this.SelectButton);
             this.Controls.Add(this.Label);
             this.Controls.Add(this.TextBox);
@@ -117,7 +107,6 @@
         private TextBox TextBox;
         private Label Label;
         private Button SelectButton;
-        private Button CancelButton;
         private Button PlusButton;
         private Button MinusButton;
     }

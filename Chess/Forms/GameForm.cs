@@ -65,7 +65,7 @@ namespace Chess
             GamePanel.Location = new Point(gamePanelX, gamePanelY);
         }
 
-        internal void ShowMessage(string message) => MessageBox.Show(message, "", MessageBoxButtons.OK);
+        internal void SetButtonSize(int buttonSize) => GamePanel.SetButtonSize(buttonSize);
 
         private void GamePanel_MouseDown(object sender, EventArgs e)
         {
@@ -133,7 +133,7 @@ namespace Chess
 
         private void GamePanel_SizeChanged(object sender, EventArgs e)
         {
-            var minWidth = Math.Max(GamePanel.Width, TimePanel.MinimumSize.Width);
+            var minWidth = Math.Max(GamePanel.Width, TimePanel.MinimumSize.Width) + (Width - ClientRectangle.Width);
             var minHeight = GetCaptionHeight() + MenuPanel.Height + TimePanel.Height + GamePanel.Height;
             MinimumSize = new Size(minWidth, minHeight);
 
@@ -161,5 +161,11 @@ namespace Chess
         public Color PanelColor => DefaultBackColor;
 
         public int TimeFontSize => MenuPanel.Font.Height;
+
+        public int ButtonSize => GamePanel.ButtonSize;
+
+        public int MinimumButtonSize => GamePanel.MinimumButtonSize;
+
+        public int MaximumButtonSize => GamePanel.MaximumButtonSize;
     }
 }
