@@ -1,7 +1,7 @@
 ﻿
 namespace Chess
 {
-    internal class SquareButton : Button
+    internal class GamePanelButton : Button
     {
         private readonly GamePanel _gamePanel;        
         private static Bitmap[] _images;
@@ -17,23 +17,18 @@ namespace Chess
 
         public bool IsOutlined { get; private set; }
 
-        public SquareButton(GamePanel gamePanel, int x, int y)
+        public GamePanelButton(GamePanel gamePanel, int x, int y)
         {
             _gamePanel = gamePanel;
             X = x;
             Y = y;
 
             FlatStyle = FlatStyle.Flat;
-            FlatAppearance.BorderSize = 0;
+            FlatAppearance.BorderSize = 2;
             BackgroundImageLayout = ImageLayout.Zoom;
-
-            if (_images == null)
-            {
-                CreateImages(_gamePanel);
-            }
         }
 
-        internal static void CreateImages(GamePanel gamePanel)
+        internal static void SetNewImages(GamePanel gamePanel)
         {
             _images = new Bitmap[37];
 
@@ -96,15 +91,12 @@ namespace Chess
 
         public void Outline()
         {
-            FlatAppearance.BorderSize = 2;
             FlatAppearance.BorderColor = _gamePanel.HighlightColor;
             IsOutlined  = true;
         }
 
         public void RemoveOutline()
         {
-            FlatAppearance.BorderSize = 0;
-
             if (!IsHighlighted) 
             {
                 FlatAppearance.BorderColor = BackColor;

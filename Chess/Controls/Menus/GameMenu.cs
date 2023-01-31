@@ -32,8 +32,8 @@ namespace Chess
         private void BuildChangePlayerMenus()
         {
             var userPlaysWhiteItem = new ToolStripMenuItem("Вы") { CheckOnClick = true, Checked = true };
-            var programPlaysWhiteItem = new ToolStripMenuItem("Соперник") { CheckOnClick = true, Checked = false };
-            var userPlaysBlackItem = new ToolStripMenuItem("Вы") { CheckOnClick = true, Checked = false };
+            var programPlaysWhiteItem = new ToolStripMenuItem("Соперник") { CheckOnClick = true };
+            var userPlaysBlackItem = new ToolStripMenuItem("Вы") { CheckOnClick = true };
             var programPlaysBlackItem = new ToolStripMenuItem("Соперник") { CheckOnClick = true, Checked = true };
 
             _whitePlayerMenu.DropDownItems.Add(userPlaysWhiteItem);
@@ -73,10 +73,9 @@ namespace Chess
 
             foreach (var obj in _whitePlayerMenu.DropDownItems)
             {
-                var item = (ToolStripMenuItem)obj;
-
                 if (obj != sender)
                 {
+                    var item = (ToolStripMenuItem)obj;
                     item.Checked = false;
                 }
             }
@@ -96,10 +95,9 @@ namespace Chess
 
             foreach (var obj in _blackPlayerMenu.DropDownItems)
             {
-                var item = (ToolStripMenuItem)obj;
-
                 if (obj != sender)
                 {
+                    var item = (ToolStripMenuItem)obj;
                     item.Checked = false;
                 }
             }
@@ -142,7 +140,7 @@ namespace Chess
                     _form.GamePanel.SetTimeControl(timeForGameValues[i]);
                     return;
                 }
-            }            
+            }
         }
     }
 }

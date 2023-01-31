@@ -1,5 +1,4 @@
-﻿
-using Chess.LogicPart;
+﻿using Chess.LogicPart;
 using System.Text;
 
 namespace Chess
@@ -35,7 +34,6 @@ namespace Chess
             Controls.Add(_blackTimer);
 
             MinimumSize = new Size(timerWidth * 2 + interval, Height);
-            MaximumSize = new Size(int.MaxValue, Height);
 
             _form.SizeChanged += (sender, e) => Width = _form.ClientRectangle.Width;
             SizeChanged += Size_Changed;
@@ -58,10 +56,7 @@ namespace Chess
             panel.Controls.Add(label);
 
             panel.Width = label.Width;
-            panel.Height = label.Height;
-
-            panel.MinimumSize = new Size(panel.Width, panel.Height);
-            panel.MaximumSize = new Size(panel.Width, panel.Height);
+            panel.Height = label.Height;            
 
             label.Text = "";
         }

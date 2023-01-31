@@ -5,14 +5,13 @@ namespace Chess
     internal class NewPieceMenu : ContextMenuStrip
     {
         private readonly GamePanel _gamePanel;
-        private bool _pieceSelected;
 
         public NewPieceMenu(GamePanel gamePanel)
         {
             _gamePanel = gamePanel;
             var items = new ToolStripMenuItem[4] { new ToolStripMenuItem("Ферзь"), new ToolStripMenuItem("Ладья"), new ToolStripMenuItem("Конь"), new ToolStripMenuItem("Слон") };
             Items.AddRange(items);
-            Array.ForEach(items, item => item.Click += Item_Click);            
+            Array.ForEach(items, item => item.Click += Item_Click);
         }
 
         private void Item_Click(object sender, EventArgs e)
@@ -33,7 +32,6 @@ namespace Chess
                 newPieceIndex += 6;
             }
 
-            _pieceSelected = true;
             _gamePanel.PromotePawn(newPieceIndex);
         }
     }

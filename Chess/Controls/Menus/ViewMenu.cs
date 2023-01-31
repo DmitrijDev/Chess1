@@ -4,12 +4,12 @@ namespace Chess
     internal class ViewMenu : ToolStripMenuItem
     {
         private readonly GameForm _gameForm;
-        private readonly ToolStripMenuItem _enableGamePanelDragItem = new("Перетаскивание доски мышью");
+        private readonly ToolStripMenuItem _enableGamePanelDragItem = new("Перетаскивание доски мышью") { CheckOnClick = true };
         private readonly ToolStripMenuItem _colorsMenu = new("Выбор цветов");
 
-        public ViewMenu(GameForm form) : base("Вид")
+        public ViewMenu(GameForm gameForm) : base("Вид")
         {
-            _gameForm = form;
+            _gameForm = gameForm;
 
             var menuItem = new ToolStripMenuItem("Доску по центру");
             DropDownItems.Add(menuItem);
@@ -19,28 +19,29 @@ namespace Chess
             DropDownItems.Add(menuItem);
             menuItem.Click += (sender, e) => _gameForm.GamePanel.Rotate();
 
+            // Перетаскивание доски.
             DropDownItems.Add(_enableGamePanelDragItem);
-            _enableGamePanelDragItem.CheckOnClick = true;
             _enableGamePanelDragItem.Checked = _gameForm.GamePanelDragEnabled;
             _enableGamePanelDragItem.Click += (sender, e) => _gameForm.GamePanelDragEnabled = _enableGamePanelDragItem.Checked;
 
+            // Выбор цветов.
             DropDownItems.Add(_colorsMenu);
-            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Стандартные") { CheckOnClick = true, Checked = true });
-            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Черно-белые поля, цветные фигуры") { CheckOnClick = true, Checked = false });            
-            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Зима") { CheckOnClick = true, Checked = false });
-            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Весна") { CheckOnClick = true, Checked = false });
-            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Лето") { CheckOnClick = true, Checked = false });
-            _colorsMenu.DropDownItems.Add(new ToolStripMenuItem("Осень") { CheckOnClick = true, Checked = false });
+            var colorsMenuTexts = new string[6] { "Стандартные", "Черно-белые поля, цветные фигуры", "Зима", "Весна", "Лето", "Осень" };
 
-            foreach (var obj in _colorsMenu.DropDownItems)
+            foreach (var text in colorsMenuTexts)
             {
-                var item = (ToolStripMenuItem)obj;
-                item.Click += ColorsMenuItem_Click;
+                menuItem = new ToolStripMenuItem(text) { CheckOnClick = true };
+                _colorsMenu.DropDownItems.Add(menuItem);
+                menuItem.Click += ColorsMenuItem_Click;
             }
 
+            var colorsMenuFirstItem = (ToolStripMenuItem)_colorsMenu.DropDownItems[0];
+            colorsMenuFirstItem.Checked = true;
+
+            // Изменение размера.
             menuItem = new ToolStripMenuItem("Изменить размер доски");
             DropDownItems.Add(menuItem);
-            menuItem.Click += (sender, e) => new GamePanelSizeForm(_gameForm).ShowDialog();
+            menuItem.Click += (sender, e) => new GamePanelSizeForm(_gameForm.GamePanel).ShowDialog();
         }
 
         private void ColorsMenuItem_Click(object sender, EventArgs e)
