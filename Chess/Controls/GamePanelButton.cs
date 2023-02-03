@@ -32,8 +32,8 @@ namespace Chess
         {
             _images = new Bitmap[37];
 
-            var originalImages = new Bitmap[7] {null, new Bitmap("King.jpg"), new Bitmap("Queen.jpg"), new Bitmap("Rook.jpg"),
-            new Bitmap("Knight.jpg"), new Bitmap("Bishop.jpg"), new Bitmap("Pawn.jpg") };
+            var originalImages = new Bitmap[7] {null, new Bitmap("Pictures/King.jpg"), new Bitmap("Pictures/Queen.jpg"), new Bitmap("Pictures/Rook.jpg"),
+            new Bitmap("Pictures/Knight.jpg"), new Bitmap("Pictures/Bishop.jpg"), new Bitmap("Pictures/Pawn.jpg") };
 
             for (var i = 1; i < 37; ++i)
             {
