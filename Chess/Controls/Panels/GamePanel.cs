@@ -43,16 +43,6 @@ namespace Chess
 
         public int MaximumButtonSize { get; private set; }
 
-        public Color[][] Colors { get; } =
-        {
-            new Color[7] {Color.White, Color.Black, Color.SandyBrown, Color.Sienna, Color.Blue, Color.SaddleBrown, Color.Wheat},
-            new Color[7] {Color.Goldenrod, Color.DarkRed, Color.White, Color.Black, Color.LawnGreen, Color.Black, Color.Khaki},
-            new Color[7] {Color.White, Color.Black, Color.DarkGray, Color.Gray, Color.LightGreen, Color.Black, Color.LightGray},
-            new Color[7] {Color.White, Color.Black, Color.Gray, Color.SeaGreen, Color.GreenYellow, Color.DimGray, Color.LightSkyBlue},
-            new Color[7] {Color.White, Color.Black, Color.DarkKhaki, Color.Chocolate, Color.DarkBlue, Color.SaddleBrown, Color.SandyBrown},
-            new Color[7] {Color.White, Color.Black, Color.Goldenrod, Color.SaddleBrown, Color.Blue, Color.Maroon, Color.Olive}
-        };
-
         public GamePanel(GameForm form)
         {
             _form = form;
@@ -86,7 +76,7 @@ namespace Chess
                     // Возможно, кнопки уже созданы, и теперь нужно только изменить их размер.
                     if (_buttons[i, j] == null)
                     {
-                        _buttons[i, j] = new GamePanelButton(this, i, j);                        
+                        _buttons[i, j] = new GamePanelButton(this, i, j);
                         Controls.Add(_buttons[i, j]);
                         _buttons[i, j].Click += ClickButton;
                     }
@@ -122,15 +112,25 @@ namespace Chess
 
         public void SetColors(int colorsArrayIndex)
         {
-            var colors = Colors[colorsArrayIndex];
+            var colors = new Color[6][]
+            {
+              new Color[7] {Color.White, Color.Black, Color.SandyBrown, Color.Sienna, Color.Blue, Color.SaddleBrown, Color.Wheat},
+              new Color[7] {Color.Goldenrod, Color.DarkRed, Color.White, Color.Black, Color.LawnGreen, Color.Black, Color.Khaki},
+              new Color[7] {Color.White, Color.Black, Color.DarkGray, Color.Gray, Color.LightGreen, Color.Black, Color.LightGray},
+              new Color[7] {Color.White, Color.Black, Color.Gray, Color.SeaGreen, Color.GreenYellow, Color.DimGray, Color.LightSkyBlue},
+              new Color[7] {Color.White, Color.Black, Color.DarkKhaki, Color.Chocolate, Color.DarkBlue, Color.SaddleBrown, Color.SandyBrown},
+              new Color[7] {Color.White, Color.Black, Color.Goldenrod, Color.SaddleBrown, Color.Blue, Color.Maroon, Color.Olive}
+            };
 
-            WhitePiecesColor = colors[0];
-            BlackPiecesColor = colors[1];
-            LightSquaresColor = colors[2];
-            DarkSquaresColor = colors[3];
-            HighlightColor = colors[4];
-            BackColor = colors[5];
-            _form.BackColor = colors[6];
+            var colorsArray = colors[colorsArrayIndex];
+
+            WhitePiecesColor = colorsArray[0];
+            BlackPiecesColor = colorsArray[1];
+            LightSquaresColor = colorsArray[2];
+            DarkSquaresColor = colorsArray[3];
+            HighlightColor = colorsArray[4];
+            BackColor = colorsArray[5];
+            _form.BackColor = colorsArray[6];
 
             GamePanelButton.SetNewImages(this);
 
@@ -195,39 +195,18 @@ namespace Chess
 
             if (pieceColor == PieceColor.White)
             {
-                if (_whiteVirtualPlayer != null)
-                {
-                    _whiteVirtualPlayer = null;
-                }
-                else
-                {
-                    _whiteVirtualPlayer = new(Strategies.SelectMoveForVirtualFool);
-                }
+                _whiteVirtualPlayer = _whiteVirtualPlayer == null ? new(Strategies.SelectMoveForVirtualFool) : null;
             }
             else
             {
-                if (_blackVirtualPlayer != null)
-                {
-                    _blackVirtualPlayer = null;
-                }
-                else
-                {
-                    _blackVirtualPlayer = new(Strategies.SelectMoveForVirtualFool);
-                }
+                _blackVirtualPlayer = _blackVirtualPlayer == null ? new(Strategies.SelectMoveForVirtualFool) : null;
             }
 
             if (pieceColor == _gameBoard.MovingSideColor)
             {
+                StopThinking();
+                CancelPieceChoice();
                 _selectedMove = null;
-
-                if (ProgramPlaysFor(_gameBoard.MovingSideColor))
-                {
-                    CancelPieceChoice();
-                }
-                else
-                {
-                    StopThinking();
-                }
             }
 
             if (GameIsOver)
@@ -283,7 +262,7 @@ namespace Chess
             _selectedMove = null;
 
             if (GameIsOver)
-            {                
+            {
                 ShowEndGameMessage();
                 return;
             }
@@ -460,7 +439,7 @@ namespace Chess
                 if (_whiteTimeLeft == 0)
                 {
                     _timer.Stop();
-                    StopThinking();                    
+                    StopThinking();
                     CancelPieceChoice();
                     _gameBoard.Status = GameStatus.BlackWin;
                     ShowEndGameMessage();
@@ -474,7 +453,7 @@ namespace Chess
                 if (_blackTimeLeft == 0)
                 {
                     _timer.Stop();
-                    StopThinking();                    
+                    StopThinking();
                     CancelPieceChoice();
                     _gameBoard.Status = GameStatus.WhiteWin;
                     ShowEndGameMessage();
@@ -484,6 +463,6 @@ namespace Chess
 
         public bool GameIsOver => _gameBoard.Status != GameStatus.GameCanContinue;
 
-        public PieceColor MovingSideColor => _gameBoard.MovingSideColor;        
+        public PieceColor MovingSideColor => _gameBoard.MovingSideColor;
     }
 }

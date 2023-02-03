@@ -3,7 +3,7 @@ namespace Chess
 {
     internal class GamePanelButton : Button
     {
-        private readonly GamePanel _gamePanel;        
+        private readonly GamePanel _gamePanel;
         private static Bitmap[] _images;
         // 1-6, 13-18, 25-30 - белые фигуры, 7-12, 19-24, 31-36 - черные. 1-12 - фигуры на белом поле, 13-24 - на черном, > 24 - на подсвеченном поле.
 
@@ -32,8 +32,8 @@ namespace Chess
         {
             _images = new Bitmap[37];
 
-            var originalImages = new Bitmap[7] {null, new Bitmap("Pictures/King.jpg"), new Bitmap("Pictures/Queen.jpg"), new Bitmap("Pictures/Rook.jpg"),
-                new Bitmap("Pictures/Knight.jpg"), new Bitmap("Pictures/Bishop.jpg"), new Bitmap("Pictures/Pawn.jpg") };
+            var originalImages = new Bitmap[7] {null, new Bitmap("Pictures/King2.jpg"), new Bitmap("Pictures/Queen2.jpg"), new Bitmap("Pictures/Rook2.jpg"),
+                new Bitmap("Pictures/Knight2.jpg"), new Bitmap("Pictures/Bishop2.jpg"), new Bitmap("Pictures/Pawn2.jpg") };
 
             for (var i = 1; i < 37; ++i)
             {
@@ -92,12 +92,12 @@ namespace Chess
         public void Outline()
         {
             FlatAppearance.BorderColor = _gamePanel.HighlightColor;
-            IsOutlined  = true;
+            IsOutlined = true;
         }
 
         public void RemoveOutline()
         {
-            if (!IsHighlighted) 
+            if (!IsHighlighted)
             {
                 FlatAppearance.BorderColor = BackColor;
             }

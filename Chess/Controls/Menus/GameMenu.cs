@@ -58,7 +58,7 @@ namespace Chess
             _timeMenu.DropDownItems.AddRange(items);
             Array.ForEach(items, item => item.CheckOnClick = true);
             items[0].Checked = true;
-            Array.ForEach(items, item => item.Click += TimeMenu_ItemClick);
+            Array.ForEach(items, item => item.Click += TimeMenu_ItemClick); 
         }
 
         private void WhitePlayerMenu_ItemClick(object sender, EventArgs e)

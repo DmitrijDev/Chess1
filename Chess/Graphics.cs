@@ -3,28 +3,17 @@ namespace Chess
 {
     internal static class Graphics
     {
-        private static int[,] _matrix; // 1 - соотв. пиксель картинки относ. к изображению фигуры, -1 - фона.
-
         // Раскрашивает черно-белую картинку фигуры, при условии, что фигура - белая, фон - черный.
         public static Bitmap GetColoredPicture(Bitmap oldPicture, Color backColor, Color imageColor)
         {
-            var newPicture = new Bitmap(oldPicture);
-            _matrix = new int[newPicture.Width, newPicture.Height];
+            var newPicture = new Bitmap(oldPicture.Width, oldPicture.Height);
+            var matrix = GetMatrix(oldPicture);
 
             for (var i = 0; i < newPicture.Width; ++i)
             {
                 for (var j = 0; j < newPicture.Height; ++j)
                 {
-                    if (newPicture.GetPixel(i, j).R < 127)
-                    {
-                        _matrix[i, j] = -1;
-                        newPicture.SetPixel(i, j, backColor);
-                    }
-                    else
-                    {
-                        _matrix[i, j] = 1;
-                        newPicture.SetPixel(i, j, imageColor);
-                    }
+                    newPicture.SetPixel(i, j, matrix[i, j] > 0 ? imageColor : backColor);
                 }
             }
 
@@ -32,7 +21,7 @@ namespace Chess
             {
                 for (var j = 0; j < newPicture.Height; ++j)
                 {
-                    if (IsBorderPixel(newPicture, i, j, 1))
+                    if (matrix[i, j] == -2 || matrix[i, j] == 2 || matrix[i, j] == 3)
                     {
                         ErodePixel(newPicture, i, j, 1);
                     }
@@ -42,25 +31,55 @@ namespace Chess
             return newPicture;
         }
 
-        public static bool IsBorderPixel(Bitmap picture, int x, int y, int borderZoneSize)
+        private static int[,] GetMatrix(Bitmap picture)
         {
-            if (x < borderZoneSize || x >= picture.Width - borderZoneSize || y < borderZoneSize || y >= picture.Height - borderZoneSize)
-            {
-                return false;
-            }
+            var result = new int[picture.Width, picture.Height];
 
-            for (var i = x - borderZoneSize; i <= x + borderZoneSize; ++i)
+            for (var i = 0; i < picture.Width; ++i)
             {
-                for (var j = y - borderZoneSize; j <= y + borderZoneSize; ++j)
+                for (var j = 0; j < picture.Height; ++j)
                 {
-                    if (_matrix[i, j] == -_matrix[x, y])
+                    // Красный пиксель.
+                    if (picture.GetPixel(i, j).R > 127 && picture.GetPixel(i, j).G < 127 && picture.GetPixel(i, j).B < 127)
                     {
-                        return true;
+                        result[i, j] = 2;
+                        continue;
                     }
+
+                    // Зеленый пиксель.
+                    if (picture.GetPixel(i, j).G > 127 && picture.GetPixel(i, j).R < 127 && picture.GetPixel(i, j).B < 127)
+                    {
+                        result[i, j] = 3;
+                        continue;
+                    }
+
+                    // Белый пиксель.
+                    if (picture.GetPixel(i, j).R > 127)
+                    {
+                        result[i, j] = 1;
+                        continue;
+                    }
+
+                    var mustBeEroded = GetNeighboursColors(picture, i, j).Any(pixelColor => pixelColor.R > 127 && pixelColor.G < 127 && pixelColor.B < 127);
+                    result[i, j] = mustBeEroded ? -2 : -1;
                 }
             }
 
-            return false;
+            return result;
+        }
+
+        public static IEnumerable<Color> GetNeighboursColors(Bitmap picture, int x, int y)
+        {
+            for (var i = x - 1; i <= x + 1; ++i)
+            {
+                for (var j = y - 1; j <= y + 1; ++j)
+                {
+                    if (i >= 0 && j >= 0 && i < picture.Width && j < picture.Height && !(i == x && j == y))
+                    {
+                        yield return picture.GetPixel(i, j);
+                    }
+                }
+            }
         }
 
         public static void ErodePixel(Bitmap picture, int x, int y, int erosionDegree)
