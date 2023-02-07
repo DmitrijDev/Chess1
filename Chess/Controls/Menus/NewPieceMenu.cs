@@ -16,23 +16,16 @@ namespace Chess
 
         private void Item_Click(object sender, EventArgs e)
         {
-            int newPieceIndex;
+            var piecesNames = new PieceName[] {PieceName.Queen, PieceName.Rook, PieceName.Knight, PieceName.Bishop};
 
-            for (var i = 2; ; ++i)  // Ферзь - первая фигура в меню - имеет св-во NumeralIndex == 2, если белый.
+            for (var i = 0; ; ++i) 
             {
-                if (Items[i - 2] == sender)
+                if (Items[i] == sender)
                 {
-                    newPieceIndex = i;
-                    break;
+                    _gamePanel.PromotePawn(piecesNames[i]);
+                    return;
                 }
             }
-
-            if (_gamePanel.MovingSideColor == PieceColor.Black) // Черная фигура имеет св-во NumeralIndex на 6 больше одноименной белой.
-            {
-                newPieceIndex += 6;
-            }
-
-            _gamePanel.PromotePawn(newPieceIndex);
         }
     }
 }

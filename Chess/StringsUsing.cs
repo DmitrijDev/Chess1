@@ -1,8 +1,8 @@
 ﻿using System.Text;
 
-namespace Chess.StringsUsing
+namespace Chess
 {
-    public static class SharedItems
+    public static class StringsUsing
     {
         public static string RemoveSpacesAndToLower(string s)
         {

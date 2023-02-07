@@ -1,6 +1,4 @@
 ﻿
-using Chess.StringsUsing;
-
 namespace Chess.LogicPart
 {
     internal abstract class ChessPiece
@@ -217,25 +215,10 @@ namespace Chess.LogicPart
 
         public abstract ChessPiece Copy();
 
-        public static ChessPiece GetNewPiece(string name, PieceColor color)
+        public static ChessPiece GetNewPiece(PieceName name, PieceColor color)
         {
-            if (name == null)
-            {
-                throw new ArgumentException("Не указано имя фигуры");
-            }
-
             var pieces = new ChessPiece[6] { new King(color), new Queen(color), new Rook(color), new Knight(color), new Bishop(color), new Pawn(color) };
-            var trimmedName = SharedItems.RemoveSpacesAndToLower(name);
-
-            foreach (var piece in pieces)
-            {
-                if (SharedItems.RemoveSpacesAndToLower(piece.EnglishName) == trimmedName || SharedItems.RemoveSpacesAndToLower(piece.RussianName) == trimmedName)
-                {
-                    return piece;
-                }
-            }
-
-            throw new ArgumentException("Фигуры с указанным полным именем не существует");
+            return pieces.Where(piece => piece.Name == name).First();
         }
 
         public Square Position
@@ -270,14 +253,6 @@ namespace Chess.LogicPart
 
         public King FriendlyKing => FriendlySide.King;
 
-        public abstract string EnglishName { get; }
-
-        public abstract string RussianName { get; }
-
-        public abstract string ShortEnglishName { get; }
-
-        public abstract string ShortRussianName { get; }
-
-        public abstract int NumeralIndex { get; }
+        public abstract PieceName Name { get; }
     }
 }

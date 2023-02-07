@@ -194,14 +194,6 @@ namespace Chess.LogicPart
             return newKing;
         }
 
-        public override string EnglishName => "King";
-
-        public override string RussianName => "Король";
-
-        public override string ShortEnglishName => "K";
-
-        public override string ShortRussianName => "Кр";
-
-        public override int NumeralIndex => Color == PieceColor.White ? 1 : 7;
+        public override PieceName Name => PieceName.King;        
     }
 }

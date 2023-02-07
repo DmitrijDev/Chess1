@@ -95,14 +95,6 @@ namespace Chess.LogicPart
             return newQueen;
         }
 
-        public override string EnglishName => "Queen";
-
-        public override string RussianName => "Ферзь";
-
-        public override string ShortEnglishName => "Q";
-
-        public override string ShortRussianName => "Ф";
-
-        public override int NumeralIndex => Color == PieceColor.White ? 2 : 8;
+        public override PieceName Name => PieceName.Queen;        
     }
 }

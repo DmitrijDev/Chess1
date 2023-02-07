@@ -1,4 +1,4 @@
-﻿using Chess.StringsUsing;
+﻿using Chess;
 
 namespace Chess.LogicPart
 {
@@ -18,7 +18,7 @@ namespace Chess.LogicPart
 
         public int LastMenacesRenewMoment { get; internal set; } = -1;
 
-        internal Square PassedByPawnSquare { get; private set; }        
+        internal Square PassedByPawnSquare { get; private set; }
 
         public DrawReason DrawReason { get; private set; }
 
@@ -38,7 +38,7 @@ namespace Chess.LogicPart
             _status = GameStatus.ClearBoard;
         }
 
-        public ChessBoard(IEnumerable<string> whiteMaterial, IEnumerable<string> whitePositions, IEnumerable<string> blackMaterial, IEnumerable<string> blackPositions,
+        public ChessBoard(IEnumerable<PieceName> whiteMaterial, IEnumerable<string> whitePositions, IEnumerable<PieceName> blackMaterial, IEnumerable<string> blackPositions,
             PieceColor movingSide) : this()
         {
             SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, movingSide);
@@ -88,21 +88,16 @@ namespace Chess.LogicPart
             }
         }
 
-        public void SetPosition(IEnumerable<string> whitePiecesNames, IEnumerable<string> whitePositions,
-            IEnumerable<string> blackPiecesNames, IEnumerable<string> blackPositions, PieceColor movingSideColor)
-        {
+        public void SetPosition(IEnumerable<PieceName> whitePiecesNames, IEnumerable<string> whitePositions,
+            IEnumerable<PieceName> blackPiecesNames, IEnumerable<string> blackPositions, PieceColor movingSideColor)
+        {            
+            if (blackPiecesNames.Count() == 0 || blackPiecesNames.Count() != blackPositions.Count())
+            {
+                throw new ArgumentException("Для черных должно быть указано равное положительное количество фигур и полей.");
+            }
+
             var whiteMaterial = whitePiecesNames.Select(name => ChessPiece.GetNewPiece(name, PieceColor.White));
             var blackMaterial = blackPiecesNames.Select(name => ChessPiece.GetNewPiece(name, PieceColor.Black));
-
-            if (whiteMaterial.Count() == 0 || whiteMaterial.Count() != whitePositions.Count())
-            {
-                throw new ArgumentException("Для белых должно быть указано равное положительное количество фигур и полей");
-            }
-
-            if (blackMaterial.Count() == 0 || blackMaterial.Count() != blackPositions.Count())
-            {
-                throw new ArgumentException("Для черных должно быть указано равное положительное количество фигур и полей");
-            }
 
             SetPosition(whiteMaterial.Concat(blackMaterial).ToArray(), whitePositions.Concat(blackPositions).ToArray(), movingSideColor);
         }
@@ -200,7 +195,7 @@ namespace Chess.LogicPart
 
         private Square GetSquare(string squareName)
         {
-            var coordinates = SharedItems.GetChessSquareCoordinates(squareName);
+            var coordinates = Chess.StringsUsing.GetChessSquareCoordinates(squareName);
             return _board[coordinates[0], coordinates[1]];
         }
 
@@ -312,32 +307,30 @@ namespace Chess.LogicPart
             return false;
         }
 
-        public void MakeMove(int[] moveParams)
+        public void MakeMove(string startSquareName, string destinationSquareName, PieceName? newPieceName)
         {
-            if (moveParams.Length < 4)
-            {
-                throw new ArgumentException("Некорректный аргумент: неподходящий по длине массив");
-            }
+            var startSquareCoordinates = StringsUsing.GetChessSquareCoordinates(startSquareName);
+            var movingPiece = _board[startSquareCoordinates[0], startSquareCoordinates[1]].ContainedPiece;
 
-            MakeMove(moveParams[0], moveParams[1], moveParams[2], moveParams[3], moveParams.Length < 5 ? 0 : moveParams[4]);
+            var moveSquareCoordinates = StringsUsing.GetChessSquareCoordinates(destinationSquareName);
+            var moveSquare = _board[moveSquareCoordinates[0], moveSquareCoordinates[1]];
+
+            MakeMove(movingPiece, moveSquare, newPieceName);
         }
 
-        public void MakeMove(int startVertical, int startHorizontal, int destinationVertical, int destinationHorizontal, int newPieceIndex) =>
-            MakeMove(_board[startVertical, startHorizontal].ContainedPiece, _board[destinationVertical, destinationHorizontal], newPieceIndex);
-
-        private void MakeMove(ChessPiece movingPiece, Square moveSquare, int newPieceIndex)
+        private void MakeMove(ChessPiece movingPiece, Square moveSquare, PieceName? newPieceName)
         {
             foreach (var move in movingPiece.GetLegalMoves())
             {
                 if (move.MoveSquare == moveSquare)
                 {
-                    if (!move.IsPawnPromotion || newPieceIndex == move.NewPiece.NumeralIndex)
+                    if (!move.IsPawnPromotion || newPieceName == move.NewPiece.Name)
                     {
                         MakeMove(move);
                         return;
                     }
 
-                    if (move.IsPawnPromotion && newPieceIndex == 0)
+                    if (move.IsPawnPromotion && newPieceName == null)
                     {
                         throw new NewPieceNotSelectedException();
                     }
@@ -437,10 +430,10 @@ namespace Chess.LogicPart
                 _status = GameStatus.Draw;
                 DrawReason = DrawReason.FiftyMovesRule;
             }
-        }        
+        }
 
-        public IEnumerable<int[]> LegalMovesToInt() => GetLegalMoves().Select(move => new int[5] { move.MovingPiece.Vertical, move.MovingPiece.Horizontal, move.MoveSquare.Vertical,
-            move.MoveSquare.Horizontal, move.IsPawnPromotion ? move.NewPiece.NumeralIndex : 0});
+        public IEnumerable<string[]> GetLegalMovesAsStrings() => GetLegalMoves().Select(move => new string[3]
+        { move.MovingPiece.Position.Name, move.MoveSquare.Name, move.IsPawnPromotion ? move.NewPiece.Name.ToString() : null});
 
         public GameStatus Status
         {

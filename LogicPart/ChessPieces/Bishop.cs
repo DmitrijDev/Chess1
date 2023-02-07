@@ -55,15 +55,7 @@ namespace Chess.LogicPart
             return newBishop;
         }
 
-        public override string EnglishName => "Bishop";
-
-        public override string RussianName => "Слон";
-
-        public override string ShortEnglishName => "B";
-
-        public override string ShortRussianName => "С";
-
-        public override int NumeralIndex => Color == PieceColor.White ? 5 : 11;
+        public override PieceName Name => PieceName.Bishop;        
 
         public bool IsLightSquared => Position != null && Vertical % 2 != Horizontal % 2;
 

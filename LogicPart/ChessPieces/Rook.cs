@@ -55,14 +55,6 @@ namespace Chess.LogicPart
             return newRook;
         }
 
-        public override string EnglishName => "Rook";
-
-        public override string RussianName => "Ладья";
-
-        public override string ShortEnglishName => "R";
-
-        public override string ShortRussianName => "Л";
-
-        public override int NumeralIndex => Color == PieceColor.White ? 3 : 9;
+        public override PieceName Name => PieceName.Rook;
     }
 }

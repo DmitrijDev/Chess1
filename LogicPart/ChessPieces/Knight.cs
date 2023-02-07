@@ -29,14 +29,6 @@ namespace Chess.LogicPart
             return newKnight;
         }
 
-        public override string EnglishName => "Knight";
-
-        public override string RussianName => "Конь";
-
-        public override string ShortEnglishName => "N";
-
-        public override string ShortRussianName => "К";
-
-        public override int NumeralIndex => Color == PieceColor.White ? 4 : 10;
+        public override PieceName Name => PieceName.Knight;
     }
 }

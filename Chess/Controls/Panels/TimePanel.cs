@@ -67,7 +67,7 @@ namespace Chess
             var minutes = time % 3600 / 60;
             var seconds = time % 60;
 
-            var newText = new StringBuilder(hours.ToString()).Append(':');
+            var newText = new StringBuilder().Append(hours).Append(':');
 
             if (minutes < 10)
             {

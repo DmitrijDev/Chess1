@@ -17,17 +17,7 @@ namespace Chess
                 }
             }
 
-            for (var i = 0; i < newPicture.Width; ++i)
-            {
-                for (var j = 0; j < newPicture.Height; ++j)
-                {
-                    if (matrix[i, j] == -2 || matrix[i, j] == 2 || matrix[i, j] == 3)
-                    {
-                        ErodePixel(newPicture, i, j, 1);
-                    }
-                }
-            }
-
+            ErodeBorders(newPicture, matrix);
             return newPicture;
         }
 
@@ -82,6 +72,53 @@ namespace Chess
             }
         }
 
+        private static void ErodeBorders(Bitmap picture, int[,] matrix)
+        {
+            for (var i = 0; i < picture.Width; ++i)
+            {
+                for (var j = 0; j < picture.Height; ++j)
+                {
+                    if (matrix[i, j] > 1 || matrix[i, j] < -1)
+                    {
+                        ErodePixel(picture, i, j, 1);
+                    }
+                }
+            }
+
+            for (var i = picture.Width - 1; i >= 0; --i)
+            {
+                for (var j = picture.Height - 1; j >= 0; --j)
+                {
+                    if (matrix[i, j] > 1 || matrix[i, j] < -1)
+                    {
+                        ErodePixel(picture, i, j, 1);
+                    }
+                }
+            }
+
+            for (var i = 0; i < picture.Width; ++i)
+            {
+                for (var j = picture.Height - 1; j >= 0; --j)
+                {
+                    if (matrix[i, j] > 1 || matrix[i, j] < -1)
+                    {
+                        ErodePixel(picture, i, j, 1);
+                    }
+                }
+            }
+
+            for (var i = picture.Width - 1; i >= 0; --i)
+            {
+                for (var j = 0; j < picture.Height; ++j)
+                {
+                    if (matrix[i, j] > 1 || matrix[i, j] < -1)
+                    {
+                        ErodePixel(picture, i, j, 1);
+                    }
+                }
+            }
+        }
+
         public static void ErodePixel(Bitmap picture, int x, int y, int erosionDegree)
         {
             if (x < erosionDegree || x >= picture.Width - erosionDegree || y < erosionDegree || y >= picture.Height - erosionDegree)
@@ -106,6 +143,44 @@ namespace Chess
             }
 
             var newColor = Color.FromArgb((int)Math.Round(redComponent), (int)Math.Round(greenComponent), (int)Math.Round(blueComponent));
+            picture.SetPixel(x, y, newColor);
+        }
+
+        public static void FocusPixel(Bitmap picture, int x, int y)
+        {
+            if (x == 0 || x >= picture.Width - 1 || y == 0 || y >= picture.Height - 1)
+            {
+                return;
+            }
+
+            var coefficients = new int[3][]
+            {
+              new int[3]  { 0, -1, 0 },
+              new int[3] { -1, 5, -1 },
+              new int[3] { 0, -1, 0 }
+            };
+
+            var redComponent = 0;
+            var greenComponent = 0;
+            var blueComponent = 0;
+
+            for (var i = x - 1; i <= x + 1; ++i)
+            {
+                for (var j = y - 1; j <= y + 1; ++j)
+                {
+                    var coefficient = coefficients[i - x + 1][j - y + 1];
+
+                    redComponent += coefficient * picture.GetPixel(i, j).R;
+                    greenComponent += coefficient * picture.GetPixel(i, j).G;
+                    blueComponent += coefficient * picture.GetPixel(i, j).B;
+                }
+            }
+
+            redComponent = redComponent > byte.MaxValue ? byte.MaxValue : redComponent >= 0 ? redComponent : 0;
+            greenComponent = greenComponent > byte.MaxValue ? byte.MaxValue : greenComponent >= 0 ? greenComponent : 0;
+            blueComponent = blueComponent > byte.MaxValue ? byte.MaxValue : blueComponent >= 0 ? blueComponent : 0;
+
+            var newColor = Color.FromArgb(redComponent, greenComponent, blueComponent);
             picture.SetPixel(x, y, newColor);
         }
     }

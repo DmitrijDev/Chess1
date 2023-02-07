@@ -4,14 +4,14 @@ namespace Chess.Players
 {
     public static class Strategies
     {
-        public static int[] SelectMoveForVirtualFool(ChessBoard board)
+        public static string[] SelectMoveForVirtualFool(ChessBoard board)
         {
             if (board.Status != GameStatus.GameCanContinue)
             {
                 return null;
             }
 
-            var legalMoves = board.LegalMovesToInt().ToArray();
+            var legalMoves = board.GetLegalMovesAsStrings().ToArray();
             var moveIndex = new Random().Next(legalMoves.Length);
             return legalMoves[moveIndex];
         }

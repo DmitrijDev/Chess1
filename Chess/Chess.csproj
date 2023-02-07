@@ -10,17 +10,16 @@
 
   <ItemGroup>
     <Compile Remove="Images\**" />
+    <Compile Remove="Pictures\**" />
     <EmbeddedResource Remove="Images\**" />
+    <EmbeddedResource Remove="Pictures\**" />
     <None Remove="Images\**" />
+    <None Remove="Pictures\**" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\LogicPart\LogicPart.csproj" />
     <ProjectReference Include="..\Players\Players.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Pictures\" />
   </ItemGroup>
 
 </Project>

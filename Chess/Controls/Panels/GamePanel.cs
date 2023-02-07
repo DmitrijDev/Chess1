@@ -19,8 +19,8 @@ namespace Chess
 
         private Orientation _orientation = Orientation.Standart;
 
-        private List<int> _clicksCoordinates;
-        private int[] _selectedMove;
+        private string _highlightedButtonName;
+        private string[] _selectedMove;
 
         private int _whiteTimeLeft;
         private int _blackTimeLeft;
@@ -132,7 +132,7 @@ namespace Chess
             BackColor = colorsArray[5];
             _form.BackColor = colorsArray[6];
 
-            GamePanelButton.SetNewImages(this);
+            GamePanelButton.SetNewImagesFor(this);
 
             for (var i = 0; i < 8; ++i)
             {
@@ -152,11 +152,11 @@ namespace Chess
             CancelPieceChoice();
             _selectedMove = null;
 
-            var whiteMaterial = new string[16] { "King", "Queen", "Rook", "Rook", "Knight", "Knight", "Bishop", "Bishop",
-                "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn" };
+            var whiteMaterial = new PieceName[16] { PieceName.King, PieceName.Queen,PieceName.Rook, PieceName.Rook, PieceName.Knight, PieceName.Knight, PieceName.Bishop,
+                PieceName.Bishop, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn };
             var whitePositions = new string[16] { "e1", "d1", "a1", "h1", "b1", "g1", "c1", "f1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
-            var blackMaterial = new string[16] { "King", "Queen", "Rook", "Rook", "Knight", "Knight", "Bishop", "Bishop",
-                "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn", "Pawn" };
+            var blackMaterial = new PieceName[16] { PieceName.King, PieceName.Queen,PieceName.Rook, PieceName.Rook, PieceName.Knight, PieceName.Knight, PieceName.Bishop,
+                PieceName.Bishop, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn };
             var blackPositions = new string[16] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
 
             lock (_gameBoard)
@@ -225,24 +225,25 @@ namespace Chess
 
         private void CancelPieceChoice()
         {
-            if (_clicksCoordinates != null)
+            if (_highlightedButtonName != null)
             {
-                _buttons[_clicksCoordinates[0], _clicksCoordinates[1]].RemoveHighlight();
-                _clicksCoordinates = null;
+                var highlightedButtonCoordinates = SharedItems.GetChessSquareCoordinates(_highlightedButtonName);
+                _buttons[highlightedButtonCoordinates[0], highlightedButtonCoordinates[1]].RemoveHighlight();
+                _highlightedButtonName = null;
             }
         }
 
-        private void MakeSelectedMove()
+        private void MakeMove(string startSquareName, string destinationSquareName, PieceName? newPieceName)
         {
             try
             {
                 lock (_gameBoard)
                 {
-                    _gameBoard.MakeMove(_selectedMove);
+                    _gameBoard.MakeMove(startSquareName, destinationSquareName, newPieceName);
                 }
             }
 
-            catch (IllegalMoveException exception) // На случай, если ход не по правилам.
+            catch (IllegalMoveException exception)
             {
                 MessageBox.Show(exception.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
@@ -257,8 +258,10 @@ namespace Chess
             _timer.Stop();
 
             RenewButtonsView();
-            _buttons[_selectedMove[0], _selectedMove[1]].Outline();
-            _buttons[_selectedMove[2], _selectedMove[3]].Outline();
+            var startSquareCoordinates = SharedItems.GetChessSquareCoordinates(startSquareName);
+            var destinationSquareCoordinates = SharedItems.GetChessSquareCoordinates(destinationSquareName);
+            _buttons[startSquareCoordinates[0], startSquareCoordinates[1]].Outline();
+            _buttons[destinationSquareCoordinates[0], destinationSquareCoordinates[1]].Outline();
             _selectedMove = null;
 
             if (GameIsOver)
@@ -277,6 +280,8 @@ namespace Chess
             _timer.Start();
         }
 
+        private void MakeSelectedMove() => MakeMove(_selectedMove[0], _selectedMove[1], _selectedMove[2] != null ? Enum.Parse<PieceName>(_selectedMove[2]) : null);
+
         private void RenewButtonsView()
         {
             var currentPosition = _gameBoard.GetCurrentPosition();
@@ -291,21 +296,12 @@ namespace Chess
                     }
 
                     _buttons[i, j].FlatAppearance.BorderSize = 2;
-
-                    if (_buttons[i, j].DisplayedPieceIndex != currentPosition[i, j])
-                    {
-                        _buttons[i, j].DisplayedPieceIndex = currentPosition[i, j];
-                        _buttons[i, j].RenewImage();
-                    }
+                    _buttons[i, j].SetDisplayedPiece(currentPosition.GetPieceName(i, j), currentPosition.GetPieceColor(i, j));
                 }
             }
         }
 
-        public void PromotePawn(int newPieceIndex)
-        {
-            _selectedMove[4] = newPieceIndex;
-            MakeSelectedMove();
-        }
+        internal void PromotePawn(PieceName newPieceName) => MakeMove(_selectedMove[0], _selectedMove[1], newPieceName);
 
         private void Think()
         {
@@ -375,51 +371,46 @@ namespace Chess
             }
 
             var button = (GamePanelButton)sender;
-
-            if (_clicksCoordinates == null) // Т.е. выбор фигуры для хода.
+            
+            // Выбор фигуры для хода.
+            if (_highlightedButtonName == null)
             {
-                if (button.DisplayedPieceIndex == 0)
+                if (button.IsClear)
                 {
                     return;
                 }
 
-                if ((_gameBoard.MovingSideColor == PieceColor.White && button.DisplayedPieceIndex > 6) ||
-                    (_gameBoard.MovingSideColor == PieceColor.Black && button.DisplayedPieceIndex <= 6))
+                if (button.DisplayedPieceColor != _gameBoard.MovingSideColor)
                 {
                     MessageBox.Show("Это не ваша фигура.", "", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
 
-                _clicksCoordinates = new();
-                _clicksCoordinates.Add(button.X);
-                _clicksCoordinates.Add(button.Y);
+                _highlightedButtonName = button.ChessName;
                 button.Highlight();
                 return; // Запомнили координаты выбранной фигуры, ждем щелчка по полю на которое нужно сходить.
             }
 
-            if (button.X == _clicksCoordinates[0] && button.Y == _clicksCoordinates[1]) // Отмена выбора.
+            // Отмена выбора.
+            if (button.ChessName == _highlightedButtonName)
             {
                 CancelPieceChoice();
                 return;
             }
 
-            if ((_gameBoard.MovingSideColor == PieceColor.White && button.DisplayedPieceIndex > 0 && button.DisplayedPieceIndex <= 6) ||
-                (_gameBoard.MovingSideColor == PieceColor.Black && button.DisplayedPieceIndex > 6)) //Замена выбранной фигуры на другую.
+            var highlightedButtonCoordinates = SharedItems.GetChessSquareCoordinates(_highlightedButtonName);
+            _buttons[highlightedButtonCoordinates[0], highlightedButtonCoordinates[1]].RemoveHighlight();
+
+            //Замена выбранной фигуры на другую.
+            if (button.DisplayedPieceColor == _gameBoard.MovingSideColor)
             {
-                _buttons[_clicksCoordinates[0], _clicksCoordinates[1]].RemoveHighlight();
-                _clicksCoordinates.Clear();
-                _clicksCoordinates.Add(button.X);
-                _clicksCoordinates.Add(button.Y);
+                _highlightedButtonName = button.ChessName;
                 button.Highlight();
                 return;
             }
 
-            _buttons[_clicksCoordinates[0], _clicksCoordinates[1]].RemoveHighlight();
-            _clicksCoordinates.Add(button.X);
-            _clicksCoordinates.Add(button.Y);
-            _selectedMove = new int[5];
-            Array.Copy(_clicksCoordinates.ToArray(), _selectedMove, 4);
-            _clicksCoordinates = null;
+            _selectedMove = new string[3] { _highlightedButtonName, button.ChessName, null };
+            _highlightedButtonName = null;
             MakeSelectedMove();
         }
 
@@ -462,7 +453,5 @@ namespace Chess
         }
 
         public bool GameIsOver => _gameBoard.Status != GameStatus.GameCanContinue;
-
-        public PieceColor MovingSideColor => _gameBoard.MovingSideColor;
     }
 }
