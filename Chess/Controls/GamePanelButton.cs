@@ -1,13 +1,10 @@
 ﻿using Chess.LogicPart;
-using System.Text;
 
 namespace Chess
 {
     internal class GamePanelButton : Button
     {
         private readonly GamePanel _gamePanel;
-        private PieceName? _displayedPieceName;
-        private PieceColor? _displayedPieceColor;
         private static Bitmap[][][] _images;
         /*Три массива, в одном - фигуры на белых полях, в другом - на черных, в третьем - на подсвеченных.
          В каждом из этих массивов еще по два массива: один с белыми фигурами, другой - с черными.*/
@@ -19,6 +16,10 @@ namespace Chess
         public bool IsHighlighted { get; private set; }
 
         public bool IsOutlined { get; private set; }
+
+        public ChessPieceName? DisplayedPieceName { get; private set; }
+
+        public ChessPieceColor? DisplayedPieceColor { get; private set; }
 
         public GamePanelButton(GamePanel gamePanel, int x, int y)
         {
@@ -63,27 +64,27 @@ namespace Chess
 
             if (IsHighlighted)
             {
-                BackgroundImage = _images[2][_displayedPieceColor == PieceColor.White ? 0 : 1][(int)_displayedPieceName];
+                BackgroundImage = _images[2][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
                 return;
             }
 
-            BackgroundImage = _images[X % 2 == Y % 2 ? 1 : 0][_displayedPieceColor == PieceColor.White ? 0 : 1][(int)_displayedPieceName];
+            BackgroundImage = _images[X % 2 == Y % 2 ? 1 : 0][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
         }
 
-        public void SetDisplayedPiece(PieceName? pieceName, PieceColor? pieceColor)
+        public void DisplayPiece(ChessPieceName? pieceName, ChessPieceColor? pieceColor)
         {
             if (pieceName == null ^ pieceColor == null)
             {
-                throw new ArgumentException();
+                throw new ArgumentException("Некорректные аргументы.");
             }
 
-            if (_displayedPieceName == pieceName && _displayedPieceColor == pieceColor)
+            if (DisplayedPieceName == pieceName && DisplayedPieceColor == pieceColor)
             {
                 return;
             }
 
-            _displayedPieceName = pieceName;
-            _displayedPieceColor = pieceColor;
+            DisplayedPieceName = pieceName;
+            DisplayedPieceColor = pieceColor;
             RenewImage();
         }
 
@@ -94,7 +95,7 @@ namespace Chess
                 return;
             }
 
-            BackgroundImage = _images[2][_displayedPieceColor == PieceColor.White ? 0 : 1][(int)_displayedPieceName];
+            BackgroundImage = _images[2][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
             FlatAppearance.BorderColor = _gamePanel.HighlightColor;
             IsHighlighted = true;
         }
@@ -106,7 +107,7 @@ namespace Chess
                 return;
             }
 
-            BackgroundImage = _images[X % 2 == Y % 2 ? 1 : 0][_displayedPieceColor == PieceColor.White ? 0 : 1][(int)_displayedPieceName];
+            BackgroundImage = _images[X % 2 == Y % 2 ? 1 : 0][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
 
             if (!IsOutlined)
             {
@@ -132,17 +133,6 @@ namespace Chess
             IsOutlined = false;
         }
 
-        public bool IsClear => _displayedPieceName == null;
-
-        public PieceColor? DisplayedPieceColor => _displayedPieceColor;
-
-        public string ChessName
-        {
-            get
-            {
-                const string verticalNames = "abcdefgh";
-                return new StringBuilder().Append(verticalNames[X]).Append(Y + 1).ToString();
-            }
-        }
+        public bool IsClear => DisplayedPieceName == null;
     }
 }

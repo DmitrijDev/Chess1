@@ -1,26 +1,28 @@
-﻿using Chess;
-
+﻿
 namespace Chess.LogicPart
 {
     public class ChessBoard
     {
         private readonly Square[,] _board = new Square[8, 8];
-        private readonly Stack<GamePosition> _positions = new();
-        private GameStatus _status;
+        private readonly Stack<GamePosition> _gamePositions = new();
+        private readonly Stack<Move> _moves = new();
+        private GameStatus _status = GameStatus.ClearBoard;
 
-        internal GameSide White { get; private set; }
+        public King WhiteKing { get; private set; }
 
-        internal GameSide Black { get; private set; }
+        public King BlackKing { get; private set; }
 
-        internal GameSide MovingSide { get; private set; }
-
-        public int MovesCount { get; private set; }
+        public ChessPieceColor MovingSideColor { get; private set; }
 
         public int LastMenacesRenewMoment { get; internal set; } = -1;
 
-        internal Square PassedByPawnSquare { get; private set; }
+        public int MovesAfterCaptureOrPawnMoveCount { get; private set; }
 
-        public DrawReason DrawReason { get; private set; }
+        public Square PassedByPawnSquare { get; private set; }
+
+        public DrawReason DrawReason { get; private set; } = DrawReason.None;
+
+        public ulong ModCount { get; private set; }
 
         public ChessBoard()
         {
@@ -31,116 +33,102 @@ namespace Chess.LogicPart
                     _board[i, j] = new Square(this, i, j);
                 }
             }
-
-            White = new GameSide(PieceColor.White, this);
-            Black = new GameSide(PieceColor.Black, this);
-            MovingSide = White;
-            _status = GameStatus.ClearBoard;
         }
 
-        public ChessBoard(IEnumerable<PieceName> whiteMaterial, IEnumerable<string> whitePositions, IEnumerable<PieceName> blackMaterial, IEnumerable<string> blackPositions,
-            PieceColor movingSide) : this()
+        public Square this[int vertical, int horizontal] => _board[vertical, horizontal];        
+        
+        public IEnumerable<ChessPiece> GetMaterial()
         {
-            SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, movingSide);
-        }
+            var initialModCountValue = ModCount;
 
-        public ChessBoard(ChessBoard sourceBoard) : this()
-        {
-            var material = sourceBoard.GetMaterial().Select(piece => piece.Copy());
-            var positions = sourceBoard.GetMaterial().Select(piece => piece.Position.Name);
-            SetPosition(material.ToArray(), positions.ToArray(), sourceBoard.MovingSideColor);
-
-            _positions = new Stack<GamePosition>(sourceBoard._positions.Reverse().Select(position => new GamePosition(position)));
-
-            if (sourceBoard.PassedByPawnSquare != null)
-            {
-                PassedByPawnSquare = _board[sourceBoard.PassedByPawnSquare.Vertical, sourceBoard.PassedByPawnSquare.Horizontal];
-            }
-
-            MovesCount = sourceBoard.MovesCount;
-            _status = sourceBoard._status;
-        }
-
-        internal Square this[int vertical, int horizontal]
-        {
-            get
-            {
-                if (vertical < 0 || horizontal < 0 || vertical >= 8 || horizontal >= 8)
-                {
-                    throw new IndexOutOfRangeException("Поля с указанными координатами не существует.");
-                }
-
-                return _board[vertical, horizontal];
-            }
-        }
-
-        internal IEnumerable<ChessPiece> GetMaterial()
-        {
             for (var i = 0; i < 8; ++i)
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    if (!_board[i, j].IsEmpty)
+                    if (_board[i, j].IsEmpty)
                     {
-                        yield return _board[i, j].ContainedPiece;
+                        continue;
                     }
+
+                    if (ModCount != initialModCountValue)
+                    {
+                        throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+                    }
+
+                    yield return _board[i, j].ContainedPiece;
                 }
+            }
+
+            if (ModCount != initialModCountValue)
+            {
+                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
             }
         }
 
-        public void SetPosition(IEnumerable<PieceName> whitePiecesNames, IEnumerable<string> whitePositions,
-            IEnumerable<PieceName> blackPiecesNames, IEnumerable<string> blackPositions, PieceColor movingSideColor)
-        {            
-            if (blackPiecesNames.Count() == 0 || blackPiecesNames.Count() != blackPositions.Count())
+        public IEnumerable<ChessPiece> GetMaterial(ChessPieceColor color) => GetMaterial().Where(piece => piece.Color == color);
+
+        public void SetPosition(IEnumerable<ChessPieceName> whitePieceNames, IEnumerable<string> whiteSquareNames,
+            IEnumerable<ChessPieceName> blackPieceNames, IEnumerable<string> blackSquareNames, ChessPieceColor movingSideColor)
+        {
+            if (!whitePieceNames.Any() || whitePieceNames.Count() != whiteSquareNames.Count())
+            {
+                throw new ArgumentException("Для белых должно быть указано равное положительное количество фигур и полей.");
+            }
+
+            if (!blackPieceNames.Any() || blackPieceNames.Count() != blackSquareNames.Count())
             {
                 throw new ArgumentException("Для черных должно быть указано равное положительное количество фигур и полей.");
             }
 
-            var whiteMaterial = whitePiecesNames.Select(name => ChessPiece.GetNewPiece(name, PieceColor.White));
-            var blackMaterial = blackPiecesNames.Select(name => ChessPiece.GetNewPiece(name, PieceColor.Black));
+            var whiteMaterial = whitePieceNames.Select(name => ChessPiece.GetNewPiece(name, ChessPieceColor.White));
+            var blackMaterial = blackPieceNames.Select(name => ChessPiece.GetNewPiece(name, ChessPieceColor.Black));
 
-            SetPosition(whiteMaterial.Concat(blackMaterial).ToArray(), whitePositions.Concat(blackPositions).ToArray(), movingSideColor);
+            var whitePiecePositions = whiteSquareNames.Select(name => GetSquare(name));
+            var blackPiecePositions = blackSquareNames.Select(name => GetSquare(name));
+
+            SetPosition(whiteMaterial.Concat(blackMaterial).ToArray(), whitePiecePositions.Concat(blackPiecePositions).ToArray(), movingSideColor);
         }
 
-        private void SetPosition(ChessPiece[] material, string[] squareNames, PieceColor movingSideColor)
+        private void SetPosition(ChessPiece[] material, Square[] piecePositons, ChessPieceColor movingSideColor)
         {
             if (_status != GameStatus.ClearBoard)
             {
                 Clear();
             }
+            else
+            {
+                ++ModCount;
+            }
 
-            MovingSide = movingSideColor == PieceColor.White ? White : Black;
+            MovingSideColor = movingSideColor;
 
             for (var i = 0; i < material.Length; ++i)
             {
-                var square = GetSquare(squareNames[i]);
-
-                if (!square.IsEmpty)
+                if (!piecePositons[i].IsEmpty)
                 {
-                    throw new ArgumentException("Для двух фигур указана одна и та же позиция");
+                    throw new ArgumentException("Для двух фигур указана одна и та же позиция.");
                 }
 
-                material[i].Position = square;
+                material[i].PutTo(piecePositons[i]);
 
-                if (material[i] is King)
+                if (material[i].Name == ChessPieceName.King)
                 {
-                    if (material[i].Color == PieceColor.White)
+                    if (material[i].Color == ChessPieceColor.White)
                     {
-                        White.King = (King)material[i];
+                        WhiteKing = (King)material[i];
                     }
                     else
                     {
-                        Black.King = (King)material[i];
+                        BlackKing = (King)material[i];
                     }
                 }
             }
 
-            _positions.Push(new GamePosition(this));
+            _gamePositions.Push(new GamePosition(this));
 
             if (!CheckPositionLegacy())
             {
                 _status = GameStatus.IllegalPosition;
-                DrawReason = DrawReason.None;
                 return;
             }
 
@@ -151,18 +139,17 @@ namespace Chess.LogicPart
                 return;
             }
 
-            _status = GameStatus.GameCanContinue;
-            DrawReason = DrawReason.None;
+            _status = GameStatus.GameIsNotOver;
 
             if (!HasLegalMoves())
             {
-                if (White.King.IsMenaced())
+                if (WhiteKing.IsMenaced())
                 {
                     _status = GameStatus.BlackWin;
                     return;
                 }
 
-                if (Black.King.IsMenaced())
+                if (BlackKing.IsMenaced())
                 {
                     _status = GameStatus.WhiteWin;
                     return;
@@ -179,46 +166,49 @@ namespace Chess.LogicPart
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    _board[i, j].SetDefaultValues();
+                    _board[i, j].Clear();
+                    _board[i,j].RemoveMenacesList();
                 }
             }
 
-            _positions.Clear();
-
-            White = new GameSide(PieceColor.White, this);
-            Black = new GameSide(PieceColor.Black, this);
-
-            MovesCount = 0;
             LastMenacesRenewMoment = -1;
+            _gamePositions.Clear();
+            _moves.Clear();
+            MovesAfterCaptureOrPawnMoveCount = 0;
+            PassedByPawnSquare = null;
+            WhiteKing = null;
+            BlackKing = null;
             _status = GameStatus.ClearBoard;
+            DrawReason = DrawReason.None;
+            ++ModCount;
         }
 
-        private Square GetSquare(string squareName)
+        public Square GetSquare(string squareName)
         {
-            var coordinates = Chess.StringsUsing.GetChessSquareCoordinates(squareName);
+            var coordinates = StringsUsing.GetChessSquareCoordinates(squareName);
             return _board[coordinates[0], coordinates[1]];
         }
 
         public bool CheckPositionLegacy()
         {
-            if (White.King == null || Black.King == null)
+            if (WhiteKing == null || BlackKing == null)
             {
                 return false;
             }
 
             foreach (var piece in GetMaterial())
             {
-                if (piece is King && piece != White.King && piece != Black.King)
+                if (piece.Name == ChessPieceName.King && piece != WhiteKing && piece != BlackKing)
                 {
                     return false;
                 }
 
-                if (piece is Pawn && (piece.Horizontal == 0 || piece.Horizontal == 7))
+                if (piece.Name == ChessPieceName.Pawn && (piece.Horizontal == 0 || piece.Horizontal == 7))
                 {
                     return false;
                 }
 
-                if (MovingSide.Color == piece.Color && piece.Attacks(piece.Enemy.King))
+                if (MovingSideColor == piece.Color && piece.Attacks(piece.EnemyKing))
                 {
                     return false;
                 }
@@ -227,180 +217,209 @@ namespace Chess.LogicPart
             return true;
         }
 
-        public bool HasLegalMoves() => MovingSide.GetMaterial().Any(piece => piece.CanMove());
-
-        private IEnumerable<Move> GetLegalMoves()
+        private Square GetPassedByPawnSquare()
         {
-            var result = Enumerable.Empty<Move>();
-
-            if (_status != GameStatus.GameCanContinue)
+            if (_moves.Count == 0)
             {
-                return result;
+                return null;
             }
 
-            foreach (var piece in MovingSide.GetMaterial())
+            var lastMove = _moves.Peek();
+
+            if (!lastMove.IsPawnDoubleMove)
             {
-                result = result.Concat(piece.GetLegalMoves());
+                return null;
             }
 
-            return result;
+            var vertical = lastMove.MoveSquare.Vertical;
+            var horizontal = lastMove.MovingPiece.Color == ChessPieceColor.White ? 2 : 5;
+            return _board[vertical, horizontal];
         }
 
-        public bool IsDrawByMaterial()
+        public bool HasLegalMoves() => GetMaterial(MovingSideColor).Any(piece => piece.CanMove());
+
+        private bool IsDrawByMaterial()
         {
-            var material = GetMaterial().ToArray();
-
-            if (material.Length < 4)
-            {
-                return material.All(piece => piece is King || piece is Knight || piece is Bishop);
-            }
-
+            var knightsPresent = false;
             var lightSquaredBishopsPresent = false;
             var darkSquaredBishopsPresent = false;
 
-            foreach (var piece in material)
+            foreach (var piece in GetMaterial())
             {
-                if (piece is Bishop)
+                switch (piece.Name)
                 {
-                    var bishop = (Bishop)piece;
+                    case ChessPieceName.Queen:
+                    case ChessPieceName.Rook:
+                    case ChessPieceName.Pawn:
+                        {
+                            return false;
+                        }
 
-                    if (bishop.IsLightSquared)
-                    {
-                        lightSquaredBishopsPresent = true;
-                    }
-                    else
-                    {
-                        darkSquaredBishopsPresent = true;
-                    }
-                }
-                else if (piece is not King)
-                {
-                    return false;
-                }
+                    case ChessPieceName.Knight:
+                        {
+                            if (knightsPresent || lightSquaredBishopsPresent || darkSquaredBishopsPresent)
+                            {
+                                return false;
+                            }
+
+                            knightsPresent = true;
+                            break;
+                        }
+
+                    case ChessPieceName.Bishop:
+                        {
+                            if (knightsPresent)
+                            {
+                                return false;
+                            }
+
+                            if (piece.Vertical % 2 != piece.Horizontal % 2)
+                            {
+                                lightSquaredBishopsPresent = true;
+                            }
+                            else
+                            {
+                                darkSquaredBishopsPresent = true;
+                            }
+
+                            if (lightSquaredBishopsPresent && darkSquaredBishopsPresent)
+                            {
+                                return false;
+                            }
+
+                            break;
+                        }
+                };
             }
 
-            return !lightSquaredBishopsPresent || !darkSquaredBishopsPresent;
+            return true;
         }
 
-        public bool IsDrawByThreeRepeats()
+        private bool IsDrawByThreeRepeats()
         {
-            if (_positions.Count < 9)
+            if (MovesAfterCaptureOrPawnMoveCount < 8)
             {
                 return false;
             }
 
-            var repeatsCount = 0;
+            var positionRepeatsCount = 1;
+            var skipsCount = 0;
+            var positionsLeftCount = MovesAfterCaptureOrPawnMoveCount - 3;
 
-            foreach (var position in _positions)
+            foreach (var position in _gamePositions.Take(MovesAfterCaptureOrPawnMoveCount + 1).Skip(4))
             {
-                if (position.Equals(_positions.Peek()))
+                if (positionsLeftCount < 5 && positionRepeatsCount == 1)
                 {
-                    ++repeatsCount;
+                    return false;
+                }
 
-                    if (repeatsCount == 3)
+                --positionsLeftCount;
+
+                if (skipsCount > 0)
+                {
+                    --skipsCount;
+                    continue;
+                }
+
+                if (_gamePositions.Peek().IsEqualTo(position))
+                {
+                    ++positionRepeatsCount;
+
+                    if (positionRepeatsCount == 3)
                     {
                         return true;
                     }
+
+                    skipsCount = 3;
                 }
             }
 
             return false;
         }
 
-        public void MakeMove(string startSquareName, string destinationSquareName, PieceName? newPieceName)
+        public void MakeMove(Move move)
         {
-            var startSquareCoordinates = StringsUsing.GetChessSquareCoordinates(startSquareName);
-            var movingPiece = _board[startSquareCoordinates[0], startSquareCoordinates[1]].ContainedPiece;
-
-            var moveSquareCoordinates = StringsUsing.GetChessSquareCoordinates(destinationSquareName);
-            var moveSquare = _board[moveSquareCoordinates[0], moveSquareCoordinates[1]];
-
-            MakeMove(movingPiece, moveSquare, newPieceName);
-        }
-
-        private void MakeMove(ChessPiece movingPiece, Square moveSquare, PieceName? newPieceName)
-        {
-            foreach (var move in movingPiece.GetLegalMoves())
+            if (move.Board != this)
             {
-                if (move.MoveSquare == moveSquare)
-                {
-                    if (!move.IsPawnPromotion || newPieceName == move.NewPiece.Name)
-                    {
-                        MakeMove(move);
-                        return;
-                    }
-
-                    if (move.IsPawnPromotion && newPieceName == null)
-                    {
-                        throw new NewPieceNotSelectedException();
-                    }
-                }
+                throw new ArgumentException("Указан ход на другой доске.");
             }
 
-            throw new IllegalMoveException(movingPiece.GetIllegalMoveMessage(moveSquare));
-        }
-
-        private void MakeMove(Move move)
-        {
-            ++MovesCount;
-
-            if (!move.IsPawnPromotion)
+            if (move.CreationMoment != ModCount)
             {
-                move.MovingPiece.Position = move.MoveSquare;
+                throw new ArgumentException("Некорректный аргумент. Ход создан для другой позиции.");
+            }
 
-                if (move.MovingPiece.FirstMoveMoment == 0)
-                {
-                    move.MovingPiece.FirstMoveMoment = MovesCount;
-                }
+            if (!move.MovingPiece.GetAccessibleSquares().Contains(move.MoveSquare))
+            {
+                var message = move.MovingPiece.GetIllegalMoveMessage(move.MoveSquare);
+                throw new IllegalMoveException(message);
+            }
+
+            if (move.IsPawnPromotion && !move.NewPieceSelected)
+            {
+                throw new NewPieceNotSelectedException();
+            }
+
+            _moves.Push(move);
+            MovesAfterCaptureOrPawnMoveCount = move.IsCapture || move.IsPawnMove ? 0 : MovesAfterCaptureOrPawnMoveCount + 1;
+
+            if (move.IsPawnPromotion)
+            {
+                move.MovingPiece.Remove();
+                move.NewPiece.PutTo(move.MoveSquare);
             }
             else
             {
-                move.MovingPiece.Position = null;
-                move.NewPiece.Position = move.MoveSquare;
+                move.MovingPiece.PutTo(move.MoveSquare);
+
+                if (move.MovingPiece.FirstMoveMoment == 0)
+                {
+                    move.MovingPiece.FirstMoveMoment = _moves.Count;
+                }
             }
 
             if (move.IsEnPassantCapture)
             {
-                move.CapturedPiece.Position = null;
+                move.CapturedPiece.Remove();
             }
 
             if (move.IsCastleKingside)
             {
                 var rook = _board[7, move.MovingPiece.Horizontal].ContainedPiece;
-                rook.Position = _board[5, rook.Horizontal];
-                rook.FirstMoveMoment = MovesCount;
+                rook.PutTo(_board[5, rook.Horizontal]);
+                rook.FirstMoveMoment = _moves.Count;
             }
 
             if (move.IsCastleQueenside)
             {
                 var rook = _board[0, move.MovingPiece.Horizontal].ContainedPiece;
-                rook.Position = _board[3, rook.Horizontal];
-                rook.FirstMoveMoment = MovesCount;
+                rook.PutTo(_board[3, rook.Horizontal]);
+                rook.FirstMoveMoment = _moves.Count;
             }
 
-            PassedByPawnSquare = !move.IsPawnDoubleMove ? null : _board[move.MoveSquare.Vertical, MovingSide == White ? 2 : 5];
-            MovingSide = MovingSide.Enemy;
-
-            if (move.IsCapture || move.IsPawnMove)
-            {
-                _positions.Clear();
-            }
-
-            _positions.Push(new GamePosition(this));
+            MovingSideColor = MovingSideColor == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White;
+            PassedByPawnSquare = GetPassedByPawnSquare();
+            _gamePositions.Push(new GamePosition(this));
             CheckGameResult();
+            ++ModCount;
         }
 
         private void CheckGameResult()
         {
+            if (_status != GameStatus.GameIsNotOver)
+            {
+                return;
+            }
+
             if (!HasLegalMoves())
             {
-                if (White.King.IsMenaced())
+                if (WhiteKing.IsMenaced())
                 {
                     _status = GameStatus.BlackWin;
                     return;
                 }
 
-                if (Black.King.IsMenaced())
+                if (BlackKing.IsMenaced())
                 {
                     _status = GameStatus.WhiteWin;
                     return;
@@ -425,15 +444,102 @@ namespace Chess.LogicPart
                 return;
             }
 
-            if (_positions.Count > 100)
+            if (MovesAfterCaptureOrPawnMoveCount >= 100)
             {
                 _status = GameStatus.Draw;
                 DrawReason = DrawReason.FiftyMovesRule;
             }
         }
 
-        public IEnumerable<string[]> GetLegalMovesAsStrings() => GetLegalMoves().Select(move => new string[3]
-        { move.MovingPiece.Position.Name, move.MoveSquare.Name, move.IsPawnPromotion ? move.NewPiece.Name.ToString() : null});
+        public void TakebackMove()
+        {
+            var lastMove = _moves.Pop();
+
+            MovesAfterCaptureOrPawnMoveCount = lastMove.IsCapture || lastMove.IsPawnMove ?
+                _moves.TakeWhile(move => !move.IsCapture && !move.IsPawnMove).Count() : MovesAfterCaptureOrPawnMoveCount - 1;
+
+            lastMove.MovingPiece.PutTo(lastMove.StartSquare);
+
+            if (lastMove.MovingPiece.FirstMoveMoment > _moves.Count)
+            {
+                lastMove.MovingPiece.FirstMoveMoment = 0;
+            }
+
+            if (lastMove.IsCapture)
+            {
+                var capturedPiecePosition = !lastMove.IsEnPassantCapture ? lastMove.MoveSquare :
+                _board[lastMove.MoveSquare.Vertical, lastMove.CapturedPiece.Color == ChessPieceColor.White ? 3 : 4];
+                lastMove.CapturedPiece.PutTo(capturedPiecePosition);
+            }
+
+            if (lastMove.IsPawnPromotion)
+            {
+                lastMove.NewPiece.Remove();
+            }
+
+            if (lastMove.IsCastleKingside)
+            {
+                var rook = _board[5, lastMove.MovingPiece.Horizontal].ContainedPiece;
+                rook.PutTo(_board[7, rook.Horizontal]);
+                rook.FirstMoveMoment = 0;
+            }
+
+            if (lastMove.IsCastleQueenside)
+            {
+                var rook = _board[3, lastMove.MovingPiece.Horizontal].ContainedPiece;
+                rook.PutTo(_board[0, rook.Horizontal]);
+                rook.FirstMoveMoment = 0;
+            }
+
+            MovingSideColor = MovingSideColor == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White;
+            PassedByPawnSquare = GetPassedByPawnSquare();
+            _gamePositions.Pop();
+            _status = GameStatus.GameIsNotOver;
+            DrawReason = DrawReason.None;
+            ++ModCount;
+        }
+
+        public IEnumerable<Move> GetLegalMoves()
+        {
+            var initialModCountValue = ModCount;
+
+            foreach (var piece in GetMaterial(MovingSideColor))
+            {
+                foreach (var square in piece.GetAccessibleSquares())
+                {
+                    if (piece.Name != ChessPieceName.Pawn || !(square.Horizontal == 0 || square.Horizontal == 7))
+                    {
+                        if (ModCount != initialModCountValue)
+                        {
+                            throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+                        }
+
+                        yield return new Move(piece, square);
+                    }
+                    else
+                    {
+                        var pieceNames = new ChessPieceName[] { ChessPieceName.Queen, ChessPieceName.Rook, ChessPieceName.Knight, ChessPieceName.Bishop };
+
+                        foreach (var newPieceName in pieceNames)
+                        {
+                            if (ModCount != initialModCountValue)
+                            {
+                                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+                            }
+
+                            yield return new Move(piece, square, newPieceName);
+                        }
+                    }
+                }
+            }
+
+            if (ModCount != initialModCountValue)
+            {
+                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+            }
+        }
+
+        public GamePosition GetCurrentPosition() => new(this);
 
         public GameStatus Status
         {
@@ -441,17 +547,15 @@ namespace Chess.LogicPart
 
             set
             {
-                if (_status != GameStatus.GameCanContinue || !(value == GameStatus.WhiteWin || value == GameStatus.BlackWin))
+                if (_status != GameStatus.GameIsNotOver || (value != GameStatus.WhiteWin && value != GameStatus.BlackWin && value != GameStatus.Draw))
                 {
-                    throw new InvalidOperationException();
+                    throw new InvalidOperationException("Невозможное присвоение.");
                 }
 
                 _status = value;
             }
         }
 
-        public GamePosition GetCurrentPosition() => new(this);
-
-        public PieceColor MovingSideColor => MovingSide.Color;
+        public int MovesCount => _moves.Count;
     }
 }

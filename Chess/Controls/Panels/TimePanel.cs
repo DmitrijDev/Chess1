@@ -19,8 +19,8 @@ namespace Chess
             BorderStyle = BorderStyle.FixedSingle;
             BackColor = _form.PanelColor;
 
-            CreateTimer(PieceColor.White);
-            CreateTimer(PieceColor.Black);
+            CreateTimer(ChessPieceColor.White);
+            CreateTimer(ChessPieceColor.Black);
             var timerWidth = _whiteTimer.Width;
             var interval = timerWidth + timerWidth / 2;
 
@@ -39,10 +39,10 @@ namespace Chess
             SizeChanged += Size_Changed;
         }
 
-        private void CreateTimer(PieceColor color)
+        private void CreateTimer(ChessPieceColor color)
         {
-            var panel = color == PieceColor.White ? _whiteTimer : _blackTimer;
-            var label = color == PieceColor.White ? _whiteTimeLeft : _blackTimeLeft;
+            var panel = color == ChessPieceColor.White ? _whiteTimer : _blackTimer;
+            var label = color == ChessPieceColor.White ? _whiteTimeLeft : _blackTimeLeft;
 
             panel.BackColor = Color.LightSlateGray;
             label.BackColor = panel.BackColor;
@@ -92,7 +92,7 @@ namespace Chess
             ShowTime(_blackTimeLeft, blackTimeLeft);
         }
 
-        public void ShowTime(PieceColor color, int time) => ShowTime(color == PieceColor.White ? _whiteTimeLeft : _blackTimeLeft, time);
+        public void ShowTime(ChessPieceColor color, int time) => ShowTime(color == ChessPieceColor.White ? _whiteTimeLeft : _blackTimeLeft, time);
 
         private void Size_Changed(object sender, EventArgs e)
         {

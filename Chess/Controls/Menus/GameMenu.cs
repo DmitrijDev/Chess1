@@ -80,7 +80,7 @@ namespace Chess
                 }
             }
 
-            _form.GamePanel.ChangePlayer(PieceColor.White);
+            _form.GamePanel.ChangePlayer(ChessPieceColor.White);
         }
 
         private void BlackPlayerMenu_ItemClick(object sender, EventArgs e)
@@ -102,7 +102,7 @@ namespace Chess
                 }
             }
 
-            _form.GamePanel.ChangePlayer(PieceColor.Black);
+            _form.GamePanel.ChangePlayer(ChessPieceColor.Black);
         }
 
         private void TimeMenu_ItemClick(object sender, EventArgs e)

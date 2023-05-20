@@ -26,17 +26,14 @@ namespace Chess
 
             // Выбор цветов.
             DropDownItems.Add(_colorsMenu);
-            var colorsMenuTexts = new string[6] { "Стандартные", "Черно-белые поля, цветные фигуры", "Зима", "Весна", "Лето", "Осень" };
 
-            foreach (var text in colorsMenuTexts)
-            {
-                menuItem = new ToolStripMenuItem(text) { CheckOnClick = true };
-                _colorsMenu.DropDownItems.Add(menuItem);
-                menuItem.Click += ColorsMenuItem_Click;
-            }
+            var colorsMenuItems = new ToolStripMenuItem[] { new ToolStripMenuItem("Стандартные"), new ToolStripMenuItem("Черно-белые поля, цветные фигуры"),
+                new ToolStripMenuItem("Зима"), new ToolStripMenuItem("Весна"), new ToolStripMenuItem("Лето"), new ToolStripMenuItem("Осень")  };
 
-            var colorsMenuFirstItem = (ToolStripMenuItem)_colorsMenu.DropDownItems[0];
-            colorsMenuFirstItem.Checked = true;
+            Array.ForEach(colorsMenuItems, item => item.CheckOnClick = true);
+            colorsMenuItems[0].Checked = true;
+            _colorsMenu.DropDownItems.AddRange(colorsMenuItems);
+            Array.ForEach(colorsMenuItems, item => item.Click += ColorsMenuItem_Click);            
 
             // Изменение размера.
             menuItem = new ToolStripMenuItem("Изменить размер доски");

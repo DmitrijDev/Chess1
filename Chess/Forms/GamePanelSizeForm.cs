@@ -1,7 +1,7 @@
 ﻿
 namespace Chess
 {
-    public partial class GamePanelSizeForm : Form
+    internal partial class GamePanelSizeForm : Form
     {
         private readonly GamePanel _gamePanel;
 

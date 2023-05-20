@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Chess", "Chess\Chess.csproj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "LogicPart", "LogicPart\LogicPart.csproj", "{84B838BE-8F14-4033-8905-67AD7333B1EF}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Players", "Players\Players.csproj", "{083586D4-0387-405A-8D94-AB1D91A97EEC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StrategicPart", "StrategicPart\StrategicPart.csproj", "{1E638F68-5991-41D7-BF52-9450BB255B47}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,10 +23,10 @@ Global
 		{84B838BE-8F14-4033-8905-67AD7333B1EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{84B838BE-8F14-4033-8905-67AD7333B1EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{84B838BE-8F14-4033-8905-67AD7333B1EF}.Release|Any CPU.Build.0 = Release|Any CPU
-		{083586D4-0387-405A-8D94-AB1D91A97EEC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{083586D4-0387-405A-8D94-AB1D91A97EEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{083586D4-0387-405A-8D94-AB1D91A97EEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{083586D4-0387-405A-8D94-AB1D91A97EEC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1E638F68-5991-41D7-BF52-9450BB255B47}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1E638F68-5991-41D7-BF52-9450BB255B47}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1E638F68-5991-41D7-BF52-9450BB255B47}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1E638F68-5991-41D7-BF52-9450BB255B47}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

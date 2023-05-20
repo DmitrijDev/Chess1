@@ -1,35 +1,61 @@
 ﻿
 namespace Chess.LogicPart
 {
-    internal class Pawn : ChessPiece
+    public class Pawn : ChessPiece
     {
-        public Pawn(PieceColor color) => Color = color;
+        public Pawn(ChessPieceColor color) => Color = color;
 
         public override IEnumerable<Square> GetAttackedSquares()
         {
-            if (Vertical > 0)
+            var board = Board;
+
+            if (board == null)
             {
-                yield return Board[Vertical - 1, Color == PieceColor.White ? Horizontal + 1 : Horizontal - 1];
+                yield break;
             }
 
-            if (Vertical < 7)
+            var vertical = Vertical;
+            var horizontal = Horizontal;
+            var modCount = board.ModCount;
+
+            if (vertical > 0)
             {
-                yield return Board[Vertical + 1, Color == PieceColor.White ? Horizontal + 1 : Horizontal - 1];
+                if (board.ModCount != modCount)
+                {
+                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+                }
+
+                yield return board[vertical - 1, Color == ChessPieceColor.White ? horizontal + 1 : horizontal - 1];
+            }
+
+            if (vertical < 7)
+            {
+                if (board.ModCount != modCount)
+                {
+                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+                }
+
+                yield return board[vertical + 1, Color == ChessPieceColor.White ? horizontal + 1 : horizontal - 1];
+            }
+
+            if (board.ModCount != modCount)
+            {
+                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
             }
         }
 
-        protected override IEnumerable<Square> GetLegalMoveSquares(bool savesUnsafeForKingSquares, out IEnumerable<Square> unsafeForKingSquares)
+        private IEnumerable<Square> GetAccessibleSquares(out IEnumerable<Square> unsafeForKingSquares)
         {
-            if (Board.Status != GameStatus.GameCanContinue || FriendlySide != Board.MovingSide)
+            if (!IsOnBoard || Board.Status != GameStatus.GameIsNotOver || Color != Board.MovingSideColor)
             {
-                unsafeForKingSquares = savesUnsafeForKingSquares ? Enumerable.Empty<Square>() : null;
+                unsafeForKingSquares = Enumerable.Empty<Square>();
                 return Enumerable.Empty<Square>();
             }
 
             var moveSquares = GetAttackedSquares().
                 Where(square => (!square.IsEmpty && square.ContainedPiece.Color != Color) || square == Board.PassedByPawnSquare);
 
-            if (Color == PieceColor.White)
+            if (Color == ChessPieceColor.White)
             {
                 if (Board[Vertical, Horizontal + 1].IsEmpty)
                 {
@@ -54,34 +80,55 @@ namespace Chess.LogicPart
                 }
             }
 
-            return FilterSafeForKingMoves(moveSquares, savesUnsafeForKingSquares, out unsafeForKingSquares);
+            var result = FilterSafeForKingMoves(moveSquares);
+            unsafeForKingSquares = moveSquares.Except(result);
+            return result;
         }
 
-        public override IEnumerable<Move> GetLegalMoves()
+        public override IEnumerable<Square> GetAccessibleSquares() => GetAccessibleSquares(out var unsafeForKingSquares);
+
+        public override string GetIllegalMoveMessage(Square square)
         {
-            foreach (var square in GetLegalMoveSquares())
+            if (Board != square.Board)
             {
-                if (square.Horizontal != 0 && square.Horizontal != 7)
-                {
-                    yield return new Move(this, square);
-                }
-                else
-                {
-                    yield return new Move(this, square, new Queen(Color));
-                    yield return new Move(this, square, new Rook(Color));
-                    yield return new Move(this, square, new Knight(Color));
-                    yield return new Move(this, square, new Bishop(Color));
-                }
+                throw new InvalidOperationException("Указано поле на другой доске.");
             }
+
+            var accessibleSquares = GetAccessibleSquares(out var unsafeForKingSquares);
+
+            if (accessibleSquares.Contains(square))
+            {
+                return null;
+            }
+
+            if (!square.IsEmpty && square.ContainedPiece.Color == Color)
+            {
+                return "Невозможно пойти на поле, занятое своей фигурой.";
+            }
+
+            if (unsafeForKingSquares.Contains(square))
+            {
+                if (IsPinnedVertically() && square.Vertical != Vertical)
+                {
+                    return "Невозможный ход. Фигура связана.";
+                }
+
+                if (IsPinnedHorizontally() && square.Horizontal != Horizontal)
+                {
+                    return "Невозможный ход. Фигура связана.";
+                }
+
+                if (IsPinnedDiagonally() && !(square.IsOnSameDiagonal(Position) && square.IsOnSameDiagonal(FriendlyKing)))
+                {
+                    return "Невозможный ход. Фигура связана.";
+                }
+
+                return "Невозможный ход. Ваш король под шахом.";
+            }
+
+            return "Невозможный ход.";
         }
 
-        public override ChessPiece Copy()
-        {
-            var newPawn = new Pawn(Color);
-            newPawn.FirstMoveMoment = FirstMoveMoment;
-            return newPawn;
-        }
-
-        public override PieceName Name => PieceName.Pawn;
+        public override ChessPieceName Name => ChessPieceName.Pawn;
     }
 }

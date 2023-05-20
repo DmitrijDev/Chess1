@@ -1,34 +1,50 @@
 ﻿
 namespace Chess.LogicPart
 {
-    internal class Knight : ChessPiece
+    public class Knight : ChessPiece
     {
-        public Knight(PieceColor color) => Color = color;
+        public Knight(ChessPieceColor color) => Color = color;
 
         public override IEnumerable<Square> GetAttackedSquares()
         {
-            var verticalShifts = new int[8] { 2, 2, -2, -2, 1, 1, -1, -1 };
-            var horizontalShifts = new int[8] { -1, 1, -1, 1, -2, 2, -2, 2 };
+            var board = Board;            
+
+            if (board == null)
+            {
+                yield break;
+            }
+
+            var vertical = Vertical;
+            var horizontal = Horizontal;
+            var modCount = board.ModCount;
+
+            var verticalShifts = new int[] { 2, 2, -2, -2, 1, 1, -1, -1 };
+            var horizontalShifts = new int[] { -1, 1, -1, 1, -2, 2, -2, 2 };
 
             for (var i = 0; i < 8; ++i)
             {
-                var targetVertical = Vertical + horizontalShifts[i];
-                var targetHorizontal = Horizontal + verticalShifts[i];
+                var targetVertical = vertical + horizontalShifts[i];
+                var targetHorizontal = horizontal + verticalShifts[i];
 
-                if (targetVertical >= 0 && targetHorizontal >= 0 && targetVertical < 8 && targetHorizontal < 8)
+                if (targetVertical < 0 || targetHorizontal < 0 || targetVertical >= 8 || targetHorizontal >= 8)
                 {
-                    yield return Board[targetVertical, targetHorizontal];
+                    continue;
                 }
+
+                if (board.ModCount != modCount)
+                {
+                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+                }
+
+                yield return board[targetVertical, targetHorizontal];
+            }
+
+            if (board.ModCount != modCount)
+            {
+                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
             }
         }
 
-        public override ChessPiece Copy()
-        {
-            var newKnight = new Knight(Color);
-            newKnight.FirstMoveMoment = FirstMoveMoment;
-            return newKnight;
-        }
-
-        public override PieceName Name => PieceName.Knight;
+        public override ChessPieceName Name => ChessPieceName.Knight;
     }
 }

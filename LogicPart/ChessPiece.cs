@@ -1,42 +1,61 @@
 ﻿
 namespace Chess.LogicPart
 {
-    internal abstract class ChessPiece
+    public abstract class ChessPiece
     {
-        private Square _position;
+        public ChessPieceColor Color { get; protected set; }
 
-        public PieceColor Color { get; protected set; }
+        public Square Position { get; private set; }
 
-        public int FirstMoveMoment { get; set; }
+        public int FirstMoveMoment { get; internal set; }
+
+        internal void PutTo(Square newPosition)
+        {            
+            var oldPosition = Position;
+            Position = newPosition;
+
+            if (oldPosition != null && oldPosition.ContainedPiece == this)
+            {
+                oldPosition.Clear();
+            }
+
+            if (IsOnBoard && Position.ContainedPiece != this)
+            {
+                Position.Put(this);
+            }            
+        }
+
+        internal void Remove()
+        {
+            if (IsOnBoard)
+            {
+                PutTo(null);
+            }
+        }
 
         public abstract IEnumerable<Square> GetAttackedSquares();
 
-        public bool Attacks(Square square) => square != null && GetAttackedSquares().Contains(square);
+        public bool Attacks(Square square) => GetAttackedSquares().Contains(square);
 
-        public bool Attacks(ChessPiece otherPiece) => otherPiece != null && Attacks(otherPiece._position);
+        public bool Attacks(ChessPiece otherPiece) => otherPiece.IsOnBoard && Attacks(otherPiece.Position);
 
         // Реализация для всех фигур, кроме пешки и короля.
-        protected virtual IEnumerable<Square> GetLegalMoveSquares(bool savesUnsafeForKingSquares, out IEnumerable<Square> unsafeForKingSquares)
+        public virtual IEnumerable<Square> GetAccessibleSquares()
         {
-            if (Board.Status != GameStatus.GameCanContinue || FriendlySide != Board.MovingSide)
+            if (!IsOnBoard || Board.Status != GameStatus.GameIsNotOver || Color != Board.MovingSideColor)
             {
-                unsafeForKingSquares = savesUnsafeForKingSquares ? Enumerable.Empty<Square>() : null;
                 return Enumerable.Empty<Square>();
             }
 
             var moveSquares = GetAttackedSquares().Where(square => square.IsEmpty || square.ContainedPiece.Color != Color);
-            return FilterSafeForKingMoves(moveSquares, savesUnsafeForKingSquares, out unsafeForKingSquares);
+            return FilterSafeForKingMoves(moveSquares);
         }
 
-        public IEnumerable<Square> GetLegalMoveSquares() => GetLegalMoveSquares(false, out var unsafeForKingSquares);
-
         // Реализация для всех фигур, кроме короля.
-        protected virtual IEnumerable<Square> FilterSafeForKingMoves(IEnumerable<Square> moveSquares, bool savesRemovedSquares,
-            out IEnumerable<Square> removedSquares)
+        protected virtual IEnumerable<Square> FilterSafeForKingMoves(IEnumerable<Square> moveSquares)
         {
-            if (FriendlyKing.GetMenaces().Count > 1) // От двойного шаха не закроешься, и две фигуры одним ходом не возьмешь.
+            if (FriendlyKing.GetMenaces().Count() > 1) // От двойного шаха не закроешься, и две фигуры одним ходом не возьмешь.
             {
-                removedSquares = savesRemovedSquares ? moveSquares : null;
                 return Enumerable.Empty<Square>();
             }
 
@@ -46,33 +65,30 @@ namespace Chess.LogicPart
             {
                 result = result.Where(square => square.Vertical == Vertical);
             }
-
-            if (IsPinnedHorizontally())
+            else if (IsPinnedHorizontally())
             {
                 result = result.Where(square => square.Horizontal == Horizontal);
             }
-
-            if (IsPinnedByDiagonal())
+            else if (IsPinnedDiagonally())
             {
-                result = result.Where(square => square.IsOnSameDiagonal(_position) && square.IsOnSameDiagonal(FriendlyKing));
+                result = result.Where(square => square.IsOnSameDiagonal(Position) && square.IsOnSameDiagonal(FriendlyKing));
             }
 
-            removedSquares = savesRemovedSquares ? moveSquares.Except(result) : null;
             return result;
         }
 
         private bool ProtectsKingByMoveTo(Square square)
         {
-            var menacingPiece = FriendlyKing.GetMenaces()[0];
+            var menacingPiece = FriendlyKing.GetMenaces().Single();
 
             if (square == menacingPiece.Position)
             {
                 return true;
             }
 
-            if (square == Board.PassedByPawnSquare && menacingPiece is Pawn && this is Pawn)
+            if (square == Board.PassedByPawnSquare && menacingPiece.Name == ChessPieceName.Pawn)
             {
-                return true;
+                return Name == ChessPieceName.Pawn;
             }
 
             if (menacingPiece.Vertical == FriendlyKing.Vertical)
@@ -94,9 +110,14 @@ namespace Chess.LogicPart
             return false;
         }
 
-        private bool IsPinnedVertically()
+        public bool IsPinnedVertically()
         {
-            if (FriendlyKing.Vertical != Vertical)
+            if (!IsOnBoard || Board.Status == GameStatus.IllegalPosition)
+            {
+                throw new InvalidOperationException();
+            }
+
+            if (FriendlyKing.Vertical != Vertical || Name == ChessPieceName.King)
             {
                 return false;
             }
@@ -113,16 +134,22 @@ namespace Chess.LogicPart
             {
                 if (!Board[Vertical, i].IsEmpty)
                 {
-                    return Board[Vertical, i].ContainedPiece.Color != Color && (Board[Vertical, i].ContainedPiece is Queen || Board[Vertical, i].ContainedPiece is Rook);
+                    var nearestPiece = Board[Vertical, i].ContainedPiece;
+                    return nearestPiece.Color != Color && (nearestPiece.Name == ChessPieceName.Queen || nearestPiece.Name == ChessPieceName.Rook);
                 }
             }
 
             return false;
         }
 
-        private bool IsPinnedHorizontally()
+        public bool IsPinnedHorizontally()
         {
-            if (FriendlyKing.Horizontal != Horizontal)
+            if (!IsOnBoard || Board.Status == GameStatus.IllegalPosition)
+            {
+                throw new InvalidOperationException();
+            }
+
+            if (FriendlyKing.Horizontal != Horizontal || Name == ChessPieceName.King)
             {
                 return false;
             }
@@ -139,16 +166,22 @@ namespace Chess.LogicPart
             {
                 if (!Board[i, Horizontal].IsEmpty)
                 {
-                    return Board[i, Horizontal].ContainedPiece.Color != Color && (Board[i, Horizontal].ContainedPiece is Queen || Board[i, Horizontal].ContainedPiece is Rook);
+                    var nearestPiece = Board[i, Horizontal].ContainedPiece;
+                    return nearestPiece.Color != Color && (nearestPiece.Name == ChessPieceName.Queen || nearestPiece.Name == ChessPieceName.Rook);
                 }
             }
 
             return false;
         }
 
-        private bool IsPinnedByDiagonal()
+        public bool IsPinnedDiagonally()
         {
-            if (!IsOnSameDiagonal(FriendlyKing))
+            if (!IsOnBoard || Board.Status == GameStatus.IllegalPosition)
+            {
+                throw new InvalidOperationException();
+            }
+
+            if (!IsOnSameDiagonal(FriendlyKing) || Name == ChessPieceName.King)
             {
                 return false;
             }
@@ -167,92 +200,90 @@ namespace Chess.LogicPart
             {
                 if (!Board[i, j].IsEmpty)
                 {
-                    return Board[i, j].ContainedPiece.Color != Color && (Board[i, j].ContainedPiece is Queen || Board[i, j].ContainedPiece is Bishop);
+                    var nearestPiece = Board[i, j].ContainedPiece;
+                    return nearestPiece.Color != Color && (nearestPiece.Name == ChessPieceName.Queen || nearestPiece.Name == ChessPieceName.Bishop);
                 }
             }
 
             return false;
         }
 
-        // Реализация для всех фигур, кроме пешки.
-        public virtual IEnumerable<Move> GetLegalMoves() => GetLegalMoveSquares().Select(square => new Move(this, square));
+        public bool IsOnSameDiagonal(ChessPiece otherPiece) => Position.IsOnSameDiagonal(otherPiece);
 
-        public bool IsOnSameDiagonal(ChessPiece otherPiece) => _position != null && _position.IsOnSameDiagonal(otherPiece);
+        public bool IsMenaced() => Color == Board.MovingSideColor && Position.IsMenaced();
 
-        public bool IsMenaced() => FriendlySide == Board.MovingSide && _position.IsMenaced();
+        public IEnumerable<ChessPiece> GetMenaces() => Color == Board.MovingSideColor ? Position.GetMenaces() : Enumerable.Empty<ChessPiece>();
 
-        public List<ChessPiece> GetMenaces() => FriendlySide == Board.MovingSide ? _position.GetMenaces() : new List<ChessPiece>();
+        public bool CanMove() => GetAccessibleSquares().Any();
 
-        public bool CanMove() => FriendlySide == Board.MovingSide && GetLegalMoveSquares().Any();
-
-        // Переопределено для короля.
+        // Переопределено для короля и пешки.
         public virtual string GetIllegalMoveMessage(Square square)
         {
-            GetLegalMoveSquares(true, out var unsafeForKingSquares);
-
-            if (unsafeForKingSquares.Contains(square))
+            if (Board != square.Board)
             {
-                if (IsPinnedVertically() && square.Vertical != Vertical)
-                {
-                    return "Невозможный ход. Фигура связана.";
-                }
+                throw new InvalidOperationException("Указано поле на другой доске.");
+            }
 
-                if (IsPinnedHorizontally() && square.Horizontal != Horizontal)
-                {
-                    return "Невозможный ход. Фигура связана.";
-                }
+            if (!Attacks(square))
+            {
+                return "Невозможный ход.";
+            }
 
-                if (IsPinnedByDiagonal() && !(square.IsOnSameDiagonal(_position) && square.IsOnSameDiagonal(FriendlyKing)))
-                {
-                    return "Невозможный ход. Фигура связана.";
-                }
+            if (!square.IsEmpty && square.ContainedPiece.Color == Color)
+            {
+                return "Невозможно пойти на поле, занятое своей фигурой.";
+            }
 
+            if (IsPinnedVertically() && square.Vertical != Vertical)
+            {
+                return "Невозможный ход. Фигура связана.";
+            }
+
+            if (IsPinnedHorizontally() && square.Horizontal != Horizontal)
+            {
+                return "Невозможный ход. Фигура связана.";
+            }
+
+            if (IsPinnedDiagonally() && !(square.IsOnSameDiagonal(Position) && square.IsOnSameDiagonal(FriendlyKing)))
+            {
+                return "Невозможный ход. Фигура связана.";
+            }
+
+            if (FriendlyKing.GetMenaces().Count() > 1)
+            {
                 return "Невозможный ход. Ваш король под шахом.";
             }
 
-            return "Невозможный ход.";
-        }
-
-        public abstract ChessPiece Copy();
-
-        public static ChessPiece GetNewPiece(PieceName name, PieceColor color)
-        {
-            var pieces = new ChessPiece[6] { new King(color), new Queen(color), new Rook(color), new Knight(color), new Bishop(color), new Pawn(color) };
-            return pieces.Where(piece => piece.Name == name).First();
-        }
-
-        public Square Position
-        {
-            get => _position;
-
-            set
+            if (FriendlyKing.IsMenaced() && !ProtectsKingByMoveTo(square))
             {
-                if (_position != null && _position.ContainedPiece == this)
-                {
-                    _position.ContainedPiece = null;
-                }
-
-                _position = value;
-
-                if (_position != null && _position.ContainedPiece != this)
-                {
-                    _position.ContainedPiece = this;
-                }
+                return "Невозможный ход. Ваш король под шахом.";
             }
+
+            return null;
         }
 
-        public ChessBoard Board => _position.Board;
+        public static ChessPiece GetNewPiece(ChessPieceName name, ChessPieceColor color) => name switch
+        {
+            ChessPieceName.King => new King(color),
+            ChessPieceName.Queen => new Queen(color),
+            ChessPieceName.Rook => new Rook(color),
+            ChessPieceName.Knight => new Knight(color),
+            ChessPieceName.Bishop => new Bishop(color),
+            _ => new Pawn(color)
+        };        
 
-        public int Vertical => _position.Vertical;
+        public bool IsOnBoard => Position != null;
 
-        public int Horizontal => _position.Horizontal;
+        public ChessBoard Board => IsOnBoard ? Position.Board : null;
 
-        public GameSide FriendlySide => Color == PieceColor.White ? Board.White : Board.Black;
+        public int Vertical => Position.Vertical;
 
-        public GameSide Enemy => FriendlySide.Enemy;
+        public int Horizontal => Position.Horizontal;
 
-        public King FriendlyKing => FriendlySide.King;
+        public King FriendlyKing => !IsOnBoard ? null : Color == ChessPieceColor.White ? Board.WhiteKing : Board.BlackKing;
 
-        public abstract PieceName Name { get; }
+        public King EnemyKing => !IsOnBoard ? null : Color == ChessPieceColor.White ? Board.BlackKing : Board.WhiteKing;
+
+        public abstract ChessPieceName Name { get; }
     }
 }

@@ -3,10 +3,10 @@ namespace Chess.LogicPart
 {
     public class GamePosition
     {
-        private readonly PieceName?[,] _pieceNames = new PieceName?[8, 8];
-        private readonly PieceColor?[,] _pieceColors = new PieceColor?[8, 8];
+        private readonly ChessPieceName?[,] _pieceNames = new ChessPieceName?[8, 8];
+        private readonly ChessPieceColor?[,] _pieceColors = new ChessPieceColor?[8, 8];
 
-        public PieceColor MovingSideColor { get; private set; }
+        public ChessPieceColor MovingSideColor { get; }
 
         public GamePosition(ChessBoard board)
         {
@@ -14,62 +14,23 @@ namespace Chess.LogicPart
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    _pieceNames[i, j] = board[i, j].IsEmpty ? null : board[i, j].ContainedPiece.Name;
-                    _pieceColors[i, j] = board[i, j].IsEmpty ? null : board[i, j].ContainedPiece.Color;
+                    if (!board[i, j].IsEmpty)
+                    {
+                        _pieceNames[i, j] = board[i, j].ContainedPiece.Name;
+                        _pieceColors[i, j] = board[i, j].ContainedPiece.Color;
+                    }
                 }
             }
 
-            MovingSideColor = board.MovingSide.Color;
+            MovingSideColor = board.MovingSideColor;
         }
 
-        public GamePosition(GamePosition sourcePosition)
+        public ChessPieceName? GetPieceName(int vertical, int horizontal) => _pieceNames[vertical, horizontal];
+
+        public ChessPieceColor? GetPieceColor(int vertical, int horizontal) => _pieceColors[vertical, horizontal];
+
+        public bool IsEqualTo(GamePosition otherPosition)
         {
-            for (var i = 0; i < 8; ++i)
-            {
-                for (var j = 0; j < 8; ++j)
-                {
-                    _pieceNames[i, j] = sourcePosition._pieceNames[i, j];
-                    _pieceColors[i, j] = sourcePosition._pieceColors[i, j];
-                }
-            }
-
-            MovingSideColor = sourcePosition.MovingSideColor;
-        }
-
-        public PieceName? GetPieceName(int vertical, int horizontal)
-        {
-            if (vertical < 0 || horizontal < 0 || vertical >= 8 || horizontal >= 8)
-            {
-                throw new IndexOutOfRangeException("Поля с указанными координатами не существует.");
-            }
-
-            return _pieceNames[vertical, horizontal];
-        }
-
-        public PieceColor? GetPieceColor(int vertical, int horizontal)
-        {
-            if (vertical < 0 || horizontal < 0 || vertical >= 8 || horizontal >= 8)
-            {
-                throw new IndexOutOfRangeException("Поля с указанными координатами не существует.");
-            }
-
-            return _pieceColors[vertical, horizontal];
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (ReferenceEquals(obj, this))
-            {
-                return true;
-            }
-
-            if (obj is null || obj.GetType() != GetType())
-            {
-                return false;
-            }
-
-            var otherPosition = (GamePosition)obj;
-
             if (otherPosition.MovingSideColor != MovingSideColor)
             {
                 return false;

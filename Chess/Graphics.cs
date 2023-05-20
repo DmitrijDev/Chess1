@@ -30,27 +30,29 @@ namespace Chess
                 for (var j = 0; j < picture.Height; ++j)
                 {
                     // Красный пиксель.
-                    if (picture.GetPixel(i, j).R > 127 && picture.GetPixel(i, j).G < 127 && picture.GetPixel(i, j).B < 127)
+                    if (picture.GetPixel(i, j).R > byte.MaxValue / 2 && picture.GetPixel(i, j).G < byte.MaxValue / 2 && picture.GetPixel(i, j).B < byte.MaxValue / 2)
                     {
                         result[i, j] = 2;
                         continue;
                     }
 
                     // Зеленый пиксель.
-                    if (picture.GetPixel(i, j).G > 127 && picture.GetPixel(i, j).R < 127 && picture.GetPixel(i, j).B < 127)
+                    if (picture.GetPixel(i, j).G > byte.MaxValue / 2 && picture.GetPixel(i, j).R < byte.MaxValue / 2 && picture.GetPixel(i, j).B < byte.MaxValue / 2)
                     {
                         result[i, j] = 3;
                         continue;
                     }
 
                     // Белый пиксель.
-                    if (picture.GetPixel(i, j).R > 127)
+                    if (picture.GetPixel(i, j).R > byte.MaxValue / 2)
                     {
                         result[i, j] = 1;
                         continue;
                     }
 
-                    var mustBeEroded = GetNeighboursColors(picture, i, j).Any(pixelColor => pixelColor.R > 127 && pixelColor.G < 127 && pixelColor.B < 127);
+                    var mustBeEroded = GetNeighboursColors(picture, i, j).
+                        Any(pixelColor => pixelColor.R > byte.MaxValue / 2 && pixelColor.G < byte.MaxValue / 2 && pixelColor.B < byte.MaxValue / 2);
+
                     result[i, j] = mustBeEroded ? -2 : -1;
                 }
             }

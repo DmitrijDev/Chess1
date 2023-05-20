@@ -1,7 +1,7 @@
 
 namespace Chess
 {
-    public partial class GameForm : Form
+    internal partial class GameForm : Form
     {
         private int _fromDragCursorToGamePanelLeft;
         private int _fromDragCursorToGamePanelTop;
@@ -20,10 +20,10 @@ namespace Chess
             Text = "";
             SetPanels();
 
-            SizeChanged += Form_SizeChanged;
+            SizeChanged += Size_Changed;
             GamePanel.SizeChanged += GamePanel_SizeChanged;
             GamePanel.MouseDown += GamePanel_MouseDown;
-            QueryContinueDrag += DragGamePanel;
+            QueryContinueDrag += GamePanel_Drag;
 
             GamePanel.StartNewGame();
         }
@@ -78,7 +78,7 @@ namespace Chess
             DoDragDrop(GamePanel, DragDropEffects.None);
         }
 
-        private void DragGamePanel(object sender, EventArgs e)
+        private void GamePanel_Drag(object sender, EventArgs e)
         {
             var captionHeight = GetCaptionHeight();
             var newGamePanelX = (Cursor.Position.X - (Location.X + ClientRectangle.Left)) - _fromDragCursorToGamePanelLeft;
@@ -111,7 +111,7 @@ namespace Chess
             GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
         }
 
-        private void Form_SizeChanged(object sender, EventArgs e)
+        private void Size_Changed(object sender, EventArgs e)
         {
             var newGamePanelX = GamePanel.Location.X;
             var newGamePanelY = GamePanel.Location.Y;

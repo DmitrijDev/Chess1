@@ -1,10 +1,8 @@
-﻿using System.Text;
-
+﻿
 namespace Chess.LogicPart
 {
-    internal class Square
+    public class Square
     {
-        private ChessPiece _containedPiece;
         private List<ChessPiece> _menaces;
 
         public ChessBoard Board { get; }
@@ -13,50 +11,73 @@ namespace Chess.LogicPart
 
         public int Horizontal { get; }
 
-        public Square(ChessBoard board, int vertical, int horizontal)
+        public ChessPiece ContainedPiece { get; private set; }
+
+        internal Square(ChessBoard board, int vertical, int horizontal)
         {
             Board = board;
             Vertical = vertical;
             Horizontal = horizontal;
         }
 
-        public void SetDefaultValues()
+        internal void Put(ChessPiece newPiece)
         {
-            _containedPiece = null;
-            _menaces = null;
-        }
+            var oldPiece = ContainedPiece;
+            ContainedPiece = newPiece;
 
-        public List<ChessPiece> GetMenaces()
-        {
-            if (Board.LastMenacesRenewMoment < Board.MovesCount)
+            if (oldPiece != null && oldPiece.Position == this)
             {
-                RenewMenaces();
+                oldPiece.Remove();
             }
 
-            return _menaces != null ? new List<ChessPiece>(_menaces) : new List<ChessPiece>();
+            if (!IsEmpty && ContainedPiece.Position != this)
+            {
+                ContainedPiece.PutTo(this);
+            }
+        }
+
+        internal void Clear()
+        {
+            if (!IsEmpty)
+            {
+                Put(null);
+            }
+        }
+
+        public IEnumerable<ChessPiece> GetMenaces()
+        {
+            if (Board.LastMenacesRenewMoment != Board.MovesCount)
+            {
+                RenewMenaces(Board);
+            }
+
+            return _menaces != null ? _menaces.ToArray() : Enumerable.Empty<ChessPiece>();
         }
 
         public bool IsMenaced()
         {
-            if (Board.LastMenacesRenewMoment < Board.MovesCount)
+            if (Board.LastMenacesRenewMoment != Board.MovesCount)
             {
-                RenewMenaces();
+                RenewMenaces(Board);
             }
 
             return _menaces != null;
         }
 
-        private void RenewMenaces()
+        public static void RenewMenaces(ChessBoard board)
         {
-            for (var i = 0; i < 8; ++i)
+            if (board.MovesCount > 0)
             {
-                for (var j = 0; j < 8; ++j)
+                for (var i = 0; i < 8; ++i)
                 {
-                    Board[i, j]._menaces = null;
+                    for (var j = 0; j < 8; ++j)
+                    {
+                        board[i, j].RemoveMenacesList();
+                    }
                 }
             }
 
-            foreach (var piece in Board.MovingSide.Enemy.GetMaterial())
+            foreach (var piece in board.GetMaterial(board.MovingSideColor == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White))
             {
                 foreach (var square in piece.GetAttackedSquares())
                 {
@@ -64,45 +85,17 @@ namespace Chess.LogicPart
                     square._menaces.Add(piece);
                 }
             }
-            
-            Board.LastMenacesRenewMoment = Board.MovesCount;
+
+            board.LastMenacesRenewMoment = board.MovesCount;
         }
+
+        internal void RemoveMenacesList() => _menaces = null;
 
         public bool IsOnSameDiagonal(Square otherSquare) => otherSquare != null && otherSquare.Board == Board &&
             Math.Abs(Vertical - otherSquare.Vertical) == Math.Abs(Horizontal - otherSquare.Horizontal);
 
-        public bool IsOnSameDiagonal(ChessPiece piece) => piece != null && IsOnSameDiagonal(piece.Position);
+        public bool IsOnSameDiagonal(ChessPiece piece) => IsOnSameDiagonal(piece.Position);
 
-        public string Name
-        {
-            get
-            {
-                const string verticalNames = "abcdefgh";
-                return new StringBuilder().Append(verticalNames[Vertical]).Append(Horizontal + 1).ToString();
-            }
-        }
-
-        public ChessPiece ContainedPiece
-        {
-            get => _containedPiece;
-
-            set
-            {
-                var oldPiece = _containedPiece;
-                _containedPiece = value;
-
-                if (oldPiece != null)
-                {
-                    oldPiece.Position = null;
-                }
-
-                if (_containedPiece != null && _containedPiece.Position != this)
-                {
-                    _containedPiece.Position = this;
-                }
-            }
-        }
-
-        public bool IsEmpty => _containedPiece == null;
+        public bool IsEmpty => ContainedPiece == null;
     }
 }
