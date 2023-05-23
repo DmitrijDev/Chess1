@@ -7,8 +7,8 @@ namespace Chess.StrategicPart
         public static bool ThinkingDisabled { get; set; } // Партия может быть прервана, пока программа думает, тогда ей нужно перестать думать.
 
         public static VirtualPlayer Player1 { get; } = new VirtualPlayer(AnalyzeByPlayer1, EvaluatePositionByPlayer1);
-        
-        public static short EvaluatePositionByPlayer1(ChessBoard board)
+
+        public static int EvaluatePositionByPlayer1(ChessBoard board)
         {
             if (board == null || board.Status == GameStatus.IllegalPosition || board.Status == GameStatus.ClearBoard)
             {
@@ -25,11 +25,11 @@ namespace Chess.StrategicPart
                 };
             }
 
-            short result = 0;
+            var result = 0;
 
             foreach (var piece in board.GetMaterial())
-            {                
-                short pieceEvaluation = piece.Name switch
+            {
+                var pieceEvaluation = piece.Name switch
                 {
                     ChessPieceName.Pawn => 10,
                     ChessPieceName.Knight => 30,
@@ -41,7 +41,7 @@ namespace Chess.StrategicPart
 
                 if (piece.Color == ChessPieceColor.Black)
                 {
-                    pieceEvaluation = (short)-pieceEvaluation;
+                    pieceEvaluation = -pieceEvaluation;
                 }
 
                 result += pieceEvaluation;
@@ -50,31 +50,6 @@ namespace Chess.StrategicPart
             return result;
         }
 
-        internal static void AnalyzeByPlayer1(PositionTree tree)
-        {
-            if (tree.Count > 1)
-            {
-                tree.CancelAnalysis();
-            }
-
-            var depth = 2;
-
-            while (tree.CanContinueAnalysis() && tree.GetFullEnumerationDepth() < depth)
-            {
-                if (tree.CurrentNodeDepth >= depth)
-                {
-                    tree.EvaluateCurrentPosition();
-                    tree.MoveBack();
-                    continue;
-                }
-
-                if (tree.MoveForward()) 
-                {
-                    continue;
-                }
-
-                tree.MoveBack();
-            }
-        }
+        internal static void AnalyzeByPlayer1(PositionTree tree) => tree.MakeFullAnalysis(1);        
     }
 }

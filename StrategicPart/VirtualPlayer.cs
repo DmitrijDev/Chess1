@@ -6,32 +6,30 @@ namespace Chess.StrategicPart
     {
         internal Action<PositionTree> Analyze { get; }
 
-        public Func<ChessBoard, short> EvaluatePosition { get; }
+        public Func<ChessBoard, int> MakeStaticPositionEvaluation { get; }
 
-        internal VirtualPlayer(Action<PositionTree> analyze, Func<ChessBoard, short> evaluatePosition)
+        internal VirtualPlayer(Action<PositionTree> analyze, Func<ChessBoard, int> evaluatePosition)
         {
             Analyze = analyze;
-            EvaluatePosition = evaluatePosition;
+            MakeStaticPositionEvaluation = evaluatePosition;
         }
 
         public Move SelectMove(ChessBoard board)
         {
             var tree = new PositionTree(board, this);
             Analyze(tree);
-            tree.RestoreInitialPosition();
 
-            var legalMoves = tree.Root.Children;
+            var legalMoves = tree.GetRootChildren();
             var bestEvaluation = board.MovingSideColor == ChessPieceColor.White ? legalMoves.Select(node => node.Evaluation).Max() :
                legalMoves.Select(node => node.Evaluation).Min();
             var bestMoves = legalMoves.Where(node => node.Evaluation == bestEvaluation);
             PositionTreeNode resultNode;
 
-            try
+            if (bestMoves.Count() == 1)
             {
                 resultNode = bestMoves.Single();
             }
-
-            catch (InvalidOperationException)
+            else
             {
                 var bestMovesArray = bestMoves.ToArray();
                 var index = new Random().Next(bestMovesArray.Length);

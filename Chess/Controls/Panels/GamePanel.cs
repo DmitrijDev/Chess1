@@ -13,6 +13,7 @@ namespace Chess
 
         private readonly ChessBoard _gameBoard = new();
         private Thread _thinkingThread;
+        private ChessPieceColor _movingSideColor;
 
         private readonly GamePanelButton[,] _buttons = new GamePanelButton[8, 8];
         private readonly int _defaultButtonSize;
@@ -165,6 +166,7 @@ namespace Chess
             var blackPositions = new string[16] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
 
             _gameBoard.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, ChessPieceColor.White);
+            _movingSideColor = ChessPieceColor.White;
 
             RenewButtonsView();
             SetTimeLeft(_timeForGame);
@@ -204,7 +206,7 @@ namespace Chess
                 _blackVirtualPlayer = _blackVirtualPlayer == null ? Strategy.Player1 : null;
             }
 
-            if (pieceColor == _gameBoard.MovingSideColor)
+            if (pieceColor == _movingSideColor)
             {
                 StopThinking();
                 CancelMoveChoice();
@@ -215,7 +217,7 @@ namespace Chess
                 return;
             }
 
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor))
+            if (ProgramPlaysFor(_movingSideColor) && (_thinkingThread == null || _thinkingThread.ThreadState == ThreadState.Stopped))
             {
                 _thinkingThread = new Thread(Think);
                 _thinkingThread.Start();
@@ -262,6 +264,7 @@ namespace Chess
             RenewButtonsView();
             _buttons[move.StartSquare.Vertical, move.StartSquare.Horizontal].Outline();
             _buttons[move.MoveSquare.Vertical, move.MoveSquare.Horizontal].Outline();
+            _movingSideColor = _gameBoard.MovingSideColor;
 
             if (GameIsOver)
             {
@@ -270,7 +273,7 @@ namespace Chess
             }
 
             // Запускаем выбор программой ответного хода, если нужно.
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor))
+            if (ProgramPlaysFor(_movingSideColor))
             {
                 _thinkingThread = new Thread(Think);
                 _thinkingThread.Start();
@@ -306,7 +309,7 @@ namespace Chess
 
         private void Think()
         {
-            var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
+            var player = _movingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
 
             try
             {
@@ -362,7 +365,7 @@ namespace Chess
 
         private void Button_Click(object sender, EventArgs e)
         {
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor) || !_timer.Enabled || _gameBoard.Status != GameStatus.GameIsNotOver)
+            if (ProgramPlaysFor(_movingSideColor) || !_timer.Enabled || _gameBoard.Status != GameStatus.GameIsNotOver)
             {
                 return;
             }
@@ -377,7 +380,7 @@ namespace Chess
                     return;
                 }
 
-                if (button.DisplayedPieceColor != _gameBoard.MovingSideColor)
+                if (button.DisplayedPieceColor != _movingSideColor)
                 {
                     MessageBox.Show("Это не ваша фигура.", "", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
@@ -397,7 +400,7 @@ namespace Chess
             }
 
             //Замена выбранной фигуры на другую.
-            if (button.DisplayedPieceColor == _gameBoard.MovingSideColor)
+            if (button.DisplayedPieceColor == _movingSideColor)
             {
                 CancelMoveChoice();
                 _highlightedButtonX = button.X;
@@ -414,13 +417,13 @@ namespace Chess
 
         private void Timer_Tick(object sender, EventArgs e)
         {
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor) && _selectedMove != null)
+            if (ProgramPlaysFor(_movingSideColor) && _selectedMove != null)
             {
                 MakeMove(_selectedMove);
                 return;
             }
 
-            if (_gameBoard.MovingSideColor == ChessPieceColor.White)
+            if (_movingSideColor == ChessPieceColor.White)
             {
                 --_whiteTimeLeft;
                 _form.TimePanel.ShowTime(ChessPieceColor.White, _whiteTimeLeft);

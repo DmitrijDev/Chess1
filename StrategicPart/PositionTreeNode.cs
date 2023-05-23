@@ -16,7 +16,7 @@ namespace Chess.StrategicPart
 
         public short Evaluation { get; set; } = short.MinValue;
 
-        public PositionTreeNode[] Children { get; private set; }
+        public List<PositionTreeNode> Children { get; private set; }
 
         public PositionTreeNode()
         { }
@@ -34,8 +34,11 @@ namespace Chess.StrategicPart
             }
         }
 
-        public void AddChild(PositionTreeNode newChild) => Children = Children == null ?
-            new PositionTreeNode[] { newChild } : Children.Append(newChild).ToArray();
+        public void AddChild(PositionTreeNode newChild)
+        {
+            Children ??= new List<PositionTreeNode>();
+            Children.Add(newChild);
+        }
 
         public void RemoveChildren() => Children = null;
 
