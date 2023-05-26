@@ -243,7 +243,10 @@ namespace Chess
         {
             try
             {
-                _gameBoard.MakeMove(move);
+                lock (_gameBoard)
+                {
+                    _gameBoard.MakeMove(move);
+                }
             }
 
             catch (IllegalMoveException exception)
@@ -309,15 +312,18 @@ namespace Chess
 
         private void Think()
         {
-            var player = _movingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
-
-            try
+            lock (_gameBoard)
             {
-                _selectedMove = player.SelectMove(_gameBoard);
-            }
+                var player = _movingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
 
-            catch (GameInterruptedException)
-            { }
+                try
+                {
+                    _selectedMove = player.SelectMove(_gameBoard);
+                }
+
+                catch (GameInterruptedException)
+                { }
+            }
         }
 
         private void StopThinking()
@@ -344,7 +350,7 @@ namespace Chess
                 var message = _whiteTimeLeft > 0 ? "Мат белым." : "Время истекло. Победа черных.";
                 MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                 return;
-            }            
+            }
 
             if (_gameBoard.Status == GameStatus.Draw)
             {

@@ -18,6 +18,11 @@ namespace Chess.LogicPart
             var horizontal = Horizontal;
             var modCount = board.ModCount;
 
+            if ((Color == ChessPieceColor.White && horizontal == 7) || (Color == ChessPieceColor.Black && horizontal == 0))
+            {
+                yield break;
+            }
+
             if (vertical > 0)
             {
                 if (board.ModCount != modCount)

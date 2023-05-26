@@ -44,29 +44,13 @@ namespace Chess.LogicPart
             }
         }
 
-        public IEnumerable<ChessPiece> GetMenaces()
-        {
-            if (Board.LastMenacesRenewMoment != Board.MovesCount)
-            {
-                RenewMenaces(Board);
-            }
+        public IEnumerable<ChessPiece> GetMenaces() => _menaces != null ? _menaces.ToArray() : Enumerable.Empty<ChessPiece>();
 
-            return _menaces != null ? _menaces.ToArray() : Enumerable.Empty<ChessPiece>();
-        }
-
-        public bool IsMenaced()
-        {
-            if (Board.LastMenacesRenewMoment != Board.MovesCount)
-            {
-                RenewMenaces(Board);
-            }
-
-            return _menaces != null;
-        }
+        public bool IsMenaced() => _menaces != null;
 
         public static void RenewMenaces(ChessBoard board)
         {
-            if (board.MovesCount > 0)
+            if (board.ModCount != board.GameStartMoment || board.MovesCount > 0)
             {
                 for (var i = 0; i < 8; ++i)
                 {
@@ -85,8 +69,6 @@ namespace Chess.LogicPart
                     square._menaces.Add(piece);
                 }
             }
-
-            board.LastMenacesRenewMoment = board.MovesCount;
         }
 
         internal void RemoveMenacesList() => _menaces = null;
