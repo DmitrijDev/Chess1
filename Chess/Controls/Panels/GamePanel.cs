@@ -9,11 +9,10 @@ namespace Chess
         private readonly GameForm _form;
 
         private VirtualPlayer _whiteVirtualPlayer; // == null, если за эту сторону играет пользователь.
-        private VirtualPlayer _blackVirtualPlayer = Strategy.Player1; //Аналогично.
+        private VirtualPlayer _blackVirtualPlayer = new Level1Player(new ChessBoard()); //Аналогично.
 
         private readonly ChessBoard _gameBoard = new();
         private Thread _thinkingThread;
-        private ChessPieceColor _movingSideColor;
 
         private readonly GamePanelButton[,] _buttons = new GamePanelButton[8, 8];
         private readonly int _defaultButtonSize;
@@ -166,13 +165,18 @@ namespace Chess
             var blackPositions = new string[16] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
 
             _gameBoard.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, ChessPieceColor.White);
-            _movingSideColor = ChessPieceColor.White;
 
             RenewButtonsView();
             SetTimeLeft(_timeForGame);
 
+            if (ProgramPlaysFor(ChessPieceColor.Black))
+            {
+                _blackVirtualPlayer.Board.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, ChessPieceColor.White);
+            }
+
             if (ProgramPlaysFor(ChessPieceColor.White))
             {
+                _whiteVirtualPlayer.Board.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, ChessPieceColor.White);
                 _thinkingThread = new Thread(Think);
                 _thinkingThread.Start();
             }
@@ -199,14 +203,14 @@ namespace Chess
 
             if (pieceColor == ChessPieceColor.White)
             {
-                _whiteVirtualPlayer = _whiteVirtualPlayer == null ? Strategy.Player1 : null;
+                _whiteVirtualPlayer = _whiteVirtualPlayer == null ? new Level1Player(new ChessBoard(_gameBoard)) : null;
             }
             else
             {
-                _blackVirtualPlayer = _blackVirtualPlayer == null ? Strategy.Player1 : null;
+                _blackVirtualPlayer = _blackVirtualPlayer == null ? new Level1Player(new ChessBoard(_gameBoard)) : null;
             }
 
-            if (pieceColor == _movingSideColor)
+            if (pieceColor == _gameBoard.MovingSideColor)
             {
                 StopThinking();
                 CancelMoveChoice();
@@ -217,7 +221,7 @@ namespace Chess
                 return;
             }
 
-            if (ProgramPlaysFor(_movingSideColor) && (_thinkingThread == null || _thinkingThread.ThreadState == ThreadState.Stopped))
+            if (ProgramPlaysFor(_gameBoard.MovingSideColor) && (_thinkingThread == null || _thinkingThread.ThreadState == ThreadState.Stopped))
             {
                 _thinkingThread = new Thread(Think);
                 _thinkingThread.Start();
@@ -243,9 +247,15 @@ namespace Chess
         {
             try
             {
-                lock (_gameBoard)
+                if (move.Board == _gameBoard)
                 {
                     _gameBoard.MakeMove(move);
+                }
+                else
+                {
+                    var piece = _gameBoard[move.StartSquare.Vertical, move.StartSquare.Horizontal].ContainedPiece;
+                    var square = _gameBoard[move.MoveSquare.Vertical, move.MoveSquare.Horizontal];
+                    _gameBoard.MakeMove(!move.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, move.NewPiece.Name));
                 }
             }
 
@@ -267,7 +277,20 @@ namespace Chess
             RenewButtonsView();
             _buttons[move.StartSquare.Vertical, move.StartSquare.Horizontal].Outline();
             _buttons[move.MoveSquare.Vertical, move.MoveSquare.Horizontal].Outline();
-            _movingSideColor = _gameBoard.MovingSideColor;
+
+            if (ProgramPlaysFor(ChessPieceColor.White))
+            {
+                var piece = _whiteVirtualPlayer.Board[move.StartSquare.Vertical, move.StartSquare.Horizontal].ContainedPiece;
+                var square = _whiteVirtualPlayer.Board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal];
+                _whiteVirtualPlayer.Board.MakeMove(!move.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, move.NewPiece.Name));
+            }
+
+            if (ProgramPlaysFor(ChessPieceColor.Black))
+            {
+                var piece = _blackVirtualPlayer.Board[move.StartSquare.Vertical, move.StartSquare.Horizontal].ContainedPiece;
+                var square = _blackVirtualPlayer.Board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal];
+                _blackVirtualPlayer.Board.MakeMove(!move.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, move.NewPiece.Name));
+            }
 
             if (GameIsOver)
             {
@@ -276,7 +299,7 @@ namespace Chess
             }
 
             // Запускаем выбор программой ответного хода, если нужно.
-            if (ProgramPlaysFor(_movingSideColor))
+            if (ProgramPlaysFor(/*_movingSideColor*/_gameBoard.MovingSideColor))
             {
                 _thinkingThread = new Thread(Think);
                 _thinkingThread.Start();
@@ -312,28 +335,31 @@ namespace Chess
 
         private void Think()
         {
-            lock (_gameBoard)
+            var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
+
+            try
             {
-                var player = _movingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
-
-                try
-                {
-                    _selectedMove = player.SelectMove(_gameBoard);
-                }
-
-                catch (GameInterruptedException)
-                { }
+                _selectedMove = player.SelectMove();
             }
+
+            catch (GameInterruptedException)
+            { }
         }
 
         private void StopThinking()
         {
-            Strategy.ThinkingDisabled = true;
+            if (!ProgramPlaysFor(_gameBoard.MovingSideColor))
+            {
+                return;
+            }
+
+            var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
+            player.ThinkingDisabled = true;
 
             while (_thinkingThread != null && _thinkingThread.ThreadState == ThreadState.Running)
             { }
 
-            Strategy.ThinkingDisabled = false;
+            player.ThinkingDisabled = false;
         }
 
         private void ShowEndGameMessage()
@@ -371,7 +397,7 @@ namespace Chess
 
         private void Button_Click(object sender, EventArgs e)
         {
-            if (ProgramPlaysFor(_movingSideColor) || !_timer.Enabled || _gameBoard.Status != GameStatus.GameIsNotOver)
+            if (ProgramPlaysFor(_gameBoard.MovingSideColor) || !_timer.Enabled || _gameBoard.Status != GameStatus.GameIsNotOver)
             {
                 return;
             }
@@ -386,7 +412,7 @@ namespace Chess
                     return;
                 }
 
-                if (button.DisplayedPieceColor != _movingSideColor)
+                if (button.DisplayedPieceColor != _gameBoard.MovingSideColor)
                 {
                     MessageBox.Show("Это не ваша фигура.", "", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
@@ -406,7 +432,7 @@ namespace Chess
             }
 
             //Замена выбранной фигуры на другую.
-            if (button.DisplayedPieceColor == _movingSideColor)
+            if (button.DisplayedPieceColor == _gameBoard.MovingSideColor)
             {
                 CancelMoveChoice();
                 _highlightedButtonX = button.X;
@@ -415,21 +441,21 @@ namespace Chess
                 return;
             }
 
-            var movingPiece = _gameBoard[(int)_highlightedButtonX, (int)_highlightedButtonY].ContainedPiece;
-            var moveSquare = _gameBoard[button.X, button.Y];
-            var move = new Move(movingPiece, moveSquare);
+            var piece = _gameBoard[(int)_highlightedButtonX, (int)_highlightedButtonY].ContainedPiece;
+            var square = _gameBoard[button.X, button.Y];
+            var move = new Move(piece, square);
             MakeMove(move);
         }
 
         private void Timer_Tick(object sender, EventArgs e)
         {
-            if (ProgramPlaysFor(_movingSideColor) && _selectedMove != null)
+            if (ProgramPlaysFor(_gameBoard.MovingSideColor) && _selectedMove != null)
             {
                 MakeMove(_selectedMove);
                 return;
             }
 
-            if (_movingSideColor == ChessPieceColor.White)
+            if (_gameBoard.MovingSideColor == ChessPieceColor.White)
             {
                 --_whiteTimeLeft;
                 _form.TimePanel.ShowTime(ChessPieceColor.White, _whiteTimeLeft);

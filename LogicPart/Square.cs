@@ -50,7 +50,7 @@ namespace Chess.LogicPart
 
         public static void RenewMenaces(ChessBoard board)
         {
-            if (board.ModCount != board.GameStartMoment || board.MovesCount > 0)
+            if (board.MovesCount > 0 || board.ModCount != board.GameStartMoment)
             {
                 for (var i = 0; i < 8; ++i)
                 {

@@ -30,7 +30,7 @@ namespace Chess.LogicPart
                 throw new ArgumentException("Указанная фигура не на доске.");
             }
 
-            StartSquare = MovingPiece.Position;            
+            StartSquare = MovingPiece.Position;
             CreationMoment = Board.ModCount;
 
             if (Board.Status != GameStatus.GameIsNotOver || MovingPiece.Color != Board.MovingSideColor)
@@ -62,7 +62,7 @@ namespace Chess.LogicPart
             }
 
             NewPiece = ChessPiece.GetNewPiece(newPieceName, MovingPiece.Color);
-        }
+        }        
 
         public static bool IsCastleKingsideMove(ChessPiece movingPiece, Square moveSquare)
         {
