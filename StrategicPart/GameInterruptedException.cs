@@ -1,9 +1,12 @@
 ﻿
-namespace Chess.StrategicPart
+namespace Chess.Players
 {
     public class GameInterruptedException : ApplicationException
     {
-        public GameInterruptedException() : base()
+        public GameInterruptedException()
+        { }
+
+        public GameInterruptedException(string message) : base(message)
         { }
     }
 }

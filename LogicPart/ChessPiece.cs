@@ -1,13 +1,17 @@
 ﻿
+using System.Drawing;
+
 namespace Chess.LogicPart
 {
-    public abstract class ChessPiece
+    public abstract class ChessPiece: IComparable<ChessPiece>
     {
-        public ChessPieceColor Color { get; protected set; }
+        public ChessPieceColor Color { get; }
 
         public Square Position { get; private set; }
 
-        public int FirstMoveMoment { get; internal set; }
+        public int FirstMoveMoment { get; internal set; }    
+        
+        public ChessPiece(ChessPieceColor color ) => Color = color;
 
         internal void PutTo(Square newPosition)
         {            
@@ -270,7 +274,28 @@ namespace Chess.LogicPart
             ChessPieceName.Knight => new Knight(color),
             ChessPieceName.Bishop => new Bishop(color),
             _ => new Pawn(color)
-        };        
+        };
+
+        public int CompareTo(ChessPiece other)
+        {
+            if (IsOnBoard && other.Board == Board && Board.ComparePieceValues != null)
+            {
+                return Board.ComparePieceValues(this, other);
+            }
+
+            if (Name == other.Name)
+            {
+                return 0;
+            }
+
+            if ((Name == ChessPieceName.Knight || Name == ChessPieceName.Bishop) &&
+                (other.Name == ChessPieceName.Knight || other.Name == ChessPieceName.Bishop))
+            {
+                return 0;
+            }
+
+            return Name < other.Name ? 1 : -1;
+        }
 
         public bool IsOnBoard => Position != null;
 

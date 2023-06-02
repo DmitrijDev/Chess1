@@ -1,6 +1,6 @@
 ﻿using Chess.LogicPart;
 
-namespace Chess.StrategicPart
+namespace Chess.Players
 {
     internal class AttackersComparer : IComparer<ChessPiece>
     {
@@ -84,20 +84,9 @@ namespace Chess.StrategicPart
                         }
                     }
                 }
-            }
+            }            
 
-            if (firstPiece.Name == secondPiece.Name)
-            {
-                return 0;
-            }
-
-            if ((firstPiece.Name == ChessPieceName.Knight || firstPiece.Name == ChessPieceName.Bishop) &&
-                (secondPiece.Name == ChessPieceName.Knight || secondPiece.Name == ChessPieceName.Bishop))
-            {
-                return 0;
-            }
-
-            return firstPiece.Name > secondPiece.Name ? -1 : 1;
+            return firstPiece.CompareTo(secondPiece);
         }
     }
 }

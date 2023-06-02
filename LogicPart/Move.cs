@@ -62,8 +62,8 @@ namespace Chess.LogicPart
             }
 
             NewPiece = ChessPiece.GetNewPiece(newPieceName, MovingPiece.Color);
-        }        
-
+        }         
+        
         public static bool IsCastleKingsideMove(ChessPiece movingPiece, Square moveSquare)
         {
             if (movingPiece.Name != ChessPieceName.King)

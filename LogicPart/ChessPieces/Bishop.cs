@@ -3,7 +3,8 @@ namespace Chess.LogicPart
 {
     public class Bishop : ChessPiece
     {
-        public Bishop(ChessPieceColor color) => Color = color;
+        public Bishop(ChessPieceColor color) : base(color)
+        { }
 
         public override IEnumerable<Square> GetAttackedSquares()
         {
@@ -17,7 +18,7 @@ namespace Chess.LogicPart
             var vertical = Vertical;
             var horizontal = Horizontal;
             var modCount = board.ModCount;
-            
+
             for (int i = vertical + 1, j = horizontal + 1; i < 8 && j < 8; ++i, ++j)
             {
                 if (board.ModCount != modCount)

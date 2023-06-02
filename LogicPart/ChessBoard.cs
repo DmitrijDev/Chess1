@@ -5,8 +5,10 @@ namespace Chess.LogicPart
     {
         private readonly Square[,] _board = new Square[8, 8];
         private readonly Stack<GamePosition> _gamePositions = new();
-        private readonly Stack<Move> _moves = new();
+        private Stack<Move> _moves = new();
         private GameStatus _status = GameStatus.ClearBoard;
+        //private bool _isAbleToStartNewGame = true;
+        //private int _indexOfMoveForbiddenToTakeback = -1;
 
         public King WhiteKing { get; private set; }
 
@@ -23,6 +25,8 @@ namespace Chess.LogicPart
         public ulong ModCount { get; private set; }
 
         public ulong GameStartMoment { get; private set; }
+
+        public Comparison<ChessPiece> ComparePieceValues { get; set; }
 
         public ChessBoard()
         {
@@ -42,6 +46,7 @@ namespace Chess.LogicPart
                 MovingSideColor = otherBoard.MovingSideColor;
                 ModCount = otherBoard.ModCount;
                 GameStartMoment = otherBoard.GameStartMoment;
+                ComparePieceValues = otherBoard.ComparePieceValues;
                 return;
             }
 
@@ -49,6 +54,8 @@ namespace Chess.LogicPart
             {
                 SetPosition(otherBoard._gamePositions.Single());
                 ModCount = otherBoard.ModCount;
+                GameStartMoment = otherBoard.GameStartMoment;
+                ComparePieceValues = otherBoard.ComparePieceValues;
                 return;
             }
 
@@ -65,6 +72,9 @@ namespace Chess.LogicPart
                 var square = _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal];
                 MakeMove(!move.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, move.NewPiece.Name));
             }
+
+            GameStartMoment = otherBoard.GameStartMoment;
+            ComparePieceValues = otherBoard.ComparePieceValues;
         }
 
         public Square this[int vertical, int horizontal] => _board[vertical, horizontal];
@@ -130,10 +140,10 @@ namespace Chess.LogicPart
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    if (position.GetPieceName(i,j) != null)
+                    if (position.GetPieceName(i, j) != null)
                     {
-                        material.Add(ChessPiece.GetNewPiece((ChessPieceName)position.GetPieceName(i, j), (ChessPieceColor)position.GetPieceColor(i,j)));
-                        squares.Add(_board[i,j]);
+                        material.Add(ChessPiece.GetNewPiece((ChessPieceName)position.GetPieceName(i, j), (ChessPieceColor)position.GetPieceColor(i, j)));
+                        squares.Add(_board[i, j]);
                     }
                 }
             }
@@ -143,6 +153,11 @@ namespace Chess.LogicPart
 
         private void SetPosition(ChessPiece[] material, Square[] piecePositons, ChessPieceColor movingSideColor)
         {
+            /*if (!_isAbleToStartNewGame)
+            {
+                throw new InvalidOperationException("На этой доске невозможно начать новую партию.");
+            }*/
+
             var boardWasCleared = _status != GameStatus.ClearBoard;
 
             if (_status != GameStatus.ClearBoard)
@@ -218,6 +233,11 @@ namespace Chess.LogicPart
 
         public void Clear()
         {
+            /*if (!_isAbleToStartNewGame)
+            {
+                throw new InvalidOperationException("Эту доску невозможно очистить.");
+            }*/
+
             for (var i = 0; i < 8; ++i)
             {
                 for (var j = 0; j < 8; ++j)
@@ -509,6 +529,11 @@ namespace Chess.LogicPart
 
         public void TakebackMove()
         {
+            /*if (_moves.Count <= _indexOfMoveForbiddenToTakeback)
+            {
+                throw new InvalidOperationException("На этой доске сейчас невозможно взять ход обратно.");
+            }*/
+
             var lastMove = _moves.Pop();
 
             MovesAfterCaptureOrPawnMoveCount = lastMove.IsCapture || lastMove.IsPawnMove ?
@@ -554,7 +579,7 @@ namespace Chess.LogicPart
             _status = GameStatus.GameIsNotOver;
             DrawReason = DrawReason.None;
             ++ModCount;
-        }
+        }        
 
         public IEnumerable<Move> GetLegalMoves()
         {
@@ -604,9 +629,9 @@ namespace Chess.LogicPart
             }
 
             return _moves.Peek();
-        }
+        }        
 
-        public GamePosition GetCurrentPosition() => new(this);
+        public GamePosition GetCurrentPosition() => _gamePositions.Count > 0 ? _gamePositions.Peek() : new GamePosition(this);        
 
         public GameStatus Status
         {

@@ -1,156 +1,54 @@
 ﻿using Chess.LogicPart;
+using Chess.TreesOfAnalysis;
 
-namespace Chess.StrategicPart
+namespace Chess.Players
 {
     public abstract class VirtualPlayer
     {
-        public ChessBoard Board { get; protected set; }
+        protected AnalysisTree Tree { get; set; }
 
-        public bool ThinkingDisabled { get; set; }
+        protected ChessBoard Board { get; private set; }
 
-        public abstract Move SelectMove();
+        public bool ThinkingDisabled { get; private set; }
 
-        protected abstract int EvaluatePosition();
-
-        protected abstract int EvaluatePositionStatically();
-
-        internal PositionTree MakeFullAnalysis(int depth)
+        public Move SelectMove(ChessBoard board)
         {
-            if (depth < 1)
+            if (board.Status != GameStatus.GameIsNotOver)
             {
-                throw new ArgumentException("Некорректный аргумент.");
+                throw new ArgumentException("На доске невозможно сделать ход.");
             }
 
-            var friendlySideColor = Board.MovingSideColor;
-            var treeRoot = Board.MovesCount == 0 ? new PositionTree() : new PositionTree(Board.GetLastMove());
-            treeRoot.AddChidren(Board);
-
-            var nodesUnderAnalysis = new Stack<PositionTree>();
-            nodesUnderAnalysis.Push(treeRoot);
-
-            var queues = new Stack<Queue<PositionTree>>();
-            queues.Push(new Queue<PositionTree>(treeRoot.Children));
-
-            while (queues.Peek().Count > 0 || nodesUnderAnalysis.Count > 1)
+            if (ThinkingDisabled)
             {
-                if (ThinkingDisabled)
-                {
-                    for (var i = nodesUnderAnalysis.Count; i > 1; --i)
-                    {
-                        Board.TakebackMove();
-                    }
-
-                    throw new GameInterruptedException();
-                }
-
-                if (queues.Peek().Count == 0)
-                {
-                    Board.TakebackMove();
-                    nodesUnderAnalysis.Pop();
-                    queues.Pop();
-                    continue;
-                }
-
-                var currentNode = queues.Peek().Dequeue();
-                var piece = Board[currentNode.StartSquareVertical, currentNode.StartSquareHorizontal].ContainedPiece;
-                var square = Board[currentNode.MoveSquareVertical, currentNode.MoveSquareHorizontal];
-                var move = currentNode.NewPieceName == -1 ? new Move(piece, square) : new Move(piece, square, (ChessPieceName)currentNode.NewPieceName);
-                Board.MakeMove(move);
-                nodesUnderAnalysis.Push(currentNode);
-
-                if (nodesUnderAnalysis.Count <= depth)
-                {
-                    currentNode.AddChidren(Board);
-                    queues.Push(new Queue<PositionTree>(currentNode.Children));
-                }
-                else
-                {
-                    queues.Push(new Queue<PositionTree>());
-                    currentNode.Evaluation = EvaluatePosition();
-                    CorrectParentsEvaluations(nodesUnderAnalysis, friendlySideColor);
-                }
+                throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
             }
 
-            return treeRoot;
+            var modCount = board.ModCount;
+            Board = new ChessBoard(board);
+            var result = SelectMove();
+
+            if (ThinkingDisabled)
+            {
+                throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
+            }
+
+            if (board.ModCount != modCount)
+            {
+                throw new InvalidOperationException("На доске изменилась позиция во время анализа.");
+            }
+
+            var piece = board[result.StartSquare.Vertical, result.StartSquare.Horizontal].ContainedPiece;
+            var square = board[result.MoveSquare.Vertical, result.MoveSquare.Horizontal];
+            return !result.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, result.NewPiece.Name);
         }
 
-        internal static Move SelectBestMove(ChessBoard board, PositionTree tree)
-        {
-            var movesEvaluations = tree.Children.Where(child => child.IsEvaluated).Select(child => child.Evaluation);
-            var bestEvaluation = board.MovingSideColor == ChessPieceColor.White ? movesEvaluations.Max() : movesEvaluations.Min();
-            var bestMoves = tree.Children.Where(child => child.IsEvaluated && child.Evaluation == bestEvaluation).ToArray();
-            PositionTree resultNode;
+        protected abstract Move SelectMove();
 
-            if (bestMoves.Length == 0)
-            {
-                throw new InvalidOperationException("Дерево не содержит оцененных ходов.");
-            }
+        protected abstract int EvaluatePosition(ChessBoard board);
 
-            if (bestMoves.Length == 1)
-            {
-                resultNode = bestMoves.Single();
-            }
-            else
-            {
-                var index = new Random().Next(bestMoves.Length);
-                resultNode = bestMoves[index];
-            }
+        protected abstract int EvaluatePositionStatically(ChessBoard board);
 
-            try
-            {
-                var piece = board[resultNode.StartSquareVertical, resultNode.StartSquareHorizontal].ContainedPiece;
-                var square = board[resultNode.MoveSquareVertical, resultNode.MoveSquareHorizontal];
-                return resultNode.NewPieceName == -1 ? new Move(piece, square) : new Move(piece, square, (ChessPieceName)resultNode.NewPieceName);
-            }
-
-            catch
-            {
-                throw new ArgumentException("Некорректный аргумент: в дереве встречаются невозможные на данной доске ходы.");
-            }
-        }
-
-        private static void CorrectParentsEvaluations(Stack<PositionTree> nodesUnderAnalysis, ChessPieceColor friendlySideColor)
-        {
-            var positionEvaluation = nodesUnderAnalysis.Peek().Evaluation;
-            var whiteIsToMove = (friendlySideColor == ChessPieceColor.White && nodesUnderAnalysis.Count % 2 != 0) ||
-                (friendlySideColor == ChessPieceColor.Black && nodesUnderAnalysis.Count % 2 == 0);
-
-            foreach (var parentNode in nodesUnderAnalysis.Skip(1))
-            {
-                whiteIsToMove = !whiteIsToMove;
-
-                if (!parentNode.IsEvaluated)
-                {
-                    parentNode.Evaluation = positionEvaluation;
-                    continue;
-                }
-
-                if (parentNode.Evaluation == positionEvaluation)
-                {
-                    break;
-                }
-
-                if ((whiteIsToMove && positionEvaluation > parentNode.Evaluation) || (!whiteIsToMove && positionEvaluation < parentNode.Evaluation))
-                {
-                    parentNode.Evaluation = positionEvaluation;
-                    continue;
-                }
-
-                var parentEvaluation = whiteIsToMove ? parentNode.Children.Where(child => child.IsEvaluated).Select(child => child.Evaluation).Max() :
-                    parentNode.Children.Where(child => child.IsEvaluated).Select(child => child.Evaluation).Min();
-
-                if (parentNode.Evaluation == parentEvaluation)
-                {
-                    break;
-                }
-                else
-                {
-                    parentNode.Evaluation = parentEvaluation;
-                }
-            }
-        }
-
-        protected static IEnumerable<ChessPiece> GetAttackers(Square square, ChessPieceColor color)
+        protected static IEnumerable<ChessPiece> GetHorizontalAttackers(Square square, ChessPieceColor color)
         {
             var initialModCountValue = square.Board.ModCount;
 
@@ -218,6 +116,16 @@ namespace Chess.StrategicPart
                 }
             }
 
+            if (square.Board.ModCount != initialModCountValue)
+            {
+                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+            }
+        }
+
+        protected static IEnumerable<ChessPiece> GetVerticalAttackers(Square square, ChessPieceColor color)
+        {
+            var initialModCountValue = square.Board.ModCount;
+
             for (var i = square.Horizontal + 1; i < 8; ++i)
             {
                 if (square.Board[square.Vertical, i].IsEmpty)
@@ -281,6 +189,16 @@ namespace Chess.StrategicPart
                     break;
                 }
             }
+
+            if (square.Board.ModCount != initialModCountValue)
+            {
+                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+            }
+        }
+
+        protected static IEnumerable<ChessPiece> GetDiagonalAttackers(Square square, ChessPieceColor color)
+        {
+            var initialModCountValue = square.Board.ModCount;
 
             for (int i = square.Vertical + 1, j = square.Horizontal + 1; i < 8 && j < 8; ++i, ++j)
             {
@@ -430,6 +348,16 @@ namespace Chess.StrategicPart
                 }
             }
 
+            if (square.Board.ModCount != initialModCountValue)
+            {
+                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+            }
+        }
+
+        protected static IEnumerable<Knight> GetAttackingKnights(Square square, ChessPieceColor color)
+        {
+            var initialModCountValue = square.Board.ModCount;
+
             var verticalShifts = new int[] { 2, 2, -2, -2, 1, 1, -1, -1 };
             var horizontalShifts = new int[] { -1, 1, -1, 1, -2, 2, -2, 2 };
 
@@ -460,12 +388,55 @@ namespace Chess.StrategicPart
                     throw new InvalidOperationException("Изменение коллекции во время перечисления.");
                 }
 
-                yield return piece;
+                yield return (Knight)piece;
             }
 
             if (square.Board.ModCount != initialModCountValue)
             {
                 throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+            }
+        }
+
+        protected static IEnumerable<ChessPiece> GetAttackers(Square square, ChessPieceColor color) => GetVerticalAttackers(square, color).
+            Concat(GetHorizontalAttackers(square, color)).Concat(GetDiagonalAttackers(square, color)).Concat(GetAttackingKnights(square, color));
+
+        protected virtual int EvaluatePiece(ChessPiece piece)
+        {            
+            var result = piece.Name switch
+            {
+                ChessPieceName.Pawn => 10,
+                ChessPieceName.Knight => 30,
+                ChessPieceName.Bishop => 30,
+                ChessPieceName.Rook => 45,
+                ChessPieceName.Queen => 90,
+                _ => throw new InvalidOperationException("Короля невозможно оценить в баллах.")
+            };
+
+            if (piece.Color == ChessPieceColor.Black)
+            {
+                result = -result;
+            }
+
+            return result;
+        }
+
+        public void EnableThinking()
+        {
+            ThinkingDisabled = false;
+
+            if (Tree != null)
+            {
+                Tree.AnalysisDisabled = false;
+            }
+        }
+
+        public void DisableThinking()
+        {
+            ThinkingDisabled = true;
+
+            if (Tree != null)
+            {
+                Tree.AnalysisDisabled = true;
             }
         }
     }

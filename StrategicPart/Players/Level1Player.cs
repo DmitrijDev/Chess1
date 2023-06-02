@@ -1,17 +1,19 @@
 ﻿using Chess.LogicPart;
+using Chess.TreesOfAnalysis;
 
-namespace Chess.StrategicPart
+namespace Chess.Players
 {
     public class Level1Player : VirtualPlayer
     {
-        public Level1Player(ChessBoard board) => Board = board;
+        public Level1Player()
+        { }
 
-        protected override int EvaluatePosition()
+        protected override int EvaluatePosition(ChessBoard board)
         {
-            var evaluation = EvaluatePositionStatically();
-            var newEvaluation = CheckExchangeVariants();
+            var evaluation = EvaluatePositionStatically(board);
+            var newEvaluation = CheckExchangeVariants(board);
 
-            if (Board.MovingSideColor == ChessPieceColor.White)
+            if (board.MovingSideColor == ChessPieceColor.White)
             {
                 return Math.Max(evaluation, newEvaluation);
             }
@@ -19,18 +21,35 @@ namespace Chess.StrategicPart
             return Math.Min(evaluation, newEvaluation);
         }
 
-        public override Move SelectMove() => SelectBestMove(Board, MakeFullAnalysis(1));
-
-        protected override int EvaluatePositionStatically()
+        protected override Move SelectMove()
         {
-            if (Board == null || Board.Status == GameStatus.IllegalPosition || Board.Status == GameStatus.ClearBoard)
+            if (ThinkingDisabled)
+            {
+                throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
+            }
+
+            Tree = new AnalysisTree(Board);
+            Tree.Analyze(1, EvaluatePosition);
+            var move = Tree.GetBestMove();
+
+            if (ThinkingDisabled)
+            {
+                throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
+            }
+
+            return move;
+        }
+
+        protected override int EvaluatePositionStatically(ChessBoard board)
+        {
+            if (board == null || board.Status == GameStatus.IllegalPosition || board.Status == GameStatus.ClearBoard)
             {
                 throw new ArgumentException("Некорректный аргумент.");
             }
 
-            if (Board.Status != GameStatus.GameIsNotOver)
+            if (board.Status != GameStatus.GameIsNotOver)
             {
-                return Board.Status switch
+                return board.Status switch
                 {
                     GameStatus.WhiteWin => int.MaxValue,
                     GameStatus.BlackWin => -int.MaxValue,
@@ -40,24 +59,12 @@ namespace Chess.StrategicPart
 
             var result = 0;
 
-            foreach (var piece in Board.GetMaterial())
+            foreach (var piece in board.GetMaterial())
             {
-                var pieceEvaluation = piece.Name switch
+                if (piece.Name != ChessPieceName.King)
                 {
-                    ChessPieceName.Pawn => 10,
-                    ChessPieceName.Knight => 30,
-                    ChessPieceName.Bishop => 30,
-                    ChessPieceName.Rook => 45,
-                    ChessPieceName.Queen => 90,
-                    _ => 0
-                };
-
-                if (piece.Color == ChessPieceColor.Black)
-                {
-                    pieceEvaluation = -pieceEvaluation;
+                    result += EvaluatePiece(piece);
                 }
-
-                result += pieceEvaluation;
             }
 
             return result;
@@ -65,58 +72,75 @@ namespace Chess.StrategicPart
 
         private int EvaluateExchanges(Square square)
         {
-            var attackersColor = Board.MovingSideColor;
+            var attackersColor = square.Board.MovingSideColor;
+            var comparer = new AttackersComparer(square);
 
-            var materialList = new List<ChessPiece>(GetAttackers(square, attackersColor));
-            materialList.Sort(new AttackersComparer(square));
-            var attackers = new Queue<ChessPiece>(materialList);
+            var material = new List<ChessPiece>(GetAttackers(square, attackersColor));
+            material.Sort(comparer);
+            var attackers = new Queue<ChessPiece>(material);
 
-            materialList = new(GetAttackers(square, attackersColor == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White));
+            material = new List<ChessPiece>(GetAttackers(square, attackersColor == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White));
 
             if (!square.IsEmpty)
             {
-                materialList.Add(square.ContainedPiece);
+                if (square.ContainedPiece.Color == attackersColor)
+                {
+                    throw new InvalidOperationException("Невозможно взять свою фигуру.");
+                }
+
+                if (square.ContainedPiece.Name == ChessPieceName.King)
+                {
+                    throw new InvalidOperationException("Невозможно взять короля.");
+                }
+
+                material.Add(square.ContainedPiece);
             }
 
-            materialList.Sort(new AttackersComparer(square));
-            var defenders = new Queue<ChessPiece>(materialList);
+            material.Sort(comparer);
+            var defenders = new Queue<ChessPiece>(material);
 
-            var evaluations = new List<int>() { EvaluatePositionStatically() };
-            var currentEvaluation = evaluations[0];
+            var evaluations = new List<int>();
+            var currentEvaluation = EvaluatePositionStatically(square.Board);
             var attackersAreToMove = true;
 
             while (attackers.Count > 0 && defenders.Count > 0)
             {
-                var piece = attackersAreToMove ? defenders.Dequeue() : attackers.Dequeue();
+                int capturedPieceEvaluation;
 
-                var pieceEvaluation = piece.Name switch
+                if (evaluations.Count == 0 && square.IsEmpty)
                 {
-                    ChessPieceName.Pawn => 10,
-                    ChessPieceName.Knight => 30,
-                    ChessPieceName.Bishop => 30,
-                    ChessPieceName.Rook => 45,
-                    ChessPieceName.Queen => 90,
-                    _ => 0
-                };
+                    capturedPieceEvaluation = 0;
+                }
+                else
+                {
+                    var capturedPiece = attackersAreToMove ? defenders.Dequeue() : attackers.Dequeue();
 
-                if (piece.Color == ChessPieceColor.White)
-                {
-                    pieceEvaluation = -pieceEvaluation;
+                    if (capturedPiece.Name == ChessPieceName.King)
+                    {
+                        break;
+                    }
+
+                    capturedPieceEvaluation = EvaluatePiece(capturedPiece);
                 }
 
-                currentEvaluation = currentEvaluation + pieceEvaluation;
+                currentEvaluation -= capturedPieceEvaluation;
                 evaluations.Add(currentEvaluation);
                 attackersAreToMove = !attackersAreToMove;
             }
 
-            if (evaluations.Count <= 2)
+            if (evaluations.Count == 0)
             {
-                return evaluations[evaluations.Count - 1];
+                return EvaluatePositionStatically(square.Board);
             }
 
-            for (var i = evaluations.Count - 2; i >= 1; --i)
+            if (evaluations.Count == 1)
             {
-                if ((i % 2 != 0 && attackersColor == ChessPieceColor.White) || (i % 2 == 0 && attackersColor == ChessPieceColor.Black))
+                return evaluations[0];
+            }
+
+            for (var i = evaluations.Count - 2; i >= 0; --i)
+            {
+                if ((i % 2 == 0 && attackersColor == ChessPieceColor.White) || (i % 2 != 0 && attackersColor == ChessPieceColor.Black))
                 {
                     if (evaluations[i + 1] < evaluations[i])
                     {
@@ -132,48 +156,48 @@ namespace Chess.StrategicPart
                 }
             }
 
-            return evaluations[1];
+            return evaluations[0];
         }
 
-        private int CheckExchangeVariants()
+        private int CheckExchangeVariants(ChessBoard board)
         {
             if (ThinkingDisabled)
             {
-                throw new GameInterruptedException();
+                throw new GameInterruptedException("Анализ позиции прерван.");
             }
 
-            var captureMoves = new List<Move>(Board.GetLegalMoves().Where(move => move.IsCapture));
+            var captureMoves = board.GetLegalMoves().Where(move => move.IsCapture).ToArray();
 
-            if (captureMoves.Count == 0)
+            if (captureMoves.Length == 0)
             {
-                return EvaluatePositionStatically();
+                return EvaluatePositionStatically(board);
             }
 
-            int newEvaluation;
+            int result;
 
-            if (captureMoves.Count > 1)
+            if (captureMoves.Length > 1)
             {
-                newEvaluation = Board.MovingSideColor == ChessPieceColor.White ? captureMoves.Select(move => EvaluateExchanges(move.MoveSquare)).Max() :
-                captureMoves.Select(move => EvaluateExchanges(move.MoveSquare)).Min();
-                return newEvaluation;
+                var evaluations = captureMoves.Select(move => move.MoveSquare).Distinct().Select(square => EvaluateExchanges(square));
+                result = board.MovingSideColor == ChessPieceColor.White ? evaluations.Max() : evaluations.Min();
+                return result;
             }
 
-            Board.MakeMove(captureMoves[0]);
+            board.MakeMove(captureMoves[0]);
 
             try
             {
-                newEvaluation = Board.MovingSideColor == ChessPieceColor.White ? Math.Max(EvaluatePositionStatically(), CheckExchangeVariants()) :
-                    Math.Min(EvaluatePositionStatically(), CheckExchangeVariants());
+                result = board.MovingSideColor == ChessPieceColor.White ? Math.Max(EvaluatePositionStatically(board), CheckExchangeVariants(board)) :
+                    Math.Min(EvaluatePositionStatically(board), CheckExchangeVariants(board));
             }
 
-            catch (GameInterruptedException)
+            catch (GameInterruptedException exception)
             {
-                Board.TakebackMove();
-                throw new GameInterruptedException();
+                board.TakebackMove();
+                throw new GameInterruptedException(exception.Message);
             }
 
-            Board.TakebackMove();
-            return newEvaluation;
+            board.TakebackMove();
+            return result;
         }
     }
 }

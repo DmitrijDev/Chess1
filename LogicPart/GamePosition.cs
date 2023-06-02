@@ -48,6 +48,6 @@ namespace Chess.LogicPart
             }
 
             return true;
-        }
+        }        
     }
 }

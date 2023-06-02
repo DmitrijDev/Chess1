@@ -3,7 +3,8 @@ namespace Chess.LogicPart
 {
     public class Rook : ChessPiece
     {
-        public Rook(ChessPieceColor color) => Color = color;
+        public Rook(ChessPieceColor color): base (color)
+        { }
 
         public override IEnumerable<Square> GetAttackedSquares()
         {

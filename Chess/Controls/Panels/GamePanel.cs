@@ -1,5 +1,5 @@
 ﻿using Chess.LogicPart;
-using Chess.StrategicPart;
+using Chess.Players;
 using Timer = System.Windows.Forms.Timer;
 
 namespace Chess
@@ -9,7 +9,7 @@ namespace Chess
         private readonly GameForm _form;
 
         private VirtualPlayer _whiteVirtualPlayer; // == null, если за эту сторону играет пользователь.
-        private VirtualPlayer _blackVirtualPlayer = new Level1Player(new ChessBoard()); //Аналогично.
+        private VirtualPlayer _blackVirtualPlayer = new Level1Player(); //Аналогично.
 
         private readonly ChessBoard _gameBoard = new();
         private Thread _thinkingThread;
@@ -169,14 +169,14 @@ namespace Chess
             RenewButtonsView();
             SetTimeLeft(_timeForGame);
 
-            if (ProgramPlaysFor(ChessPieceColor.Black))
+            /*if (ProgramPlaysFor(ChessPieceColor.Black))
             {
                 _blackVirtualPlayer.Board.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, ChessPieceColor.White);
-            }
+            }*/
 
             if (ProgramPlaysFor(ChessPieceColor.White))
             {
-                _whiteVirtualPlayer.Board.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, ChessPieceColor.White);
+                //_whiteVirtualPlayer.Board.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, ChessPieceColor.White);
                 _thinkingThread = new Thread(Think);
                 _thinkingThread.Start();
             }
@@ -203,11 +203,11 @@ namespace Chess
 
             if (pieceColor == ChessPieceColor.White)
             {
-                _whiteVirtualPlayer = _whiteVirtualPlayer == null ? new Level1Player(new ChessBoard(_gameBoard)) : null;
+                _whiteVirtualPlayer = _whiteVirtualPlayer == null ? new Level1Player() : null;
             }
             else
             {
-                _blackVirtualPlayer = _blackVirtualPlayer == null ? new Level1Player(new ChessBoard(_gameBoard)) : null;
+                _blackVirtualPlayer = _blackVirtualPlayer == null ? new Level1Player() : null;
             }
 
             if (pieceColor == _gameBoard.MovingSideColor)
@@ -247,7 +247,7 @@ namespace Chess
         {
             try
             {
-                if (move.Board == _gameBoard)
+                /*if (move.Board == _gameBoard)
                 {
                     _gameBoard.MakeMove(move);
                 }
@@ -256,7 +256,8 @@ namespace Chess
                     var piece = _gameBoard[move.StartSquare.Vertical, move.StartSquare.Horizontal].ContainedPiece;
                     var square = _gameBoard[move.MoveSquare.Vertical, move.MoveSquare.Horizontal];
                     _gameBoard.MakeMove(!move.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, move.NewPiece.Name));
-                }
+                }*/
+                _gameBoard.MakeMove(move);
             }
 
             catch (IllegalMoveException exception)
@@ -278,7 +279,7 @@ namespace Chess
             _buttons[move.StartSquare.Vertical, move.StartSquare.Horizontal].Outline();
             _buttons[move.MoveSquare.Vertical, move.MoveSquare.Horizontal].Outline();
 
-            if (ProgramPlaysFor(ChessPieceColor.White))
+            /*if (ProgramPlaysFor(ChessPieceColor.White))
             {
                 var piece = _whiteVirtualPlayer.Board[move.StartSquare.Vertical, move.StartSquare.Horizontal].ContainedPiece;
                 var square = _whiteVirtualPlayer.Board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal];
@@ -290,7 +291,7 @@ namespace Chess
                 var piece = _blackVirtualPlayer.Board[move.StartSquare.Vertical, move.StartSquare.Horizontal].ContainedPiece;
                 var square = _blackVirtualPlayer.Board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal];
                 _blackVirtualPlayer.Board.MakeMove(!move.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, move.NewPiece.Name));
-            }
+            }*/
 
             if (GameIsOver)
             {
@@ -339,10 +340,10 @@ namespace Chess
 
             try
             {
-                _selectedMove = player.SelectMove();
+                _selectedMove = player.SelectMove(_gameBoard);
             }
 
-            catch (GameInterruptedException)
+            catch (ApplicationException)
             { }
         }
 
@@ -354,12 +355,12 @@ namespace Chess
             }
 
             var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
-            player.ThinkingDisabled = true;
+            player.DisableThinking();
 
             while (_thinkingThread != null && _thinkingThread.ThreadState == ThreadState.Running)
             { }
 
-            player.ThinkingDisabled = false;
+            player.EnableThinking();
         }
 
         private void ShowEndGameMessage()

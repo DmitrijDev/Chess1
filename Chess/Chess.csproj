@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LogicPart\LogicPart.csproj" />
-    <ProjectReference Include="..\StrategicPart\StrategicPart.csproj" />
+    <ProjectReference Include="..\StrategicPart\Players.csproj" />
   </ItemGroup>
 
 </Project>

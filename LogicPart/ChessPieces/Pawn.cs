@@ -3,7 +3,8 @@ namespace Chess.LogicPart
 {
     public class Pawn : ChessPiece
     {
-        public Pawn(ChessPieceColor color) => Color = color;
+        public Pawn(ChessPieceColor color) : base(color)
+        { }
 
         public override IEnumerable<Square> GetAttackedSquares()
         {

@@ -3,11 +3,12 @@ namespace Chess.LogicPart
 {
     public class Knight : ChessPiece
     {
-        public Knight(ChessPieceColor color) => Color = color;
+        public Knight(ChessPieceColor color) : base(color)
+        { }
 
         public override IEnumerable<Square> GetAttackedSquares()
         {
-            var board = Board;            
+            var board = Board;
 
             if (board == null)
             {
