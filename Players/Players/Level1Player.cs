@@ -25,7 +25,7 @@ namespace Chess.Players
         {
             if (ThinkingDisabled)
             {
-                throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
+                throw new ApplicationException("Виртуальному игроку запрещен анализ позиций.");
             }
 
             Tree = new AnalysisTree(Board);
@@ -34,7 +34,7 @@ namespace Chess.Players
 
             if (ThinkingDisabled)
             {
-                throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
+                throw new ApplicationException("Виртуальному игроку запрещен анализ позиций.");
             }
 
             return move;
@@ -163,7 +163,7 @@ namespace Chess.Players
         {
             if (ThinkingDisabled)
             {
-                throw new GameInterruptedException("Анализ позиции прерван.");
+                throw new ApplicationException("Анализ позиции прерван.");
             }
 
             var captureMoves = board.GetLegalMoves().Where(move => move.IsCapture).ToArray();
@@ -190,10 +190,10 @@ namespace Chess.Players
                     Math.Min(EvaluatePositionStatically(board), CheckExchangeVariants(board));
             }
 
-            catch (GameInterruptedException exception)
+            catch (ApplicationException exception)
             {
                 board.TakebackMove();
-                throw new GameInterruptedException(exception.Message);
+                throw new ApplicationException(exception.Message);
             }
 
             board.TakebackMove();

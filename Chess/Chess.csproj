@@ -19,7 +19,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LogicPart\LogicPart.csproj" />
-    <ProjectReference Include="..\StrategicPart\Players.csproj" />
+    <ProjectReference Include="..\Players\Players.csproj" />
+    <ProjectReference Include="..\TreesOfAnalysis\TreesOfAnalysis.csproj" />
   </ItemGroup>
 
 </Project>

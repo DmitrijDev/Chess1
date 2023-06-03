@@ -6,12 +6,7 @@ namespace Chess.TreesOfAnalysis
     {
         private readonly ChessBoard _board;
         private readonly ulong _boardModCount;
-        //private AnalysisPosition _startPosition;
         private AnalysisTreeNode _root;
-        //private AnalysisTreeNode _activeNode;
-        //private Stack<AnalysisTreeNode> _activeNodeAncestors = new();
-
-        //internal ChessBoard AnalysisBoard { get; private set; }
 
         public bool AnalysisDisabled { get; set; }
 
@@ -24,10 +19,7 @@ namespace Chess.TreesOfAnalysis
 
             _board = board;
             _boardModCount = _board.ModCount;
-            //AnalysisBoard = new ChessBoard(board);            
             _root = new AnalysisTreeNode(_board);
-            //_startPosition = new AnalysisPosition(this);
-            //_activeNode = _root;
         }
 
         private void CheckStartPositionChange()
@@ -39,7 +31,6 @@ namespace Chess.TreesOfAnalysis
 
             if (_board.ModCount != _boardModCount)
             {
-                //Clear();
                 _root = null;
                 throw new InvalidOperationException("Работа с деревом невозможна: на доске изменилась позиция во время анализа.");
             }
@@ -52,11 +43,8 @@ namespace Chess.TreesOfAnalysis
                 throw new ArgumentException("Некорректный аргумент.");
             }
 
-            //ReturnToRoot();           
             CheckStartPositionChange();
             var board = new ChessBoard(_board);
-            //board.ForbidToTakebackMove(board.MovesCount);
-            //board.ForbidToStartNewGame();
 
             _root.AddChidren(board);
 
@@ -66,21 +54,13 @@ namespace Chess.TreesOfAnalysis
             var queues = new Stack<Queue<AnalysisTreeNode>>();
             queues.Push(new Queue<AnalysisTreeNode>(_root.GetChildren()));
 
-            /*CheckStartPositionChange();
-            yield return _board.GetCurrentPosition();
-
-            if (AnalysisBoard.ModCount != modCount)
-            {
-                throw new InvalidOperationException("Изменение позиции во время перечисления.");
-            }*/
-
             while (queues.Peek().Count > 0 || nodesUnderAnalysis.Count > 1)
             {
                 CheckStartPositionChange();
 
                 if (AnalysisDisabled)
                 {
-                    throw new AnalysisStoppedException("Анализ позиции прерван.");
+                    throw new ApplicationException("Анализ позиции прерван.");
                 }
 
                 if (queues.Peek().Count == 0)
@@ -147,13 +127,6 @@ namespace Chess.TreesOfAnalysis
                     nextNode.Evaluation = evaluation;
                     CorrectEvaluations(nodesUnderAnalysis);
                 }
-                /*modCount = AnalysisBoard.ModCount;
-                  yield return AnalysisBoard.GetCurrentPosition();
-
-                  if (AnalysisBoard.ModCount != modCount)
-                  {
-                      throw new InvalidOperationException("Изменение позиции во время перечисления.");
-                  }*/
             }
         }
 
@@ -199,7 +172,7 @@ namespace Chess.TreesOfAnalysis
         }
 
         public Move GetBestMove()
-        {           
+        {
             if (!_root.IsEvaluated || !_root.HasChildren)
             {
                 throw new InvalidOperationException("Ошибка: дерево не проанализировано.");
@@ -227,7 +200,6 @@ namespace Chess.TreesOfAnalysis
                 resultNode = bestMoves[index];
             }
 
-            //ReturnToRoot();
             var piece = _board[resultNode.StartSquareVertical, resultNode.StartSquareHorizontal].ContainedPiece;
             var square = _board[resultNode.MoveSquareVertical, resultNode.MoveSquareHorizontal];
             return !resultNode.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, resultNode.NewPieceName);

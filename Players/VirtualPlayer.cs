@@ -20,7 +20,7 @@ namespace Chess.Players
 
             if (ThinkingDisabled)
             {
-                throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
+                throw new ApplicationException("Виртуальному игроку запрещен анализ позиций.");
             }
 
             var modCount = board.ModCount;
@@ -29,7 +29,7 @@ namespace Chess.Players
 
             if (ThinkingDisabled)
             {
-                throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
+                throw new ApplicationException("Виртуальному игроку запрещен анализ позиций.");
             }
 
             if (board.ModCount != modCount)
@@ -231,7 +231,7 @@ namespace Chess.Players
 
                 yield return piece;
 
-                if (piece.Name == ChessPieceName.King || piece.Name == ChessPieceName.Pawn)
+                if (piece.Name == ChessPieceName.King)
                 {
                     break;
                 }
@@ -268,7 +268,7 @@ namespace Chess.Players
 
                 yield return piece;
 
-                if (piece.Name == ChessPieceName.King || piece.Name == ChessPieceName.Pawn)
+                if (piece.Name == ChessPieceName.King)
                 {
                     break;
                 }
@@ -305,7 +305,7 @@ namespace Chess.Players
 
                 yield return piece;
 
-                if (piece.Name == ChessPieceName.King || piece.Name == ChessPieceName.Pawn)
+                if (piece.Name == ChessPieceName.King)
                 {
                     break;
                 }
@@ -342,7 +342,7 @@ namespace Chess.Players
 
                 yield return piece;
 
-                if (piece.Name == ChessPieceName.King || piece.Name == ChessPieceName.Pawn)
+                if (piece.Name == ChessPieceName.King)
                 {
                     break;
                 }
