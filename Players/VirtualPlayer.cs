@@ -48,6 +48,40 @@ namespace Chess.Players
 
         protected abstract int EvaluatePositionStatically(ChessBoard board);
 
+        protected void Analyze(AnalysisTree tree, int depth) => tree.Analyze(depth, EvaluatePosition);
+
+        protected virtual AnalysisTreeNode GetBestMove(AnalysisTree tree)
+        {
+            if (!tree.IsAnalyzed)
+            {
+                throw new InvalidOperationException("Ошибка: дерево не проанализировано.");
+            }
+
+            if (!tree.Root.HasChildren)
+            {
+                return null;
+            }
+
+            var movesEvaluations = tree.Root.GetChildren().Where(child => child.IsEvaluated).Select(child => child.Evaluation);
+
+            if (!movesEvaluations.Any())
+            {
+                throw new InvalidOperationException("Ошибка: дерево не проанализировано.");
+            }
+
+            tree.CheckStartPositionChange();
+            var bestEvaluation = tree.Board.MovingSideColor == ChessPieceColor.White ? movesEvaluations.Max() : movesEvaluations.Min();
+            var bestMoves = tree.Root.GetChildren().Where(child => child.IsEvaluated && child.Evaluation == bestEvaluation).ToArray();
+
+            if (bestMoves.Length == 1)
+            {
+                return bestMoves.Single();
+            }
+
+            var index = new Random().Next(bestMoves.Length);
+            return bestMoves[index];
+        }
+
         protected static IEnumerable<ChessPiece> GetHorizontalAttackers(Square square, ChessPieceColor color)
         {
             var initialModCountValue = square.Board.ModCount;
@@ -401,7 +435,7 @@ namespace Chess.Players
             Concat(GetHorizontalAttackers(square, color)).Concat(GetDiagonalAttackers(square, color)).Concat(GetAttackingKnights(square, color));
 
         protected virtual int EvaluatePiece(ChessPiece piece)
-        {            
+        {
             var result = piece.Name switch
             {
                 ChessPieceName.Pawn => 10,

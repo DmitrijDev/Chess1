@@ -29,15 +29,17 @@ namespace Chess.Players
             }
 
             Tree = new AnalysisTree(Board);
-            Tree.Analyze(1, EvaluatePosition);
-            var move = Tree.GetBestMove();
+            Analyze(Tree, 1);
+            var node = GetBestMove(Tree);
 
             if (ThinkingDisabled)
             {
                 throw new ApplicationException("Виртуальному игроку запрещен анализ позиций.");
             }
 
-            return move;
+            var piece = Board[node.StartSquareVertical, node.StartSquareHorizontal].ContainedPiece;
+            var square = Board[node.MoveSquareVertical, node.MoveSquareHorizontal];
+            return !node.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, node.NewPieceName);
         }
 
         protected override int EvaluatePositionStatically(ChessBoard board)

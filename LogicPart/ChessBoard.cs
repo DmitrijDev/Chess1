@@ -7,8 +7,6 @@ namespace Chess.LogicPart
         private readonly Stack<GamePosition> _gamePositions = new();
         private Stack<Move> _moves = new();
         private GameStatus _status = GameStatus.ClearBoard;
-        //private bool _isAbleToStartNewGame = true;
-        //private int _indexOfMoveForbiddenToTakeback = -1;
 
         public King WhiteKing { get; private set; }
 
@@ -37,6 +35,8 @@ namespace Chess.LogicPart
                     _board[i, j] = new Square(this, i, j);
                 }
             }
+
+            _gamePositions.Push(new GamePosition(this));
         }
 
         public ChessBoard(ChessBoard otherBoard) : this()
@@ -153,11 +153,6 @@ namespace Chess.LogicPart
 
         private void SetPosition(ChessPiece[] material, Square[] piecePositons, ChessPieceColor movingSideColor)
         {
-            /*if (!_isAbleToStartNewGame)
-            {
-                throw new InvalidOperationException("На этой доске невозможно начать новую партию.");
-            }*/
-
             var boardWasCleared = _status != GameStatus.ClearBoard;
 
             if (_status != GameStatus.ClearBoard)
@@ -190,6 +185,7 @@ namespace Chess.LogicPart
             }
 
             Square.RenewMenaces(this);
+            _gamePositions.Clear();
             _gamePositions.Push(new GamePosition(this));
 
             if (!CheckPositionLegacy())
@@ -233,11 +229,6 @@ namespace Chess.LogicPart
 
         public void Clear()
         {
-            /*if (!_isAbleToStartNewGame)
-            {
-                throw new InvalidOperationException("Эту доску невозможно очистить.");
-            }*/
-
             for (var i = 0; i < 8; ++i)
             {
                 for (var j = 0; j < 8; ++j)
@@ -248,6 +239,7 @@ namespace Chess.LogicPart
             }
 
             _gamePositions.Clear();
+            _gamePositions.Push(new GamePosition(this));
             _moves.Clear();
             MovesAfterCaptureOrPawnMoveCount = 0;
             PassedByPawnSquare = null;
@@ -529,11 +521,6 @@ namespace Chess.LogicPart
 
         public void TakebackMove()
         {
-            /*if (_moves.Count <= _indexOfMoveForbiddenToTakeback)
-            {
-                throw new InvalidOperationException("На этой доске сейчас невозможно взять ход обратно.");
-            }*/
-
             var lastMove = _moves.Pop();
 
             MovesAfterCaptureOrPawnMoveCount = lastMove.IsCapture || lastMove.IsPawnMove ?
@@ -579,7 +566,7 @@ namespace Chess.LogicPart
             _status = GameStatus.GameIsNotOver;
             DrawReason = DrawReason.None;
             ++ModCount;
-        }        
+        }
 
         public IEnumerable<Move> GetLegalMoves()
         {
@@ -629,9 +616,9 @@ namespace Chess.LogicPart
             }
 
             return _moves.Peek();
-        }        
+        }
 
-        public GamePosition GetCurrentPosition() => _gamePositions.Count > 0 ? _gamePositions.Peek() : new GamePosition(this);        
+        public GamePosition GetCurrentPosition() => _gamePositions.Peek();
 
         public GameStatus Status
         {

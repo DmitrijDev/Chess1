@@ -4,9 +4,11 @@ namespace Chess.TreesOfAnalysis
 {
     public class AnalysisTree
     {
-        private readonly ChessBoard _board;
         private readonly ulong _boardModCount;
-        private AnalysisTreeNode _root;
+
+        public AnalysisTreeNode Root { get; private set; }
+
+        public ChessBoard Board { get; private set; }
 
         public bool AnalysisDisabled { get; set; }
 
@@ -17,47 +19,56 @@ namespace Chess.TreesOfAnalysis
                 throw new ArgumentException("Анализ возможен только на непустой доске, с возможной по правилам шахмат позицией и незавершенной партией.");
             }
 
-            _board = board;
-            _boardModCount = _board.ModCount;
-            _root = new AnalysisTreeNode(_board);
+            Board = board;
+            _boardModCount = Board.ModCount;
+            Root = new AnalysisTreeNode(Board) { Tree = this };
         }
 
-        private void CheckStartPositionChange()
+        public void CheckStartPositionChange()
         {
-            if (_root == null)
+            if (Root == null)
             {
                 throw new InvalidOperationException("Работа с деревом невозможна: на доске изменилась позиция во время анализа.");
             }
 
-            if (_board.ModCount != _boardModCount)
+            if (Board.ModCount != _boardModCount)
             {
-                _root = null;
+                Root = null;
                 throw new InvalidOperationException("Работа с деревом невозможна: на доске изменилась позиция во время анализа.");
             }
         }
 
-        public void Analyze(int depth, Func<ChessBoard, int> evaluatePosition)
+        private IEnumerable<AnalysisTreeNode> HandleNodes(int depth, Action<AnalysisTreeNode, int, ChessBoard> handleNode)
         {
-            if (depth < 1)
+            if (depth < 0)
             {
                 throw new ArgumentException("Некорректный аргумент.");
             }
 
+            if (depth == 0)
+            {
+                handleNode(Root, 0, new ChessBoard(Board));
+                CheckStartPositionChange();
+                yield return Root;
+                yield break;
+            }
+
             CheckStartPositionChange();
-            var board = new ChessBoard(_board);
-
-            _root.AddChidren(board);
-
-            var nodesUnderAnalysis = new Stack<AnalysisTreeNode>();
-            nodesUnderAnalysis.Push(_root);
+            var board = new ChessBoard(Board);
+            Root.AddChidren(board);
 
             var queues = new Stack<Queue<AnalysisTreeNode>>();
-            queues.Push(new Queue<AnalysisTreeNode>(_root.GetChildren()));
+            queues.Push(new Queue<AnalysisTreeNode>(Root.GetChildren()));
 
-            while (queues.Peek().Count > 0 || nodesUnderAnalysis.Count > 1)
+            var node = Root;
+            var currentDepth = 0;
+
+            handleNode(Root, 0, board);
+            CheckStartPositionChange();
+            yield return Root;
+
+            while (queues.Peek().Count > 0 || currentDepth > 0)
             {
-                CheckStartPositionChange();
-
                 if (AnalysisDisabled)
                 {
                     throw new ApplicationException("Анализ позиции прерван.");
@@ -66,143 +77,68 @@ namespace Chess.TreesOfAnalysis
                 if (queues.Peek().Count == 0)
                 {
                     board.TakebackMove();
-                    nodesUnderAnalysis.Pop();
+                    node = node.Parent;
+                    --currentDepth;
                     queues.Pop();
                     continue;
                 }
 
-                var nextNode = queues.Peek().Dequeue();
-                var piece = board[nextNode.StartSquareVertical, nextNode.StartSquareHorizontal].ContainedPiece;
-                var square = board[nextNode.MoveSquareVertical, nextNode.MoveSquareHorizontal];
-                var move = !nextNode.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, nextNode.NewPieceName);
+                node = queues.Peek().Dequeue();
+                ++currentDepth;
+                var piece = board[node.StartSquareVertical, node.StartSquareHorizontal].ContainedPiece;
+                var square = board[node.MoveSquareVertical, node.MoveSquareHorizontal];
+                var move = !node.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, node.NewPieceName);
                 board.MakeMove(move);
-                nodesUnderAnalysis.Push(nextNode);
+                handleNode(node, currentDepth, board);
 
-                if (nodesUnderAnalysis.Count <= depth)
+                if (currentDepth < depth)
                 {
-                    if (!nextNode.HasChildren)
-                    {
-                        nextNode.AddChidren(board);
-
-                        foreach (var node in nodesUnderAnalysis.Skip(1))
-                        {
-                            node.DescendantsCount += nextNode.DescendantsCount;
-                        }
-                    }
-
-                    queues.Push(new Queue<AnalysisTreeNode>(nextNode.GetChildren()));
+                    node.AddChidren(board);
+                    queues.Push(new Queue<AnalysisTreeNode>(node.GetChildren()));
                 }
                 else
                 {
                     queues.Push(new Queue<AnalysisTreeNode>());
-                    var lastMove = board.MovesCount > 0 ? board.GetLastMove() : null;
-                    var gameStartMoment = board.GameStartMoment;
-                    var evaluation = evaluatePosition(board);
-
-                    if (board.GameStartMoment != gameStartMoment)
-                    {
-                        throw new InvalidOperationException("Оценочная функция должна не может начинать на доске новую партию.");
-                    }
-
-                    if (board.Status == GameStatus.ClearBoard)
-                    {
-                        throw new InvalidOperationException("Оценочная функция должна не может очищать доску.");
-                    }
-
-                    if (lastMove == null)
-                    {
-                        if (board.MovesCount != 0)
-                        {
-                            throw new InvalidOperationException("Оценочная функция должна не менять позицию или возвращать доску к исходной позиции до завершения.");
-                        }
-                    }
-                    else
-                    {
-                        if (board.MovesCount == 0 || board.GetLastMove() != lastMove)
-                        {
-                            throw new InvalidOperationException("Оценочная функция должна не менять позицию или возвращать доску к исходной позиции до завершения.");
-                        }
-                    }
-
-                    nextNode.Evaluation = evaluation;
-                    CorrectEvaluations(nodesUnderAnalysis);
                 }
+
+                CheckStartPositionChange();
+                yield return node;
             }
         }
 
-        private void CorrectEvaluations(Stack<AnalysisTreeNode> nodes)
+        private IEnumerable<AnalysisTreeNode> HandleLeaves(int maximumDepth, Action<AnalysisTreeNode, ChessBoard> handleLeaf)
         {
-            var whiteIsToMove = (_board.MovingSideColor == ChessPieceColor.White && nodes.Count % 2 != 0) || (_board.MovingSideColor == ChessPieceColor.Black && nodes.Count % 2 == 0);
-            var evaluation = nodes.Peek().Evaluation;
-
-            foreach (var ancestorNode in nodes.Skip(1))
+            Action<AnalysisTreeNode, int, ChessBoard> handleNode = (node, depth, board) =>
             {
-                whiteIsToMove = !whiteIsToMove;
-
-                if (!ancestorNode.IsEvaluated)
+                if (depth == maximumDepth || board.Status != GameStatus.GameIsNotOver)
                 {
-                    ancestorNode.Evaluation = evaluation;
-                    continue;
+                    handleLeaf(node, board);
                 }
+            };
 
-                if (ancestorNode.Evaluation == evaluation)
-                {
-                    break;
-                }
-
-                if ((whiteIsToMove && evaluation > ancestorNode.Evaluation) || (!whiteIsToMove && evaluation < ancestorNode.Evaluation))
-                {
-                    ancestorNode.Evaluation = evaluation;
-                    continue;
-                }
-
-                var ancestorEvaluation = whiteIsToMove ? ancestorNode.GetChildren().Where(child => child.IsEvaluated).Select(child => child.Evaluation).Max() :
-                    ancestorNode.GetChildren().Where(child => child.IsEvaluated).Select(child => child.Evaluation).Min();
-
-                if (ancestorNode.Evaluation == ancestorEvaluation)
-                {
-                    break;
-                }
-                else
-                {
-                    ancestorNode.Evaluation = ancestorEvaluation;
-                    evaluation = ancestorEvaluation;
-                }
-            }
+            return HandleNodes(maximumDepth, handleNode);
         }
 
-        public Move GetBestMove()
+        public void Analyze(int depth, Func<ChessBoard, int> evaluatePosition)
         {
-            if (!_root.IsEvaluated || !_root.HasChildren)
+            Action<AnalysisTreeNode, ChessBoard> evaluate = (node, board) =>
             {
-                throw new InvalidOperationException("Ошибка: дерево не проанализировано.");
-            }
+                var lastPosition = board.GetCurrentPosition();
+                var evaluation = evaluatePosition(board);
 
-            var movesEvaluations = _root.GetChildren().Where(child => child.IsEvaluated).Select(child => child.Evaluation);
+                if (board.GetCurrentPosition() != lastPosition)
+                {
+                    throw new InvalidOperationException("Оценочная функция должна не менять позицию или возвращать доску к исходной позиции до завершения.");
+                }
 
-            if (!movesEvaluations.Any())
-            {
-                throw new InvalidOperationException("Ошибка: дерево не проанализировано.");
-            }
+                node.Evaluation = evaluation;
+                node.CorrectAncestorsEvaluations();
+            };
 
-            CheckStartPositionChange();
-            var bestEvaluation = _board.MovingSideColor == ChessPieceColor.White ? movesEvaluations.Max() : movesEvaluations.Min();
-            var bestMoves = _root.GetChildren().Where(child => child.IsEvaluated && child.Evaluation == bestEvaluation).ToArray();
-            AnalysisTreeNode resultNode;
-
-            if (bestMoves.Length == 1)
-            {
-                resultNode = bestMoves.Single();
-            }
-            else
-            {
-                var index = new Random().Next(bestMoves.Length);
-                resultNode = bestMoves[index];
-            }
-
-            var piece = _board[resultNode.StartSquareVertical, resultNode.StartSquareHorizontal].ContainedPiece;
-            var square = _board[resultNode.MoveSquareVertical, resultNode.MoveSquareHorizontal];
-            return !resultNode.IsPawnPromotion ? new Move(piece, square) : new Move(piece, square, resultNode.NewPieceName);
+            foreach (var node in HandleLeaves(depth, evaluate))
+            { }
         }
+
+        public bool IsAnalyzed => Root.IsEvaluated;
     }
 }
