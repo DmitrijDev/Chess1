@@ -7,8 +7,6 @@ namespace Chess.Players
     {
         protected AnalysisTree Tree { get; set; }
 
-        protected ChessBoard Board { get; private set; }
-
         public bool ThinkingDisabled { get; private set; }
 
         public Move SelectMove(ChessBoard board)
@@ -24,7 +22,7 @@ namespace Chess.Players
             }
 
             var modCount = board.ModCount;
-            Board = new ChessBoard(board);
+            Tree = new AnalysisTree(board);
             var result = SelectMove();
 
             if (ThinkingDisabled)
@@ -48,7 +46,104 @@ namespace Chess.Players
 
         protected abstract int EvaluatePositionStatically(ChessBoard board);
 
-        protected void Analyze(AnalysisTree tree, int depth) => tree.Analyze(depth, EvaluatePosition);
+        protected virtual int EvaluatePiece(ChessPiece piece)
+        {
+            var result = piece.Name switch
+            {
+                ChessPieceName.Pawn => 10,
+                ChessPieceName.Knight => 30,
+                ChessPieceName.Bishop => 30,
+                ChessPieceName.Rook => 50,
+                ChessPieceName.Queen => 90,
+                _ => throw new InvalidOperationException("Короля невозможно оценить в баллах.")
+            };
+
+            if (piece.Color == ChessPieceColor.Black)
+            {
+                result = -result;
+            }
+
+            return result;
+        }
+
+        protected virtual void CorrectAncestorsEvaluations(AnalysisTreeNode node)
+        {
+            if (!node.IsEvaluated)
+            {
+                throw new InvalidOperationException("Невозможно скорректировать оценки предков узла, не имеющего оценки.");
+            }
+
+            Tree.CheckStartPositionChange();
+            var whiteIsToMove = (Board.MovingSideColor == ChessPieceColor.White && node.GetDepth() % 2 == 0) ||
+                (Board.MovingSideColor == ChessPieceColor.Black && node.GetDepth() % 2 != 0);
+            var lastEvaluation = node.Evaluation;
+
+            foreach (var ancestor in node.GetAncestors())
+            {
+                whiteIsToMove = !whiteIsToMove;
+
+                if (lastEvaluation > WhiteCheckmatingMovesLowerEvaluation)
+                {
+                    --lastEvaluation;
+                }
+
+                if (lastEvaluation < -WhiteCheckmatingMovesLowerEvaluation)
+                {
+                    ++lastEvaluation;
+                }
+
+                if (!ancestor.IsEvaluated)
+                {
+                    ancestor.Evaluation = lastEvaluation;
+                    continue;
+                }
+
+                if (ancestor.Evaluation == lastEvaluation)
+                {
+                    break;
+                }
+
+                if ((whiteIsToMove && lastEvaluation > ancestor.Evaluation) || (!whiteIsToMove && lastEvaluation < ancestor.Evaluation))
+                {
+                    ancestor.Evaluation = lastEvaluation;
+                    continue;
+                }
+
+                var ancestorEvaluation = whiteIsToMove ? ancestor.GetChildren().Where(child => child.IsEvaluated).Select(child => child.Evaluation).Max() :
+                    ancestor.GetChildren().Where(child => child.IsEvaluated).Select(child => child.Evaluation).Min();
+
+                if (ancestorEvaluation > WhiteCheckmatingMovesLowerEvaluation)
+                {
+                    --ancestorEvaluation;
+                }
+
+                if (ancestorEvaluation < -WhiteCheckmatingMovesLowerEvaluation)
+                {
+                    ++ancestorEvaluation;
+                }
+
+                if (ancestor.Evaluation == ancestorEvaluation)
+                {
+                    break;
+                }
+                else
+                {
+                    ancestor.Evaluation = ancestorEvaluation;
+                    lastEvaluation = ancestorEvaluation;
+                }
+            }
+        }
+
+        protected virtual void Analyze(AnalysisTree tree, int depth)
+        {
+            Predicate<AnalysisTreeNode> shouldStopAt = (node) => node.IsEvaluated && (node.Evaluation == int.MaxValue - 1 || node.Evaluation == -int.MaxValue + 1);
+            var enumeration = tree.EvaluateLeaves(depth, EvaluatePosition, shouldStopAt);
+            
+            foreach (var leaf in enumeration)
+            {
+                CorrectAncestorsEvaluations(leaf);
+            }
+        }
 
         protected virtual AnalysisTreeNode GetBestMove(AnalysisTree tree)
         {
@@ -434,26 +529,6 @@ namespace Chess.Players
         protected static IEnumerable<ChessPiece> GetAttackers(Square square, ChessPieceColor color) => GetVerticalAttackers(square, color).
             Concat(GetHorizontalAttackers(square, color)).Concat(GetDiagonalAttackers(square, color)).Concat(GetAttackingKnights(square, color));
 
-        protected virtual int EvaluatePiece(ChessPiece piece)
-        {
-            var result = piece.Name switch
-            {
-                ChessPieceName.Pawn => 10,
-                ChessPieceName.Knight => 30,
-                ChessPieceName.Bishop => 30,
-                ChessPieceName.Rook => 45,
-                ChessPieceName.Queen => 90,
-                _ => throw new InvalidOperationException("Короля невозможно оценить в баллах.")
-            };
-
-            if (piece.Color == ChessPieceColor.Black)
-            {
-                result = -result;
-            }
-
-            return result;
-        }
-
         public void EnableThinking()
         {
             ThinkingDisabled = false;
@@ -473,5 +548,9 @@ namespace Chess.Players
                 Tree.AnalysisDisabled = true;
             }
         }
+
+        public int WhiteCheckmatingMovesLowerEvaluation => int.MaxValue - 13000;
+
+        protected ChessBoard Board => Tree.Board;
     }
 }

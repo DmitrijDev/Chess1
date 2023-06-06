@@ -3,9 +3,9 @@ using Chess.TreesOfAnalysis;
 
 namespace Chess.Players
 {
-    public class Level1Player : VirtualPlayer
+    public class Player1 : VirtualPlayer
     {
-        public Level1Player()
+        public Player1()
         { }
 
         protected override int EvaluatePosition(ChessBoard board)
@@ -28,7 +28,6 @@ namespace Chess.Players
                 throw new ApplicationException("Виртуальному игроку запрещен анализ позиций.");
             }
 
-            Tree = new AnalysisTree(Board);
             Analyze(Tree, 1);
             var node = GetBestMove(Tree);
 

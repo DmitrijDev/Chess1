@@ -9,7 +9,7 @@ namespace Chess
         private readonly GameForm _form;
 
         private VirtualPlayer _whiteVirtualPlayer; // == null, если за эту сторону играет пользователь.
-        private VirtualPlayer _blackVirtualPlayer = new Level1Player(); //Аналогично.
+        private VirtualPlayer _blackVirtualPlayer = new Player1(); //Аналогично.
 
         private readonly ChessBoard _gameBoard = new();
         private Thread _thinkingThread;
@@ -157,12 +157,12 @@ namespace Chess
             StopThinking();
             CancelMoveChoice();
 
-            var whiteMaterial = new ChessPieceName[16] { ChessPieceName.King, ChessPieceName.Queen,ChessPieceName.Rook, ChessPieceName.Rook, ChessPieceName.Knight, ChessPieceName.Knight, ChessPieceName.Bishop,
+            var whiteMaterial = new ChessPieceName[] { ChessPieceName.King, ChessPieceName.Queen,ChessPieceName.Rook, ChessPieceName.Rook, ChessPieceName.Knight, ChessPieceName.Knight, ChessPieceName.Bishop,
                 ChessPieceName.Bishop, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn };
-            var whitePositions = new string[16] { "e1", "d1", "a1", "h1", "b1", "g1", "c1", "f1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
-            var blackMaterial = new ChessPieceName[16] { ChessPieceName.King, ChessPieceName.Queen,ChessPieceName.Rook, ChessPieceName.Rook, ChessPieceName.Knight, ChessPieceName.Knight, ChessPieceName.Bishop,
+            var whitePositions = new string[] { "e1", "d1", "a1", "h1", "b1", "g1", "c1", "f1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
+            var blackMaterial = new ChessPieceName[] { ChessPieceName.King, ChessPieceName.Queen,ChessPieceName.Rook, ChessPieceName.Rook, ChessPieceName.Knight, ChessPieceName.Knight, ChessPieceName.Bishop,
                 ChessPieceName.Bishop, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn };
-            var blackPositions = new string[16] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
+            var blackPositions = new string[] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };            
 
             _gameBoard.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, ChessPieceColor.White);
 
@@ -197,11 +197,11 @@ namespace Chess
 
             if (pieceColor == ChessPieceColor.White)
             {
-                _whiteVirtualPlayer = _whiteVirtualPlayer == null ? new Level1Player() : null;
+                _whiteVirtualPlayer = _whiteVirtualPlayer == null ? new Player1() : null;
             }
             else
             {
-                _blackVirtualPlayer = _blackVirtualPlayer == null ? new Level1Player() : null;
+                _blackVirtualPlayer = _blackVirtualPlayer == null ? new Player1() : null;
             }
 
             if (pieceColor == _gameBoard.MovingSideColor)

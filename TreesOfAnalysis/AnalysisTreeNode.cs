@@ -13,8 +13,6 @@ namespace Chess.TreesOfAnalysis
         private AnalysisTreeNode[] _children;
         private int _evaluation = int.MinValue;
 
-        public AnalysisTree Tree { get; internal set; }
-
         public AnalysisTreeNode Parent { get; private set; }
 
         public long DescendantsCount { get; private set; }
@@ -75,13 +73,7 @@ namespace Chess.TreesOfAnalysis
             }
 
             _children = board.GetLegalMoves().Select(move => new AnalysisTreeNode(move)).ToArray();
-
-            foreach (var child in _children)
-            {
-                child.Parent = this;
-                child.Tree = Tree;
-            }
-
+            Array.ForEach(_children, child => child.Parent = this);
             DescendantsCount = _children.Length;
 
             foreach (var ancestor in GetAncestors())
@@ -91,54 +83,6 @@ namespace Chess.TreesOfAnalysis
         }
 
         public IEnumerable<AnalysisTreeNode> GetChildren() => _children ?? Enumerable.Empty<AnalysisTreeNode>();
-
-        public void CorrectAncestorsEvaluations()
-        {
-            if (!IsEvaluated)
-            {
-                throw new InvalidOperationException("Невозможно скорректировать оценки предков узла, не имеющего оценки.");
-            }
-
-            Tree.CheckStartPositionChange();
-            var whiteIsToMove = (Tree.Board.MovingSideColor == ChessPieceColor.White && GetDepth() % 2 == 0) ||
-                (Tree.Board.MovingSideColor == ChessPieceColor.Black && GetDepth() % 2 != 0);
-            var lastEvaluation = _evaluation;
-
-            foreach (var ancestor in GetAncestors())
-            {
-                whiteIsToMove = !whiteIsToMove;
-
-                if (!ancestor.IsEvaluated)
-                {
-                    ancestor._evaluation = lastEvaluation;
-                    continue;
-                }
-
-                if (ancestor._evaluation == lastEvaluation)
-                {
-                    break;
-                }
-
-                if ((whiteIsToMove && lastEvaluation > ancestor._evaluation) || (!whiteIsToMove && lastEvaluation < ancestor._evaluation))
-                {
-                    ancestor._evaluation = lastEvaluation;
-                    continue;
-                }
-
-                var ancestorEvaluation = whiteIsToMove ? ancestor._children.Where(child => child.IsEvaluated).Select(child => child._evaluation).Max() :
-                    ancestor._children.Where(child => child.IsEvaluated).Select(child => child._evaluation).Min();
-
-                if (ancestor._evaluation == ancestorEvaluation)
-                {
-                    break;
-                }
-                else
-                {
-                    ancestor._evaluation = ancestorEvaluation;
-                    lastEvaluation = ancestorEvaluation;
-                }
-            }
-        }        
 
         public bool IsEvaluated => _evaluation != int.MinValue;
 
