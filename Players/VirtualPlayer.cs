@@ -11,7 +11,7 @@ namespace Chess.Players
 
         public Move SelectMove(ChessBoard board)
         {
-            if (board.Status != GameStatus.GameIsNotOver)
+            if (board.Status != BoardStatus.GameIsIncomplete)
             {
                 throw new ArgumentException("На доске невозможно сделать ход.");
             }

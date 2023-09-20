@@ -1,9 +1,9 @@
 ﻿
 namespace Chess.LogicPart
 {
-    public class NewPieceNotSelectedException: ApplicationException
+    public class NewPieceNotSelectedException: IllegalMoveException
     {
-        public NewPieceNotSelectedException() : base()
+        public NewPieceNotSelectedException() : base("")
         { }
     }
 }

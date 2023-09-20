@@ -1,5 +1,4 @@
 ﻿using Chess.LogicPart;
-using Chess.TreesOfAnalysis;
 
 namespace Chess.Players
 {
@@ -43,17 +42,17 @@ namespace Chess.Players
 
         protected override int EvaluatePositionStatically(ChessBoard board)
         {
-            if (board == null || board.Status == GameStatus.IllegalPosition || board.Status == GameStatus.ClearBoard)
+            if (board == null || board.Status == BoardStatus.IllegalPosition || board.Status == BoardStatus.ClearBoard)
             {
                 throw new ArgumentException("Некорректный аргумент.");
             }
 
-            if (board.Status != GameStatus.GameIsNotOver)
+            if (board.Status != BoardStatus.GameIsIncomplete)
             {
                 return board.Status switch
                 {
-                    GameStatus.WhiteWin => int.MaxValue,
-                    GameStatus.BlackWin => -int.MaxValue,
+                    BoardStatus.WhiteWin => int.MaxValue,
+                    BoardStatus.BlackWin => -int.MaxValue,
                     _ => 0
                 };
             }

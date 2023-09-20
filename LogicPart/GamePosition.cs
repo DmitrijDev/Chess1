@@ -8,7 +8,7 @@ namespace Chess.LogicPart
 
         public ChessPieceColor MovingSideColor { get; }
 
-        public GamePosition(ChessBoard board)
+        internal GamePosition(ChessBoard board)
         {
             for (var i = 0; i < 8; ++i)
             {
@@ -25,13 +25,27 @@ namespace Chess.LogicPart
             MovingSideColor = board.MovingSideColor;
         }
 
+        public GamePosition(GamePosition other)
+        {
+            for (var i = 0; i < 8; ++i)
+            {
+                for (var j = 0; j < 8; ++j)
+                {
+                    _pieceNames[i, j] = other._pieceNames[i, j];
+                    _pieceColors[i, j] = other._pieceColors[i, j];
+                }
+            }
+
+            MovingSideColor = other.MovingSideColor;
+        }
+
         public ChessPieceName? GetPieceName(int vertical, int horizontal) => _pieceNames[vertical, horizontal];
 
         public ChessPieceColor? GetPieceColor(int vertical, int horizontal) => _pieceColors[vertical, horizontal];
 
-        public bool IsEqualTo(GamePosition otherPosition)
+        public bool IsEqualTo(GamePosition other)
         {
-            if (otherPosition.MovingSideColor != MovingSideColor)
+            if (other.MovingSideColor != MovingSideColor)
             {
                 return false;
             }
@@ -40,7 +54,7 @@ namespace Chess.LogicPart
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    if (otherPosition._pieceNames[i, j] != _pieceNames[i, j] || otherPosition._pieceColors[i, j] != _pieceColors[i, j])
+                    if (other._pieceNames[i, j] != _pieceNames[i, j] || other._pieceColors[i, j] != _pieceColors[i, j])
                     {
                         return false;
                     }
@@ -48,6 +62,6 @@ namespace Chess.LogicPart
             }
 
             return true;
-        }        
+        }
     }
 }

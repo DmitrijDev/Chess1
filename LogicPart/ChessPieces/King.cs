@@ -6,58 +6,44 @@ namespace Chess.LogicPart
         public King(ChessPieceColor color) : base(color)
         { }
 
-        public override IEnumerable<Square> GetAttackedSquares()
+        internal override IEnumerable<Square> GetAttackedSquares()
         {
-            var board = Board;
-
-            if (board == null)
+            for (var i = Vertical > 0 ? Vertical - 1 : 0; i <= Vertical + 1 && i < 8; ++i)
             {
-                yield break;
-            }
-
-            var vertical = Vertical;
-            var horizontal = Horizontal;
-            var modCount = board.ModCount;
-
-            for (var i = vertical - 1; i <= vertical + 1; ++i)
-            {
-                for (var j = horizontal - 1; j <= horizontal + 1; ++j)
+                for (var j = Horizontal > 0 ? Horizontal - 1 : 0; j <= Horizontal + 1 && j < 8; ++j)
                 {
-                    if (i < 0 || j < 0 || i >= 8 || j >= 8)
+                    if (i == Vertical && j == Horizontal)
                     {
                         continue;
                     }
 
-                    if (i == vertical && j == horizontal)
-                    {
-                        continue;
-                    }
-
-                    if (board.ModCount != modCount)
-                    {
-                        throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                    }
-
-                    yield return board[i, j];
+                    yield return Board[i, j];
                 }
-            }
-
-            if (board.ModCount != modCount)
-            {
-                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
             }
         }
 
-        public override IEnumerable<Square> GetAccessibleSquares()
+        internal override IEnumerable<Square> GetAccessibleSquares()
         {
-            var result = base.GetAccessibleSquares();
+            var result = GetAttackedSquares().Where(square => square.IsEmpty || square.ContainedPiece.Color != Color);
+            result = FilterSafeForKingMoves(result);
 
-            if (CheckCastleKingsideLegacy(out var message))
+            if (!(Color == ChessPieceColor.White && Vertical == 4 && Horizontal == 0) &&
+                !(Color == ChessPieceColor.Black && Vertical == 4 && Horizontal == 7))
+            {
+                return result;
+            }
+
+            if (FirstMoveMoment > 0 || (Position.Menaces != null && Position.Menaces.Any(piece => piece.Color != Color)))
+            {
+                return result;
+            }
+
+            if (CanCastleKingside())
             {
                 result = result.Append(Board[6, Horizontal]);
             }
 
-            if (CheckCastleQueensideLegacy(out message))
+            if (CanCastleQueenside())
             {
                 result = result.Append(Board[2, Horizontal]);
             }
@@ -65,16 +51,87 @@ namespace Chess.LogicPart
             return result;
         }
 
-        protected override IEnumerable<Square> FilterSafeForKingMoves(IEnumerable<Square> moveSquares) => moveSquares.Where(CanSafelyMoveTo);
-
-        private bool CanSafelyMoveTo(Square square)
+        private bool CanCastleKingside()
         {
-            if (square.IsMenaced())
+            var rookPosition = Board[7, Horizontal];
+
+            if (rookPosition.IsEmpty || rookPosition.ContainedPiece.Name != ChessPieceName.Rook ||
+                rookPosition.ContainedPiece.Color != Color)
             {
                 return false;
             }
 
-            foreach (var menacingPiece in GetMenaces())
+            if (!Board[5, Horizontal].IsEmpty || !Board[6, Horizontal].IsEmpty)
+            {
+                return false;
+            }
+
+            if (rookPosition.ContainedPiece.FirstMoveMoment > 0)
+            {
+                return false;
+            }
+
+            if (Board[5, Horizontal].Menaces != null && Board[5, Horizontal].Menaces.Any(piece => piece.Color != Color))
+            {
+                return false;
+            }
+
+            if (Board[6, Horizontal].Menaces != null && Board[6, Horizontal].Menaces.Any(piece => piece.Color != Color))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool CanCastleQueenside()
+        {
+            var rookPosition = Board[0, Horizontal];
+
+            if (rookPosition.IsEmpty || rookPosition.ContainedPiece.Name != ChessPieceName.Rook ||
+                rookPosition.ContainedPiece.Color != Color)
+            {
+                return false;
+            }
+
+            if (!Board[1, Horizontal].IsEmpty || !Board[2, Horizontal].IsEmpty || !Board[3, Horizontal].IsEmpty)
+            {
+                return false;
+            }
+
+            if (rookPosition.ContainedPiece.FirstMoveMoment > 0)
+            {
+                return false;
+            }
+
+            if (Board[3, Horizontal].Menaces != null && Board[3, Horizontal].Menaces.Any(piece => piece.Color != Color))
+            {
+                return false;
+            }
+
+            if (Board[2, Horizontal].Menaces != null && Board[2, Horizontal].Menaces.Any(piece => piece.Color != Color))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private protected override IEnumerable<Square> FilterSafeForKingMoves(IEnumerable<Square> moveSquares) => moveSquares.Where(CanSafelyMoveTo);
+
+        private bool CanSafelyMoveTo(Square square)
+        {
+            if (square.Menaces != null && square.Menaces.Any(piece => piece.Color != Color))
+            {
+                return false;
+            }
+
+            if (Position.Menaces == null)
+            {
+                return true;
+            }
+
+            foreach (var menacingPiece in Position.Menaces.Where(piece => piece.Color != Color))
             {
                 if (menacingPiece.Vertical == Vertical)
                 {
@@ -92,7 +149,7 @@ namespace Chess.LogicPart
                 }
                 else if (IsOnSameDiagonal(menacingPiece) && menacingPiece.Name != ChessPieceName.Pawn)
                 {
-                    if (square.IsOnSameDiagonal(Position) && square.IsOnSameDiagonal(menacingPiece) && square != menacingPiece.Position)
+                    if (square.IsOnSameDiagonal(menacingPiece) && square != menacingPiece.Position)
                     {
                         return false;
                     }
@@ -102,134 +159,91 @@ namespace Chess.LogicPart
             return true;
         }
 
-        public bool CheckCastleKingsideLegacy(out string castleFailureMessage)
+        internal override string CheckMoveLegacy(Move move)
         {
-            if (!IsOnBoard || Board.Status != GameStatus.GameIsNotOver || Color != Board.MovingSideColor)
+            if (move.IsCastleKingside)
             {
-                castleFailureMessage = null;
-                return false;
+                if (FirstMoveMoment > 0)
+                {
+                    return "Рокировка невозможна: король уже сделал ход.";
+                }
+
+                if (Board[7, Horizontal].ContainedPiece.FirstMoveMoment > 0)
+                {
+                    return "Рокировка невозможна: ладья уже сделала ход.";
+                }
+
+                var menaces = Position.Menaces;
+
+                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                {
+                    return "Рокировка невозможна: король под шахом.";
+                }
+
+                menaces = Board[5, Horizontal].Menaces;
+
+                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                {
+                    return "При рокировке король не может пересекать угрожаемое поле.";
+                }
+
+                menaces = Board[6, Horizontal].Menaces;
+
+                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                {
+                    return "Король не может становиться под шах.";
+                }
+
+                return null;
             }
 
-            if (!Move.IsCastleKingsideMove(this, Board[6, Horizontal]))
+            if (move.IsCastleQueenside)
             {
-                castleFailureMessage = null;
-                return false;
+                if (FirstMoveMoment > 0)
+                {
+                    return "Рокировка невозможна: король уже сделал ход.";
+                }
+
+                if (Board[0, Horizontal].ContainedPiece.FirstMoveMoment > 0)
+                {
+                    return "Рокировка невозможна: ладья уже сделала ход.";
+                }
+
+                var menaces = Position.Menaces;
+
+                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                {
+                    return "Рокировка невозможна: король под шахом.";
+                }
+
+                menaces = Board[3, Horizontal].Menaces;
+
+                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                {
+                    return "При рокировке король не может пересекать угрожаемое поле.";
+                }
+
+                menaces = Board[2, Horizontal].Menaces;
+
+                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                {
+                    return "Король не может становиться под шах.";
+                }
+
+                return null;
             }
 
-            if (FirstMoveMoment > 0)
-            {
-                castleFailureMessage = "Рокировка невозможна: король уже сделал ход.";
-                return false;
-            }
-
-            if (Board[7, Horizontal].ContainedPiece.FirstMoveMoment > 0)
-            {
-                castleFailureMessage = "Рокировка невозможна: ладья уже сделала ход.";
-                return false;
-            }
-
-            if (IsMenaced())
-            {
-                castleFailureMessage = "Рокировка невозможна: король под шахом.";
-                return false;
-            }
-
-            if (Board[5, Horizontal].IsMenaced())
-            {
-                castleFailureMessage = "При рокировке король не может пересекать угрожаемое поле.";
-                return false;
-            }
-
-            if (Board[6, Horizontal].IsMenaced())
-            {
-                castleFailureMessage = "Король не может становиться под шах.";
-                return false;
-            }
-
-            castleFailureMessage = null;
-            return true;
-        }
-
-        public bool CheckCastleQueensideLegacy(out string castleFailureMessage)
-        {
-            if (!IsOnBoard || Board.Status != GameStatus.GameIsNotOver || Color != Board.MovingSideColor)
-            {
-                castleFailureMessage = null;
-                return false;
-            }
-
-            if (!Move.IsCastleQueensideMove(this, Board[2, Horizontal]))
-            {
-                castleFailureMessage = null;
-                return false;
-            }
-
-            if (FirstMoveMoment > 0)
-            {
-                castleFailureMessage = "Рокировка невозможна: король уже сделал ход.";
-                return false;
-            }
-
-            if (Board[0, Horizontal].ContainedPiece.FirstMoveMoment > 0)
-            {
-                castleFailureMessage = "Рокировка невозможна: ладья уже сделала ход.";
-                return false;
-            }
-
-            if (IsMenaced())
-            {
-                castleFailureMessage = "Рокировка невозможна: король под шахом.";
-                return false;
-            }
-
-            if (Board[3, Horizontal].IsMenaced())
-            {
-                castleFailureMessage = "При рокировке король не может пересекать угрожаемое поле.";
-                return false;
-            }
-
-            if (Board[2, Horizontal].IsMenaced())
-            {
-                castleFailureMessage = "Король не может становиться под шах.";
-                return false;
-            }
-
-            castleFailureMessage = null;
-            return true;
-        }
-
-        public override string GetIllegalMoveMessage(Square square)
-        {
-            if (Board != square.Board)
-            {
-                throw new InvalidOperationException("Указано поле на другой доске.");
-            }
-
-            if (Move.IsCastleKingsideMove(this, square))
-            {
-                CheckCastleKingsideLegacy(out var message);
-                return message;
-            }
-
-            if (Move.IsCastleQueensideMove(this, square))
-            {
-                CheckCastleQueensideLegacy(out var message);
-                return message;
-            }
-
-            if (!Attacks(square))
+            if (move.MoveSquare.Menaces == null || !move.MoveSquare.Menaces.Contains(this))
             {
                 return "Невозможный ход.";
             }
 
-            if (!square.IsEmpty && square.ContainedPiece.Color == Color)
+            if (!CanSafelyMoveTo(move.MoveSquare))
             {
-                return "Невозможно пойти на поле, занятое своей фигурой.";
-            }
+                var message = Position.Menaces != null && Position.Menaces.Any(piece => piece.Color != Color) ? "Невозможный ход. Король не может оставаться под шахом." : 
+                    "Король не может становиться под шах.";
 
-            if (!CanSafelyMoveTo(square))
-            {
-                return IsMenaced() ? "Невозможный ход. Король не может оставаться под шахом." : "Король не может становиться под шах.";
+                return message;
             }
 
             return null;

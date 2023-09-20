@@ -4,17 +4,19 @@ namespace Chess.TreesOfAnalysis
 {
     public class AnalysisTree
     {
-        private readonly ulong _boardModCount;
+        private readonly long _boardModCount;
 
         public ChessBoard Board { get; private set; }
 
         public AnalysisTreeNode Root { get; private set; }
 
+        internal TreeEnumerator Enumerator { get; set; }
+
         public bool AnalysisDisabled { get; set; }
 
         public AnalysisTree(ChessBoard board)
         {
-            if (board.Status != GameStatus.GameIsNotOver)
+            if (board.Status != BoardStatus.GameIsIncomplete)
             {
                 throw new ArgumentException("Анализ возможен только на непустой доске, с возможной по правилам шахмат позицией и незавершенной партией.");
             }
@@ -39,7 +41,7 @@ namespace Chess.TreesOfAnalysis
 
             foreach (var node in enumeration)
             {
-                if (enumeration.CurrentDepth == depth || !node.HasChildren)
+                if (enumeration.CurrentDepth == depth || enumeration.Board.Status != BoardStatus.GameIsIncomplete)
                 {
                     node.Evaluation = evaluatePosition(enumeration.Board);
                     yield return node; 

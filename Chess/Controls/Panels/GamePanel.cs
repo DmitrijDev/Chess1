@@ -22,14 +22,14 @@ namespace Chess
         private int? _highlightedButtonX;
         private int? _highlightedButtonY;
 
-        private Move _selectedMove;
-
         private readonly NewPieceMenu _newPieceMenu;
 
         private int _whiteTimeLeft;
         private int _blackTimeLeft;
         private readonly Timer _timer = new() { Interval = 1000 };
         private int _timeForGame = 300; // В секундах.
+
+        private Move _selectedMove;
 
         public Color WhitePiecesColor { get; private set; }
 
@@ -162,7 +162,7 @@ namespace Chess
             var whitePositions = new string[] { "e1", "d1", "a1", "h1", "b1", "g1", "c1", "f1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
             var blackMaterial = new ChessPieceName[] { ChessPieceName.King, ChessPieceName.Queen,ChessPieceName.Rook, ChessPieceName.Rook, ChessPieceName.Knight, ChessPieceName.Knight, ChessPieceName.Bishop,
                 ChessPieceName.Bishop, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn };
-            var blackPositions = new string[] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };            
+            var blackPositions = new string[] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
 
             _gameBoard.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, ChessPieceColor.White);
 
@@ -246,14 +246,16 @@ namespace Chess
 
             catch (IllegalMoveException exception)
             {
-                MessageBox.Show(exception.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+                if (exception is not NewPieceNotSelectedException)
+                {
+                    MessageBox.Show(exception.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                else
+                {
+                    _selectedMove = move;
+                    _newPieceMenu.Show(Cursor.Position.X, Cursor.Position.Y);
+                }
 
-            catch (NewPieceNotSelectedException)
-            {
-                _selectedMove = move;
-                _newPieceMenu.Show(Cursor.Position.X, Cursor.Position.Y);
                 return;
             }
 
@@ -298,7 +300,7 @@ namespace Chess
             }
         }
 
-        internal void PromotePawnTo(ChessPieceName newPieceName)
+        public void PromotePawnTo(ChessPieceName newPieceName)
         {
             var move = new Move(_selectedMove.MovingPiece, _selectedMove.MoveSquare, newPieceName);
             MakeMove(move);
@@ -335,32 +337,36 @@ namespace Chess
 
         private void ShowEndGameMessage()
         {
-            if (_gameBoard.Status == GameStatus.WhiteWin)
+            switch (_gameBoard.Status)
             {
-                var message = _blackTimeLeft > 0 ? "Мат черным." : "Время истекло. Победа белых.";
-                MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                return;
-            }
+                case BoardStatus.WhiteWin:
+                    {
+                        var message = _blackTimeLeft > 0 ? "Мат черным." : "Время истекло. Победа белых.";
+                        MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        break;
+                    }
 
-            if (_gameBoard.Status == GameStatus.BlackWin)
-            {
-                var message = _whiteTimeLeft > 0 ? "Мат белым." : "Время истекло. Победа черных.";
-                MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-                return;
-            }
+                case BoardStatus.BlackWin:
+                    {
+                        var message = _whiteTimeLeft > 0 ? "Мат белым." : "Время истекло. Победа черных.";
+                        MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        break;
+                    }
 
-            if (_gameBoard.Status == GameStatus.Draw)
-            {
-                var message = _gameBoard.DrawReason switch
-                {
-                    DrawReason.Stalemate => "Пат.",
-                    DrawReason.NotEnoughMaterial => "Ничья. Недостаточно материала для мата.",
-                    DrawReason.ThreeRepeatsRule => "Ничья. Трехкратное повторение позиции.",
-                    _ => "Ничья по правилу 50 ходов."
-                };
+                case BoardStatus.Draw:
+                    {
+                        var message = _gameBoard.DrawReason switch
+                        {
+                            DrawReason.Stalemate => "Пат.",
+                            DrawReason.NotEnoughMaterial => "Ничья. Недостаточно материала для мата.",
+                            DrawReason.ThreeRepeatsRule => "Ничья. Трехкратное повторение позиции.",
+                            _ => "Ничья по правилу 50 ходов."
+                        };
 
-                MessageBox.Show(message, "", MessageBoxButtons.OK);
-            }
+                        MessageBox.Show(message, "", MessageBoxButtons.OK);
+                        break;
+                    }
+            };
         }
 
         private bool ProgramPlaysFor(ChessPieceColor color) => color == ChessPieceColor.White ? _whiteVirtualPlayer != null : _blackVirtualPlayer != null;
@@ -368,7 +374,7 @@ namespace Chess
 
         private void Button_Click(object sender, EventArgs e)
         {
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor) || !_timer.Enabled || _gameBoard.Status != GameStatus.GameIsNotOver)
+            if (ProgramPlaysFor(_gameBoard.MovingSideColor) || !_timer.Enabled || _gameBoard.Status != BoardStatus.GameIsIncomplete)
             {
                 return;
             }
@@ -442,11 +448,11 @@ namespace Chess
                 _timer.Stop();
                 StopThinking();
                 CancelMoveChoice();
-                _gameBoard.Status = _whiteTimeLeft == 0 ? GameStatus.BlackWin : GameStatus.WhiteWin;
+                _gameBoard.SetStatus(_whiteTimeLeft == 0 ? BoardStatus.BlackWin : BoardStatus.WhiteWin);
                 ShowEndGameMessage();
             }
         }
 
-        public bool GameIsOver => _gameBoard.Status == GameStatus.WhiteWin || _gameBoard.Status == GameStatus.BlackWin || _gameBoard.Status == GameStatus.Draw;
+        public bool GameIsOver => _gameBoard.Status == BoardStatus.WhiteWin || _gameBoard.Status == BoardStatus.BlackWin || _gameBoard.Status == BoardStatus.Draw;
     }
 }

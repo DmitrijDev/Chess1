@@ -67,22 +67,57 @@ namespace Chess.TreesOfAnalysis
 
         internal void AddChidren(ChessBoard board)
         {
-            if (_children != null)
+            var newChildren = board.GetLegalMoves().Select(move => new AnalysisTreeNode(move)).ToArray();
+
+            if (_children != null && _children.Length == newChildren.Length)
             {
                 return;
             }
 
-            _children = board.GetLegalMoves().Select(move => new AnalysisTreeNode(move)).ToArray();
-            Array.ForEach(_children, child => child.Parent = this);
-            DescendantsCount = _children.Length;
+            var childrenOldCount = _children != null ? _children.Length : 0;
+
+            if (_children == null)
+            {
+                _children = newChildren;
+            }
+            else
+            {
+                Func<AnalysisTreeNode, AnalysisTreeNode, bool> coincide = (node1, node2) =>
+                node1._startSquareVertical == node2._startSquareVertical && node1._startSquareHorizontal == node2._startSquareHorizontal
+                && node1._moveSquareVertical == node2._moveSquareVertical && node1._moveSquareHorizontal == node2._moveSquareHorizontal
+                && node1._newPieceName == node2._newPieceName;
+
+                newChildren = newChildren.Where(newChild => !_children.Any(oldChild => coincide(oldChild, newChild))).ToArray();
+                _children = _children.Concat(newChildren).ToArray();
+            }
+
+            Array.ForEach(newChildren, child => child.Parent = this);
+            DescendantsCount += _children.Length - childrenOldCount;
 
             foreach (var ancestor in GetAncestors())
             {
-                ancestor.DescendantsCount += _children.Length;
+                ancestor.DescendantsCount += _children.Length - childrenOldCount;
             }
         }
 
         public IEnumerable<AnalysisTreeNode> GetChildren() => _children ?? Enumerable.Empty<AnalysisTreeNode>();
+
+        internal void RemoveUnnecessaryChildren()
+        {
+            if (_children == null)
+            {
+                return;
+            }
+
+            var childrenOldCount = _children.Length;
+            _children = _children.Where(child => child.IsEvaluated || child.HasChildren).ToArray();
+            DescendantsCount -= childrenOldCount - _children.Length;
+
+            foreach (var ancestor in GetAncestors())
+            {
+                ancestor.DescendantsCount -= childrenOldCount - _children.Length;
+            }
+        }
 
         public bool IsEvaluated => _evaluation != int.MinValue;
 

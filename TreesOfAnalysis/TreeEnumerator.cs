@@ -20,9 +20,19 @@ namespace Chess.TreesOfAnalysis
 
         public Predicate<AnalysisTreeNode> ShouldStopAt { get; private set; } = (node) => false;
 
-        public TreeEnumerator(AnalysisTree tree, int maximimDepth, Predicate<AnalysisTreeNode> shoulsStopAt)
+        public TreeEnumerator(AnalysisTree tree, int maximimDepth, Predicate<AnalysisTreeNode> shouldStopAt)
         {
-            Tree = tree;
+            if (tree == null || shouldStopAt == null)
+            {
+                throw new ArgumentNullException();
+            }
+
+            if (tree.Enumerator != null)
+            {
+                throw new InvalidOperationException("Невозможно начать новое перечисление дерева, пока не закончено предыдущее.");
+            }
+
+            Tree = tree;            
 
             if (maximimDepth < 0)
             {
@@ -30,7 +40,8 @@ namespace Chess.TreesOfAnalysis
             }
 
             MaximumDepth = maximimDepth;
-            ShouldStopAt = shoulsStopAt;
+            ShouldStopAt = shouldStopAt;
+            Tree.Enumerator = this;
         }
 
         private void CheckPositionChange()
@@ -53,9 +64,9 @@ namespace Chess.TreesOfAnalysis
         public bool MoveNext()
         {
             if (Current == null)
-            {
-                Current = Tree.Root;
+            {                
                 Tree.CheckStartPositionChange();
+                Current = Tree.Root;
                 Board = new ChessBoard(Tree.Board);
                 _lastPosition = Board.GetCurrentPosition();
                 CurrentDepth = 0;
@@ -94,6 +105,7 @@ namespace Chess.TreesOfAnalysis
                 if (ShouldStopAt(Current))
                 {
                     _queues.Peek().Clear();
+                    Current.RemoveUnnecessaryChildren();
                 }
             }
 
@@ -131,6 +143,7 @@ namespace Chess.TreesOfAnalysis
 
         public void Dispose()
         {
+            Tree.Enumerator = null;
             _queues = null;
             _lastPosition = null;
             Tree = null;

@@ -3,7 +3,7 @@ namespace Chess.LogicPart
 {
     public class Square
     {
-        private List<ChessPiece> _menaces;
+        internal List<ChessPiece> Menaces { get; set; }
 
         public ChessBoard Board { get; }
 
@@ -42,41 +42,27 @@ namespace Chess.LogicPart
             {
                 Put(null);
             }
-        }
+        }        
 
-        public IEnumerable<ChessPiece> GetMenaces() => _menaces != null ? _menaces.ToArray() : Enumerable.Empty<ChessPiece>();
-
-        public bool IsMenaced() => _menaces != null;
-
-        public static void RenewMenaces(ChessBoard board)
+        public List<ChessPiece> GetMenaces(ChessPieceColor color)
         {
-            if (board.MovesCount > 0 || board.ModCount != board.GameStartMoment)
+            Board.Lock();
+
+            if (Menaces == null)
             {
-                for (var i = 0; i < 8; ++i)
-                {
-                    for (var j = 0; j < 8; ++j)
-                    {
-                        board[i, j].RemoveMenacesList();
-                    }
-                }
+                Board.Unlock();
+                return new List<ChessPiece>();
             }
 
-            foreach (var piece in board.GetMaterial(board.MovingSideColor == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White))
-            {
-                foreach (var square in piece.GetAttackedSquares())
-                {
-                    square._menaces ??= new List<ChessPiece>();
-                    square._menaces.Add(piece);
-                }
-            }
+            var result = Menaces.Where(piece => piece.Color == color).ToList();
+            Board.Unlock();
+            return result;
         }
 
-        internal void RemoveMenacesList() => _menaces = null;
-
-        public bool IsOnSameDiagonal(Square otherSquare) => otherSquare != null && otherSquare.Board == Board &&
+        public bool IsOnSameDiagonal(Square otherSquare) => otherSquare.Board == Board &&
             Math.Abs(Vertical - otherSquare.Vertical) == Math.Abs(Horizontal - otherSquare.Horizontal);
 
-        public bool IsOnSameDiagonal(ChessPiece piece) => IsOnSameDiagonal(piece.Position);
+        public bool IsOnSameDiagonal(ChessPiece piece) => piece.IsOnBoard && IsOnSameDiagonal(piece.Position);
 
         public bool IsEmpty => ContainedPiece == null;
     }

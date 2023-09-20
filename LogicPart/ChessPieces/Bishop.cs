@@ -6,82 +6,46 @@ namespace Chess.LogicPart
         public Bishop(ChessPieceColor color) : base(color)
         { }
 
-        public override IEnumerable<Square> GetAttackedSquares()
+        internal override IEnumerable<Square> GetAttackedSquares()
         {
-            var board = Board;
-
-            if (board == null)
+            for (int i = Vertical + 1, j = Horizontal + 1; i < 8 && j < 8; ++i, ++j)
             {
-                yield break;
-            }
+                yield return Board[i, j];
 
-            var vertical = Vertical;
-            var horizontal = Horizontal;
-            var modCount = board.ModCount;
-
-            for (int i = vertical + 1, j = horizontal + 1; i < 8 && j < 8; ++i, ++j)
-            {
-                if (board.ModCount != modCount)
-                {
-                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                }
-
-                yield return board[i, j];
-
-                if (!board[i, j].IsEmpty)
+                if (!Board[i, j].IsEmpty)
                 {
                     break;
                 }
             }
 
-            for (int i = vertical - 1, j = horizontal - 1; i >= 0 && j >= 0; --i, --j)
+            for (int i = Vertical - 1, j = Horizontal - 1; i >= 0 && j >= 0; --i, --j)
             {
-                if (board.ModCount != modCount)
-                {
-                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                }
+                yield return Board[i, j];
 
-                yield return board[i, j];
-
-                if (!board[i, j].IsEmpty)
+                if (!Board[i, j].IsEmpty)
                 {
                     break;
                 }
             }
 
-            for (int i = vertical + 1, j = horizontal - 1; i < 8 && j >= 0; ++i, --j)
+            for (int i = Vertical + 1, j = Horizontal - 1; i < 8 && j >= 0; ++i, --j)
             {
-                if (board.ModCount != modCount)
-                {
-                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                }
+                yield return Board[i, j];
 
-                yield return board[i, j];
-
-                if (!board[i, j].IsEmpty)
+                if (!Board[i, j].IsEmpty)
                 {
                     break;
                 }
             }
 
-            for (int i = vertical - 1, j = horizontal + 1; i >= 0 && j < 8; --i, ++j)
+            for (int i = Vertical - 1, j = Horizontal + 1; i >= 0 && j < 8; --i, ++j)
             {
-                if (board.ModCount != modCount)
-                {
-                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                }
+                yield return Board[i, j];
 
-                yield return board[i, j];
-
-                if (!board[i, j].IsEmpty)
+                if (!Board[i, j].IsEmpty)
                 {
                     break;
                 }
-            }
-
-            if (board.ModCount != modCount)
-            {
-                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
             }
         }
 

@@ -6,82 +6,46 @@ namespace Chess.LogicPart
         public Rook(ChessPieceColor color): base (color)
         { }
 
-        public override IEnumerable<Square> GetAttackedSquares()
+        internal override IEnumerable<Square> GetAttackedSquares()
         {
-            var board = Board;
-
-            if (board == null)
+            for (var i = Vertical + 1; i < 8; ++i)
             {
-                yield break;
-            }
+                yield return Board[i, Horizontal];
 
-            var vertical = Vertical;
-            var horizontal = Horizontal;
-            var modCount = board.ModCount;
-
-            for (var i = vertical + 1; i < 8; ++i)
-            {
-                if (board.ModCount != modCount)
-                {
-                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                }
-
-                yield return board[i, horizontal];
-
-                if (!board[i, horizontal].IsEmpty)
+                if (!Board[i, Horizontal].IsEmpty)
                 {
                     break;
                 }
             }
 
-            for (var i = vertical - 1; i >= 0; --i)
+            for (var i = Vertical - 1; i >= 0; --i)
             {
-                if (board.ModCount != modCount)
-                {
-                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                }
+                yield return Board[i, Horizontal];
 
-                yield return board[i, horizontal];
-
-                if (!board[i, horizontal].IsEmpty)
+                if (!Board[i, Horizontal].IsEmpty)
                 {
                     break;
                 }
             }
 
-            for (var i = horizontal + 1; i < 8; ++i)
+            for (var i = Horizontal + 1; i < 8; ++i)
             {
-                if (board.ModCount != modCount)
-                {
-                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                }
+                yield return Board[Vertical, i];
 
-                yield return board[vertical, i];
-
-                if (!board[vertical, i].IsEmpty)
+                if (!Board[Vertical, i].IsEmpty)
                 {
                     break;
                 }
             }
 
-            for (var i = horizontal - 1; i >= 0; --i)
+            for (var i = Horizontal - 1; i >= 0; --i)
             {
-                if (board.ModCount != modCount)
-                {
-                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                }
+                yield return Board[Vertical, i];
 
-                yield return board[vertical, i];
-
-                if (!board[vertical, i].IsEmpty)
+                if (!Board[Vertical, i].IsEmpty)
                 {
                     break;
                 }
-            }
-
-            if (board.ModCount != modCount)
-            {
-                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
             }
         }
 

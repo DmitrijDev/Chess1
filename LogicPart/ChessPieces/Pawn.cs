@@ -6,60 +6,28 @@ namespace Chess.LogicPart
         public Pawn(ChessPieceColor color) : base(color)
         { }
 
-        public override IEnumerable<Square> GetAttackedSquares()
+        internal override IEnumerable<Square> GetAttackedSquares()
         {
-            var board = Board;
-
-            if (board == null)
+            if (Horizontal == 0 || Horizontal == 7)
             {
                 yield break;
             }
 
-            var vertical = Vertical;
-            var horizontal = Horizontal;
-            var modCount = board.ModCount;
-
-            if ((Color == ChessPieceColor.White && horizontal == 7) || (Color == ChessPieceColor.Black && horizontal == 0))
+            if (Vertical > 0)
             {
-                yield break;
+                yield return Board[Vertical - 1, Color == ChessPieceColor.White ? Horizontal + 1 : Horizontal - 1];
             }
 
-            if (vertical > 0)
+            if (Vertical < 7)
             {
-                if (board.ModCount != modCount)
-                {
-                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                }
-
-                yield return board[vertical - 1, Color == ChessPieceColor.White ? horizontal + 1 : horizontal - 1];
-            }
-
-            if (vertical < 7)
-            {
-                if (board.ModCount != modCount)
-                {
-                    throw new InvalidOperationException("Изменение коллекции во время перечисления.");
-                }
-
-                yield return board[vertical + 1, Color == ChessPieceColor.White ? horizontal + 1 : horizontal - 1];
-            }
-
-            if (board.ModCount != modCount)
-            {
-                throw new InvalidOperationException("Изменение коллекции во время перечисления.");
+                yield return Board[Vertical + 1, Color == ChessPieceColor.White ? Horizontal + 1 : Horizontal - 1];
             }
         }
 
-        private IEnumerable<Square> GetAccessibleSquares(out IEnumerable<Square> unsafeForKingSquares)
+        internal override IEnumerable<Square> GetAccessibleSquares()
         {
-            if (!IsOnBoard || Board.Status != GameStatus.GameIsNotOver || Color != Board.MovingSideColor)
-            {
-                unsafeForKingSquares = Enumerable.Empty<Square>();
-                return Enumerable.Empty<Square>();
-            }
-
             var moveSquares = GetAttackedSquares().
-                Where(square => (!square.IsEmpty && square.ContainedPiece.Color != Color) || square == Board.PassedByPawnSquare);
+             Where(square => (!square.IsEmpty && square.ContainedPiece.Color != Color) || square == Board.PassedByPawnSquare);
 
             if (Color == ChessPieceColor.White)
             {
@@ -86,53 +54,84 @@ namespace Chess.LogicPart
                 }
             }
 
-            var result = FilterSafeForKingMoves(moveSquares);
-            unsafeForKingSquares = moveSquares.Except(result);
-            return result;
+            return FilterSafeForKingMoves(moveSquares);
         }
 
-        public override IEnumerable<Square> GetAccessibleSquares() => GetAccessibleSquares(out var unsafeForKingSquares);
-
-        public override string GetIllegalMoveMessage(Square square)
+        internal override string CheckMoveLegacy(Move move)
         {
-            if (Board != square.Board)
+            if (move.MoveSquare.Menaces != null && move.MoveSquare.Menaces.Contains(this))
             {
-                throw new InvalidOperationException("Указано поле на другой доске.");
+                if (move.MoveSquare.IsEmpty && move.MoveSquare != Board.PassedByPawnSquare)
+                {
+                    return "Невозможный ход.";
+                }
+            }
+            else
+            {
+                if (!move.MoveSquare.IsEmpty || move.MoveSquare.Vertical != Vertical)
+                {
+                    return "Невозможный ход.";
+                }
+
+                if (Color == ChessPieceColor.White)
+                {
+                    if (move.MoveSquare.Horizontal != Horizontal + 1 && move.MoveSquare.Horizontal != Horizontal + 2)
+                    {
+                        return "Невозможный ход.";
+                    }
+
+                    if (move.MoveSquare.Horizontal == Horizontal + 2 && !(Horizontal == 1 && Board[Vertical, 2].IsEmpty))
+                    {
+                        return "Невозможный ход.";
+                    }
+                }
+                else
+                {
+                    if (move.MoveSquare.Horizontal != Horizontal - 1 && move.MoveSquare.Horizontal != Horizontal - 2)
+                    {
+                        return "Невозможный ход.";
+                    }
+
+                    if (move.MoveSquare.Horizontal == Horizontal - 2 && !(Horizontal == 6 && Board[Vertical, 5].IsEmpty))
+                    {
+                        return "Невозможный ход.";
+                    }
+                }
             }
 
-            var accessibleSquares = GetAccessibleSquares(out var unsafeForKingSquares);
+            if (IsPinnedVertically() && move.MoveSquare.Vertical != Vertical)
+            {
+                return "Невозможный ход. Фигура связана.";
+            }
 
-            if (accessibleSquares.Contains(square))
+            if (IsPinnedHorizontally())
+            {
+                return "Невозможный ход. Фигура связана.";
+            }
+
+            if (IsPinnedDiagonally() && !(IsOnSameDiagonal(move.MoveSquare) && FriendlyKing.IsOnSameDiagonal(move.MoveSquare)))
+            {
+                return "Невозможный ход. Фигура связана.";
+            }
+
+            if (FriendlyKing.Position.Menaces == null)
             {
                 return null;
             }
 
-            if (!square.IsEmpty && square.ContainedPiece.Color == Color)
+            var checkingPieces = FriendlyKing.Position.Menaces.Where(piece => piece.Color != Color).ToArray();
+
+            if (checkingPieces.Length > 1)
             {
-                return "Невозможно пойти на поле, занятое своей фигурой.";
-            }
-
-            if (unsafeForKingSquares.Contains(square))
-            {
-                if (IsPinnedVertically() && square.Vertical != Vertical)
-                {
-                    return "Невозможный ход. Фигура связана.";
-                }
-
-                if (IsPinnedHorizontally() && square.Horizontal != Horizontal)
-                {
-                    return "Невозможный ход. Фигура связана.";
-                }
-
-                if (IsPinnedDiagonally() && !(square.IsOnSameDiagonal(Position) && square.IsOnSameDiagonal(FriendlyKing)))
-                {
-                    return "Невозможный ход. Фигура связана.";
-                }
-
                 return "Невозможный ход. Ваш король под шахом.";
             }
 
-            return "Невозможный ход.";
+            if (checkingPieces.Length == 1 && !ProtectsKingByMoveTo(move.MoveSquare, checkingPieces[0]))
+            {
+                return "Невозможный ход. Ваш король под шахом.";
+            }
+
+            return null;
         }
 
         public override ChessPieceName Name => ChessPieceName.Pawn;
