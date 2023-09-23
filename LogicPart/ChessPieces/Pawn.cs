@@ -57,78 +57,82 @@ namespace Chess.LogicPart
             return FilterSafeForKingMoves(moveSquares);
         }
 
-        internal override string CheckMoveLegacy(Move move)
+        internal override IllegalMoveException CheckMoveLegacy(Move move)
         {
-            if (move.MoveSquare.Menaces != null && move.MoveSquare.Menaces.Contains(this))
+            if (move.MoveSquare.IsMenacedBy(this))
             {
                 if (move.MoveSquare.IsEmpty && move.MoveSquare != Board.PassedByPawnSquare)
                 {
-                    return "Невозможный ход.";
+                    return new IllegalMoveException("Невозможный ход.");
                 }
             }
             else
             {
                 if (!move.MoveSquare.IsEmpty || move.MoveSquare.Vertical != Vertical)
                 {
-                    return "Невозможный ход.";
+                    return new IllegalMoveException("Невозможный ход.");
                 }
 
                 if (Color == ChessPieceColor.White)
                 {
                     if (move.MoveSquare.Horizontal != Horizontal + 1 && move.MoveSquare.Horizontal != Horizontal + 2)
                     {
-                        return "Невозможный ход.";
+                        return new IllegalMoveException("Невозможный ход.");
                     }
 
                     if (move.MoveSquare.Horizontal == Horizontal + 2 && !(Horizontal == 1 && Board[Vertical, 2].IsEmpty))
                     {
-                        return "Невозможный ход.";
+                        return new IllegalMoveException("Невозможный ход.");
                     }
                 }
                 else
                 {
                     if (move.MoveSquare.Horizontal != Horizontal - 1 && move.MoveSquare.Horizontal != Horizontal - 2)
                     {
-                        return "Невозможный ход.";
+                        return new IllegalMoveException("Невозможный ход.");
                     }
 
                     if (move.MoveSquare.Horizontal == Horizontal - 2 && !(Horizontal == 6 && Board[Vertical, 5].IsEmpty))
                     {
-                        return "Невозможный ход.";
+                        return new IllegalMoveException("Невозможный ход.");
                     }
                 }
             }
 
-            if (IsPinnedVertically() && move.MoveSquare.Vertical != Vertical)
+            if (IsPinnedVertically())
             {
-                return "Невозможный ход. Фигура связана.";
+                if (move.MoveSquare.Vertical != Vertical)
+                {
+                    return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                }
+            }
+            else if (IsPinnedHorizontally())
+            {
+                return new IllegalMoveException("Невозможный ход. Фигура связана.");
+            }
+            else if (IsPinnedDiagonally())
+            {
+                if (!IsOnSameDiagonal(move.MoveSquare) || !FriendlyKing.IsOnSameDiagonal(move.MoveSquare))
+                {
+                    return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                }
             }
 
-            if (IsPinnedHorizontally())
-            {
-                return "Невозможный ход. Фигура связана.";
-            }
-
-            if (IsPinnedDiagonally() && !(IsOnSameDiagonal(move.MoveSquare) && FriendlyKing.IsOnSameDiagonal(move.MoveSquare)))
-            {
-                return "Невозможный ход. Фигура связана.";
-            }
-
-            if (FriendlyKing.Position.Menaces == null)
-            {
-                return null;
-            }
-
-            var checkingPieces = FriendlyKing.Position.Menaces.Where(piece => piece.Color != Color).ToArray();
+            var checkingPieces = FriendlyKing.GetCheckingPieces().ToArray();
 
             if (checkingPieces.Length > 1)
             {
-                return "Невозможный ход. Ваш король под шахом.";
+                return new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
             }
 
             if (checkingPieces.Length == 1 && !ProtectsKingByMoveTo(move.MoveSquare, checkingPieces[0]))
             {
-                return "Невозможный ход. Ваш король под шахом.";
+                return new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
+            }
+
+            if (move.IsPawnPromotion && !move.NewPieceSelected)
+            {
+                return new NewPieceNotSelectedException();
             }
 
             return null;

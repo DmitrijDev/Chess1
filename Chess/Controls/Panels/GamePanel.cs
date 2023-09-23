@@ -177,7 +177,7 @@ namespace Chess
 
             _timer.Start();
         }
-
+        
         private void SetTimeLeft(int timeLeft)
         {
             _whiteTimeLeft = timeLeft;

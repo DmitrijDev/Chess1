@@ -3,7 +3,7 @@ namespace Chess.LogicPart
 {
     public class Square
     {
-        internal List<ChessPiece> Menaces { get; set; }
+        private List<ChessPiece> _menaces;
 
         public ChessBoard Board { get; }
 
@@ -42,21 +42,32 @@ namespace Chess.LogicPart
             {
                 Put(null);
             }
-        }        
+        }
 
-        public List<ChessPiece> GetMenaces(ChessPieceColor color)
+        internal bool IsMenacedBy(ChessPiece piece)
         {
-            Board.Lock();
+            Board.RenewMenaces();
+            return _menaces != null && _menaces.Contains(piece);
+        }
 
-            if (Menaces == null)
-            {
-                Board.Unlock();
-                return new List<ChessPiece>();
-            }
+        internal bool IsMenacedBy(ChessPieceColor color)
+        {
+            Board.RenewMenaces();
+            return _menaces != null && _menaces.Any(piece => piece.Color == color);
+        }
 
-            var result = Menaces.Where(piece => piece.Color == color).ToList();
-            Board.Unlock();
-            return result;
+        internal void AddMenace(ChessPiece piece)
+        {
+            _menaces ??= new List<ChessPiece>();
+            _menaces.Add(piece);
+        }
+
+        internal void ClearMenaces() => _menaces = null;
+
+        internal IEnumerable<ChessPiece> EnumerateMenaces(ChessPieceColor color)
+        {
+            Board.RenewMenaces();
+            return _menaces == null ? Enumerable.Empty<ChessPiece>() : _menaces.Where(piece => piece.Color == color);
         }
 
         public bool IsOnSameDiagonal(Square otherSquare) => otherSquare.Board == Board &&

@@ -33,7 +33,7 @@ namespace Chess.LogicPart
                 return result;
             }
 
-            if (FirstMoveMoment > 0 || (Position.Menaces != null && Position.Menaces.Any(piece => piece.Color != Color)))
+            if (FirstMoveMoment > 0 || IsChecked())
             {
                 return result;
             }
@@ -71,12 +71,9 @@ namespace Chess.LogicPart
                 return false;
             }
 
-            if (Board[5, Horizontal].Menaces != null && Board[5, Horizontal].Menaces.Any(piece => piece.Color != Color))
-            {
-                return false;
-            }
+            var enemyColor = Color == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White;
 
-            if (Board[6, Horizontal].Menaces != null && Board[6, Horizontal].Menaces.Any(piece => piece.Color != Color))
+            if (Board[5, Horizontal].IsMenacedBy(enemyColor) || Board[6, Horizontal].IsMenacedBy(enemyColor))
             {
                 return false;
             }
@@ -104,12 +101,9 @@ namespace Chess.LogicPart
                 return false;
             }
 
-            if (Board[3, Horizontal].Menaces != null && Board[3, Horizontal].Menaces.Any(piece => piece.Color != Color))
-            {
-                return false;
-            }
+            var enemyColor = Color == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White;
 
-            if (Board[2, Horizontal].Menaces != null && Board[2, Horizontal].Menaces.Any(piece => piece.Color != Color))
+            if (Board[3, Horizontal].IsMenacedBy(enemyColor) || Board[2, Horizontal].IsMenacedBy(enemyColor))
             {
                 return false;
             }
@@ -117,21 +111,30 @@ namespace Chess.LogicPart
             return true;
         }
 
+        internal bool IsChecked()
+        {
+            var enemyColor = Color == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White;
+            return Position.IsMenacedBy(enemyColor);
+        }
+
+        internal IEnumerable<ChessPiece> GetCheckingPieces()
+        {
+            var enemyColor = Color == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White;
+            return Position.EnumerateMenaces(enemyColor);
+        }
+
         private protected override IEnumerable<Square> FilterSafeForKingMoves(IEnumerable<Square> moveSquares) => moveSquares.Where(CanSafelyMoveTo);
 
         private bool CanSafelyMoveTo(Square square)
         {
-            if (square.Menaces != null && square.Menaces.Any(piece => piece.Color != Color))
+            var enemyColor = Color == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White;
+
+            if (square.IsMenacedBy(enemyColor))
             {
                 return false;
             }
 
-            if (Position.Menaces == null)
-            {
-                return true;
-            }
-
-            foreach (var menacingPiece in Position.Menaces.Where(piece => piece.Color != Color))
+            foreach (var menacingPiece in GetCheckingPieces())
             {
                 if (menacingPiece.Vertical == Vertical)
                 {
@@ -159,39 +162,35 @@ namespace Chess.LogicPart
             return true;
         }
 
-        internal override string CheckMoveLegacy(Move move)
+        internal override IllegalMoveException CheckMoveLegacy(Move move)
         {
             if (move.IsCastleKingside)
             {
                 if (FirstMoveMoment > 0)
                 {
-                    return "Рокировка невозможна: король уже сделал ход.";
+                    return new IllegalMoveException("Рокировка невозможна: король уже сделал ход.");
                 }
 
                 if (Board[7, Horizontal].ContainedPiece.FirstMoveMoment > 0)
                 {
-                    return "Рокировка невозможна: ладья уже сделала ход.";
+                    return new IllegalMoveException("Рокировка невозможна: ладья уже сделала ход.");
                 }
 
-                var menaces = Position.Menaces;
-
-                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                if (IsChecked())
                 {
-                    return "Рокировка невозможна: король под шахом.";
+                    return new IllegalMoveException("Рокировка невозможна: король под шахом.");
                 }
 
-                menaces = Board[5, Horizontal].Menaces;
+                var enemyColor = Color == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White;
 
-                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                if (Board[5, Horizontal].IsMenacedBy(enemyColor))
                 {
-                    return "При рокировке король не может пересекать угрожаемое поле.";
+                    return new IllegalMoveException("При рокировке король не может пересекать угрожаемое поле.");
                 }
 
-                menaces = Board[6, Horizontal].Menaces;
-
-                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                if (Board[6, Horizontal].IsMenacedBy(enemyColor))
                 {
-                    return "Король не может становиться под шах.";
+                    return new IllegalMoveException("Король не может становиться под шах.");
                 }
 
                 return null;
@@ -201,49 +200,43 @@ namespace Chess.LogicPart
             {
                 if (FirstMoveMoment > 0)
                 {
-                    return "Рокировка невозможна: король уже сделал ход.";
+                    return new IllegalMoveException("Рокировка невозможна: король уже сделал ход.");
                 }
 
                 if (Board[0, Horizontal].ContainedPiece.FirstMoveMoment > 0)
                 {
-                    return "Рокировка невозможна: ладья уже сделала ход.";
+                    return new IllegalMoveException("Рокировка невозможна: ладья уже сделала ход.");
                 }
 
-                var menaces = Position.Menaces;
-
-                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                if (IsChecked())
                 {
-                    return "Рокировка невозможна: король под шахом.";
+                    return new IllegalMoveException("Рокировка невозможна: король под шахом.");
                 }
 
-                menaces = Board[3, Horizontal].Menaces;
+                var enemyColor = Color == ChessPieceColor.White ? ChessPieceColor.Black : ChessPieceColor.White;
 
-                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                if (Board[3, Horizontal].IsMenacedBy(enemyColor))
                 {
-                    return "При рокировке король не может пересекать угрожаемое поле.";
+                    return new IllegalMoveException("При рокировке король не может пересекать угрожаемое поле.");
                 }
 
-                menaces = Board[2, Horizontal].Menaces;
-
-                if (menaces != null && menaces.Any(piece => piece.Color != Color))
+                if (Board[2, Horizontal].IsMenacedBy(enemyColor))
                 {
-                    return "Король не может становиться под шах.";
+                    return new IllegalMoveException("Король не может становиться под шах.");
                 }
 
                 return null;
             }
 
-            if (move.MoveSquare.Menaces == null || !move.MoveSquare.Menaces.Contains(this))
+            if (!move.MoveSquare.IsMenacedBy(this))
             {
-                return "Невозможный ход.";
+                return new IllegalMoveException("Невозможный ход.");
             }
 
             if (!CanSafelyMoveTo(move.MoveSquare))
             {
-                var message = Position.Menaces != null && Position.Menaces.Any(piece => piece.Color != Color) ? "Невозможный ход. Король не может оставаться под шахом." : 
-                    "Король не может становиться под шах.";
-
-                return message;
+                var message = IsChecked() ? "Невозможный ход. Король не может оставаться под шахом." : "Король не может становиться под шах.";
+                return new IllegalMoveException(message);
             }
 
             return null;

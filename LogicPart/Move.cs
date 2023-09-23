@@ -3,6 +3,8 @@ namespace Chess.LogicPart
 {
     public class Move
     {
+        public GamePosition PrecedingPosition { get; internal set; }
+
         public ChessPiece MovingPiece { get; internal set; }
 
         public Square StartSquare { get; internal set; }
@@ -19,14 +21,18 @@ namespace Chess.LogicPart
 
         public bool IsCastleQueenside { get; internal set; }
 
-        public long CreationMoment { get; internal set; }
-
         internal Move()
         { }
 
         public Move(ChessPiece movingPiece, Square moveSquare)
         {
             moveSquare.Board.Lock();
+
+            if (movingPiece == null)
+            {
+                moveSquare.Board.Unlock();
+                throw new NullReferenceException("Не указана фигура, делающая ход.");
+            }
 
             if (!movingPiece.IsOnBoard)
             {
@@ -55,15 +61,14 @@ namespace Chess.LogicPart
             if (!moveSquare.IsEmpty && moveSquare.ContainedPiece.Color == movingPiece.Color)
             {
                 moveSquare.Board.Unlock();
-                throw new ArgumentException("Фигура не может пойти на роле, занятое фигурой того же цвета.");
+                throw new ArgumentException("Фигура не может пойти на поле, занятое фигурой того же цвета.");
             }
 
+            PrecedingPosition = movingPiece.Board.GetCurrentPosition();
             MovingPiece = movingPiece;
-            StartSquare = MovingPiece.Position;
+            StartSquare = movingPiece.Position;
             MoveSquare = moveSquare;
-            CreationMoment = Board.ModCount;
-
-            IsEnPassantCapture = IsEnPassantCaptureMove();
+            IsEnPassantCapture = CheckWhetherIsEnPassantCapture();
             CheckWhetherIsCastleMove();
 
             CapturedPiece = !IsEnPassantCapture ? moveSquare.ContainedPiece :
@@ -82,7 +87,7 @@ namespace Chess.LogicPart
             NewPiece = ChessPiece.GetNewPiece(newPieceName, MovingPiece.Color);
         }
 
-        private bool IsEnPassantCaptureMove()
+        private bool CheckWhetherIsEnPassantCapture()
         {
             if (!IsPawnMove)
             {
@@ -125,7 +130,8 @@ namespace Chess.LogicPart
             {
                 var rookPosition = Board[7, MovingPiece.Horizontal];
 
-                if (rookPosition.IsEmpty || rookPosition.ContainedPiece.Name != ChessPieceName.Rook || rookPosition.ContainedPiece.Color != MovingPiece.Color)
+                if (rookPosition.IsEmpty || rookPosition.ContainedPiece.Name != ChessPieceName.Rook ||
+                    rookPosition.ContainedPiece.Color != MovingPiece.Color)
                 {
                     return;
                 }
@@ -138,7 +144,8 @@ namespace Chess.LogicPart
             {
                 var rookPosition = Board[0, MovingPiece.Horizontal];
 
-                if (rookPosition.IsEmpty || rookPosition.ContainedPiece.Name != ChessPieceName.Rook || rookPosition.ContainedPiece.Color != MovingPiece.Color)
+                if (rookPosition.IsEmpty || rookPosition.ContainedPiece.Name != ChessPieceName.Rook ||
+                    rookPosition.ContainedPiece.Color != MovingPiece.Color)
                 {
                     return;
                 }
@@ -150,13 +157,15 @@ namespace Chess.LogicPart
 
         internal static Move CreateMove(ChessPiece movingPiece, Square moveSquare)
         {
-            var move = new Move();
+            var move = new Move
+            {
+                PrecedingPosition = moveSquare.Board.GetCurrentPosition(),
+                MovingPiece = movingPiece,
+                StartSquare = movingPiece.Position,
+                MoveSquare = moveSquare
+            };
 
-            move.MovingPiece = movingPiece;
-            move.StartSquare = movingPiece.Position;
-            move.MoveSquare = moveSquare;
-            move.CreationMoment = move.Board.ModCount;
-            move.IsEnPassantCapture = move.IsEnPassantCaptureMove();
+            move.IsEnPassantCapture = move.CheckWhetherIsEnPassantCapture();
             move.CheckWhetherIsCastleMove();
 
             move.CapturedPiece = !move.IsEnPassantCapture ? moveSquare.ContainedPiece :

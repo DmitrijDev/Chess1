@@ -4,7 +4,7 @@ namespace Chess.TreesOfAnalysis
 {
     public class AnalysisTree
     {
-        private readonly long _boardModCount;
+        private readonly ulong _boardModCount;
 
         public ChessBoard Board { get; private set; }
 

@@ -37,7 +37,13 @@ namespace Chess.LogicPart
 
         internal abstract IEnumerable<Square> GetAttackedSquares();
 
-        public bool Attacks(Square square) => square.GetMenaces(Color).Contains(this);
+        public bool Attacks(Square square)
+        {
+            square.Board.Lock();
+            var result = square.IsMenacedBy(this);
+            square.Board.Unlock();
+            return result;
+        }
 
         public bool Attacks(ChessPiece otherPiece) => otherPiece.IsOnBoard && Attacks(otherPiece.Position);
 
@@ -51,22 +57,14 @@ namespace Chess.LogicPart
         // Реализация для всех фигур, кроме короля.
         private protected virtual IEnumerable<Square> FilterSafeForKingMoves(IEnumerable<Square> moveSquares)
         {
-            var result = moveSquares;
+            var checkingPieces = FriendlyKing.GetCheckingPieces().ToArray();
 
-            if (FriendlyKing.Position.Menaces != null)
+            if (checkingPieces.Length > 1) // От двойного шаха не закроешься, и две фигуры одним ходом не возьмешь.
             {
-                var checkingPieces = FriendlyKing.Position.Menaces.Where(piece => piece.Color != Color).ToArray();
-
-                if (checkingPieces.Length > 1) // От двойного шаха не закроешься, и две фигуры одним ходом не возьмешь.
-                {
-                    return Enumerable.Empty<Square>();
-                }
-
-                if (checkingPieces.Length == 1)
-                {
-                    result = result.Where(square => ProtectsKingByMoveTo(square, checkingPieces[0]));
-                }
+                return Enumerable.Empty<Square>();
             }
+
+            var result = checkingPieces.Length == 1 ? moveSquares.Where(square => ProtectsKingByMoveTo(square, checkingPieces[0])) : moveSquares;
 
             if (IsPinnedVertically())
             {
@@ -215,45 +213,45 @@ namespace Chess.LogicPart
         public bool IsOnSameDiagonal(ChessPiece otherPiece) => IsOnBoard && Position.IsOnSameDiagonal(otherPiece);
 
         // Переопределено для короля и пешки.        
-        internal virtual string CheckMoveLegacy(Move move)
+        internal virtual IllegalMoveException CheckMoveLegacy(Move move)
         {
-            var square = move.MoveSquare;
-
-            if (square.Menaces == null || !square.Menaces.Contains(this))
+            if (!move.MoveSquare.IsMenacedBy(this))
             {
-                return "Невозможный ход.";
+                return new IllegalMoveException("Невозможный ход.");
             }
 
-            if (IsPinnedVertically() && square.Vertical != Vertical)
+            if (IsPinnedVertically())
             {
-                return "Невозможный ход. Фигура связана.";
+                if (move.MoveSquare.Vertical != Vertical)
+                {
+                    return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                }
+            }
+            else if (IsPinnedHorizontally())
+            {
+                if (move.MoveSquare.Horizontal != Horizontal)
+                {
+                    return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                }
+            }
+            else if (IsPinnedDiagonally())
+            {
+                if (!IsOnSameDiagonal(move.MoveSquare) || !FriendlyKing.IsOnSameDiagonal(move.MoveSquare))
+                {
+                    return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                }
             }
 
-            if (IsPinnedHorizontally() && square.Horizontal != Horizontal)
-            {
-                return "Невозможный ход. Фигура связана.";
-            }
-
-            if (IsPinnedDiagonally() && !(IsOnSameDiagonal(square) && FriendlyKing.IsOnSameDiagonal(square)))
-            {
-                return "Невозможный ход. Фигура связана.";
-            }
-
-            if (FriendlyKing.Position.Menaces == null)
-            {
-                return null;
-            }
-
-            var checkingPieces = FriendlyKing.Position.Menaces.Where(piece => piece.Color != Color).ToArray();
+            var checkingPieces = FriendlyKing.GetCheckingPieces().ToArray();
 
             if (checkingPieces.Length > 1)
             {
-                return "Невозможный ход. Ваш король под шахом.";
+                return new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
             }
 
-            if (checkingPieces.Length == 1 && !ProtectsKingByMoveTo(square, checkingPieces[0]))
+            if (checkingPieces.Length == 1 && !ProtectsKingByMoveTo(move.MoveSquare, checkingPieces[0]))
             {
-                return "Невозможный ход. Ваш король под шахом.";
+                return new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
             }
 
             return null;
