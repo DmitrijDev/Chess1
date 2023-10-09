@@ -1,5 +1,5 @@
 ﻿
 namespace Chess.LogicPart
 {
-    public enum ChessPieceColor { White, Black };
+    public enum ChessPieceColor: sbyte { White, Black };
 }

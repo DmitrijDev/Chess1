@@ -54,7 +54,7 @@ namespace Chess.LogicPart
         {
             Board.RenewMenaces();
             return _menaces != null && _menaces.Any(piece => piece.Color == color);
-        }
+        }        
 
         internal void AddMenace(ChessPiece piece)
         {
@@ -68,7 +68,7 @@ namespace Chess.LogicPart
         {
             Board.RenewMenaces();
             return _menaces == null ? Enumerable.Empty<ChessPiece>() : _menaces.Where(piece => piece.Color == color);
-        }
+        }        
 
         public bool IsOnSameDiagonal(Square otherSquare) => otherSquare.Board == Board &&
             Math.Abs(Vertical - otherSquare.Vertical) == Math.Abs(Horizontal - otherSquare.Horizontal);

@@ -9,7 +9,7 @@ namespace Chess
         private readonly GameForm _form;
 
         private VirtualPlayer _whiteVirtualPlayer; // == null, если за эту сторону играет пользователь.
-        private VirtualPlayer _blackVirtualPlayer = new Player1(); //Аналогично.
+        private VirtualPlayer _blackVirtualPlayer = Players.Players.GetNewPlayer(0); //Аналогично.
 
         private readonly ChessBoard _gameBoard = new();
         private Thread _thinkingThread;
@@ -177,7 +177,7 @@ namespace Chess
 
             _timer.Start();
         }
-        
+
         private void SetTimeLeft(int timeLeft)
         {
             _whiteTimeLeft = timeLeft;
@@ -197,11 +197,11 @@ namespace Chess
 
             if (pieceColor == ChessPieceColor.White)
             {
-                _whiteVirtualPlayer = _whiteVirtualPlayer == null ? new Player1() : null;
+                _whiteVirtualPlayer = _whiteVirtualPlayer == null ? Players.Players.GetNewPlayer(0) : null;
             }
             else
             {
-                _blackVirtualPlayer = _blackVirtualPlayer == null ? new Player1() : null;
+                _blackVirtualPlayer = _blackVirtualPlayer == null ? Players.Players.GetNewPlayer(0) : null;
             }
 
             if (pieceColor == _gameBoard.MovingSideColor)
@@ -315,7 +315,7 @@ namespace Chess
                 _selectedMove = player.SelectMove(_gameBoard);
             }
 
-            catch (ApplicationException)
+            catch (GameInterruptedException)
             { }
         }
 
@@ -327,12 +327,12 @@ namespace Chess
             }
 
             var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
-            player.DisableThinking();
+            player.ThinkingDisabled = true;
 
             while (_thinkingThread != null && _thinkingThread.ThreadState == ThreadState.Running)
             { }
 
-            player.EnableThinking();
+            player.ThinkingDisabled = false;
         }
 
         private void ShowEndGameMessage()

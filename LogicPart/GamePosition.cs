@@ -45,7 +45,7 @@ namespace Chess.LogicPart
 
         public bool IsEqualTo(GamePosition other)
         {
-            if (other.MovingSideColor != MovingSideColor)
+            if (MovingSideColor != other.MovingSideColor)
             {
                 return false;
             }
@@ -54,7 +54,7 @@ namespace Chess.LogicPart
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    if (other._pieceNames[i, j] != _pieceNames[i, j] || other._pieceColors[i, j] != _pieceColors[i, j])
+                    if (_pieceNames[i, j] != other._pieceNames[i, j] || _pieceColors[i, j] != other._pieceColors[i, j])
                     {
                         return false;
                     }
@@ -62,6 +62,6 @@ namespace Chess.LogicPart
             }
 
             return true;
-        }
+        }                     
     }
 }

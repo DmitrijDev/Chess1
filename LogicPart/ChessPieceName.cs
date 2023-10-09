@@ -1,5 +1,5 @@
 ﻿
 namespace Chess.LogicPart
 {
-    public enum ChessPieceName { King, Queen, Rook, Knight, Bishop, Pawn };
+    public enum ChessPieceName: sbyte { Pawn, Knight, Bishop, Rook, Queen, King };
 }

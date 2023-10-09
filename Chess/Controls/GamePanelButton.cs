@@ -38,8 +38,9 @@ namespace Chess
                 new Bitmap[2][] { new Bitmap[6], new Bitmap[6] } };
 
             var folderPath = "Images/";
-            var originalImages = new Bitmap[6] {new Bitmap(folderPath + "King.jpg"), new Bitmap(folderPath + "Queen.jpg"), new Bitmap(folderPath + "Rook.jpg"),
-            new Bitmap(folderPath + "Knight.jpg"), new Bitmap(folderPath + "Bishop.jpg"), new Bitmap(folderPath + "Pawn.jpg") };
+            var originalImages = new Bitmap[6] { new Bitmap(folderPath + "Pawn.jpg"), new Bitmap(folderPath + "Knight.jpg"),
+            new Bitmap(folderPath + "Bishop.jpg"), new Bitmap(folderPath + "Rook.jpg"), new Bitmap(folderPath + "Queen.jpg"),
+            new Bitmap(folderPath + "King.jpg") };
 
             for (var i = 0; i < 6; ++i)
             {

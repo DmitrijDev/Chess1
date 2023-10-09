@@ -1,7 +1,7 @@
 ﻿
 namespace Chess.LogicPart
 {
-    public abstract class ChessPiece : IComparable<ChessPiece>
+    public abstract class ChessPiece
     {
         public ChessPieceColor Color { get; }
 
@@ -265,23 +265,7 @@ namespace Chess.LogicPart
             ChessPieceName.Knight => new Knight(color),
             ChessPieceName.Bishop => new Bishop(color),
             _ => new Pawn(color)
-        };
-
-        public int CompareTo(ChessPiece other)
-        {
-            if (IsOnBoard && other.Board == Board && Board.ComparePieceValues != null)
-            {
-                return Board.ComparePieceValues(this, other);
-            }
-
-            if ((Name == ChessPieceName.Knight || Name == ChessPieceName.Bishop) &&
-                (other.Name == ChessPieceName.Knight || other.Name == ChessPieceName.Bishop))
-            {
-                return 0;
-            }
-
-            return other.Name - Name;
-        }
+        };        
 
         public bool IsOnBoard => Position != null;
 
