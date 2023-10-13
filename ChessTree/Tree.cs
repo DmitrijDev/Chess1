@@ -2,7 +2,7 @@
 
 namespace Chess.TreesOfAnalysis
 {
-    public class ChessTree
+    public class Tree
     {
         private readonly Stack<TreeNode> _activeNodes = new();
         private bool _activeNodesCorrespondBoardPosition;
@@ -14,7 +14,7 @@ namespace Chess.TreesOfAnalysis
 
         public ChessPieceColor StartPositionMoveTurn { get; }
 
-        public ChessTree(ChessBoard board, int depth)
+        public Tree(ChessBoard board, int depth)
         {
             lock (_locker)
             {

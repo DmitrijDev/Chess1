@@ -6,19 +6,18 @@ namespace Chess
         private int _fromDragCursorToGamePanelLeft;
         private int _fromDragCursorToGamePanelTop;
 
-        internal MenuPanel MenuPanel { get; private set; }
+        public MenuStrip MenuStrip { get; } = new();
 
-        internal TimePanel TimePanel { get; private set; }
+        public TimePanel TimePanel { get; private set; }
 
-        internal GamePanel GamePanel { get; private set; }
-
-        public bool GamePanelDragEnabled { get; internal set; } = true;
+        public GamePanel GamePanel { get; private set; }
 
         public GameForm()
         {
             InitializeComponent();
-            Text = "";
-            SetPanels();
+            Text = "Шахматы";
+            Icon = new("Images/Icon.ico");
+            SetControls();
 
             SizeChanged += Size_Changed;
             GamePanel.SizeChanged += GamePanel_SizeChanged;
@@ -28,136 +27,135 @@ namespace Chess
             GamePanel.StartNewGame();
         }
 
-        private void SetPanels()
+        private void SetControls()
         {
-            MenuPanel = new MenuPanel(this);
-            TimePanel = new TimePanel(this);
-            GamePanel = new GamePanel(this);
+            MenuStrip.Items.Add(new GameMenu(this));
+            MenuStrip.Items.Add(new ViewMenu(this));
+
+            TimePanel = new(this);
+            GamePanel = new(this);
 
             var shift = Screen.PrimaryScreen.WorkingArea.Height / 16;
             Width = Math.Max(shift * 2 + GamePanel.Width, TimePanel.MinimumSize.Width);
             Width += Width - ClientRectangle.Width;
-            Height = shift * 2 + MenuPanel.Height + TimePanel.Height + GamePanel.Height;
+            Height = shift * 2 + MenuStrip.Height + TimePanel.Height + GamePanel.Height;
             Height += Height - ClientRectangle.Height;
 
-            TimePanel.Location = new Point(0, MenuPanel.Height);
+            TimePanel.Location = new(0, MenuStrip.Height);
+            TimePanel.Width = ClientRectangle.Width;
             PutGamePanelToCenter();
 
-            Controls.Add(MenuPanel);
+            Controls.Add(MenuStrip);
             Controls.Add(TimePanel);
             Controls.Add(GamePanel);
 
             var minWidth = Math.Max(GamePanel.Width, TimePanel.MinimumSize.Width) + (Width - ClientRectangle.Width);
-            var minHeight = MenuPanel.Height + TimePanel.Height + GamePanel.Height + (Height - ClientRectangle.Height);
-            MinimumSize = new Size(minWidth, minHeight);
+            var minHeight = MenuStrip.Height + TimePanel.Height + GamePanel.Height + (Height - ClientRectangle.Height);
+            MinimumSize = new(minWidth, minHeight);
         }
 
         public int GetCaptionHeight()
         {
-            var clientRectangleToScreen = RectangleToScreen(ClientRectangle);
-            return clientRectangleToScreen.Top - Top;
+            var clientRectangle = RectangleToScreen(ClientRectangle);
+            return clientRectangle.Top - Top;
         }
 
-        internal void PutGamePanelToCenter()
+        private void PutGamePanelToCenter()
         {
             var gamePanelX = (ClientRectangle.Width - GamePanel.Width) / 2;
-            var gamePanelY = MenuPanel.Height + TimePanel.Height + (ClientRectangle.Height - MenuPanel.Height - TimePanel.Height - GamePanel.Height) / 2;
-            GamePanel.Location = new Point(gamePanelX, gamePanelY);
+            var gamePanelY = MenuStrip.Height + TimePanel.Height + (ClientRectangle.Height - MenuStrip.Height - TimePanel.Height - GamePanel.Height) / 2;
+            GamePanel.Location = new(gamePanelX, gamePanelY);
         }
 
         private void GamePanel_MouseDown(object sender, EventArgs e)
         {
-            if (!GamePanelDragEnabled)
-            {
-                return;
-            }
-
-            var captionHeight = GetCaptionHeight();
-            _fromDragCursorToGamePanelLeft = (Cursor.Position.X - Location.X) - (ClientRectangle.Left + GamePanel.Location.X);
-            _fromDragCursorToGamePanelTop = (Cursor.Position.Y - Location.Y) - (captionHeight + ClientRectangle.Top + GamePanel.Location.Y);
+            var clientRectangle = RectangleToScreen(ClientRectangle);
+            _fromDragCursorToGamePanelLeft = Cursor.Position.X - clientRectangle.Left - GamePanel.Location.X;
+            _fromDragCursorToGamePanelTop = Cursor.Position.Y - clientRectangle.Top - GamePanel.Location.Y;
             DoDragDrop(GamePanel, DragDropEffects.None);
         }
 
         private void GamePanel_Drag(object sender, EventArgs e)
         {
-            var captionHeight = GetCaptionHeight();
-            var newGamePanelX = (Cursor.Position.X - (Location.X + ClientRectangle.Left)) - _fromDragCursorToGamePanelLeft;
-            var newGamePanelY = (Cursor.Position.Y - (Location.Y + captionHeight + ClientRectangle.Top )) - _fromDragCursorToGamePanelTop;
+            var clientRectangle = RectangleToScreen(ClientRectangle);
+            var gamePanelX = Cursor.Position.X - clientRectangle.Left - _fromDragCursorToGamePanelLeft;
+            var gamePanelY = Cursor.Position.Y - clientRectangle.Top - _fromDragCursorToGamePanelTop;
 
-            if (newGamePanelX < 0)
+            if (gamePanelX < 0)
             {
-                newGamePanelX = 0;
-                _fromDragCursorToGamePanelLeft = Math.Max(Cursor.Position.X - (Location.X + ClientRectangle.Left), 0);
+                gamePanelX = 0;
+                _fromDragCursorToGamePanelLeft = Math.Max(Cursor.Position.X - clientRectangle.Left, 0);
             }
 
-            if (newGamePanelX > ClientRectangle.Width - GamePanel.Width)
+            if (gamePanelX > clientRectangle.Width - GamePanel.Width)
             {
-                newGamePanelX = ClientRectangle.Width - GamePanel.Width;
-                _fromDragCursorToGamePanelLeft = Math.Min(Cursor.Position.X - (Location.X + ClientRectangle.Left + ClientRectangle.Width - GamePanel.Width), GamePanel.Width);
+                gamePanelX = clientRectangle.Width - GamePanel.Width;
+                _fromDragCursorToGamePanelLeft = Math.Min(Cursor.Position.X - clientRectangle.Left - gamePanelX, GamePanel.Width);
             }
 
-            if (newGamePanelY < MenuPanel.Height + TimePanel.Height)
+            if (gamePanelY < MenuStrip.Height + TimePanel.Height)
             {
-                newGamePanelY = MenuPanel.Height + TimePanel.Height;
-                _fromDragCursorToGamePanelTop = Math.Max((Cursor.Position.Y - Location.Y) - (captionHeight + ClientRectangle.Top +  MenuPanel.Height + TimePanel.Height), 0);
+                gamePanelY = MenuStrip.Height + TimePanel.Height;
+                _fromDragCursorToGamePanelTop = Math.Max(Cursor.Position.Y - clientRectangle.Top - gamePanelY, 0);
             }
 
-            if (newGamePanelY > ClientRectangle.Height - GamePanel.Height)
+            if (gamePanelY > clientRectangle.Height - GamePanel.Height)
             {
-                newGamePanelY = ClientRectangle.Height - GamePanel.Height;
-                _fromDragCursorToGamePanelTop = Math.Min(Cursor.Position.Y - (Location.Y + captionHeight + ClientRectangle.Top  + GamePanel.Location.Y), GamePanel.Height);
+                gamePanelY = clientRectangle.Height - GamePanel.Height;
+                _fromDragCursorToGamePanelTop = Math.Min(Cursor.Position.Y - clientRectangle.Top - gamePanelY, GamePanel.Height);
             }
 
-            GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
+            GamePanel.Location = new(gamePanelX, gamePanelY);
         }
 
         private void Size_Changed(object sender, EventArgs e)
         {
-            var newGamePanelX = GamePanel.Location.X;
-            var newGamePanelY = GamePanel.Location.Y;
+            var gamePanelX = GamePanel.Location.X;
+            var gamePanelY = GamePanel.Location.Y;
 
-            if (newGamePanelX < 0)
+            if (gamePanelX < 0)
             {
-                newGamePanelX = 0;
+                gamePanelX = 0;
             }
 
-            if (newGamePanelY < MenuPanel.Height + TimePanel.Height)
+            if (gamePanelX > ClientRectangle.Width - GamePanel.Width)
             {
-                newGamePanelY = MenuPanel.Height + TimePanel.Height;
+                gamePanelX = ClientRectangle.Width - GamePanel.Width;
             }
 
-            if (ClientRectangle.Width < newGamePanelX + GamePanel.Width)
+            if (gamePanelY < MenuStrip.Height + TimePanel.Height)
             {
-                newGamePanelX -= newGamePanelX + GamePanel.Width - ClientRectangle.Width;
+                gamePanelY = MenuStrip.Height + TimePanel.Height;
             }
 
-            if (ClientRectangle.Height < newGamePanelY + GamePanel.Height)
+            if (gamePanelY > ClientRectangle.Height - GamePanel.Height)
             {
-                newGamePanelY -= newGamePanelY + GamePanel.Height - ClientRectangle.Height;
+                gamePanelY = ClientRectangle.Height - GamePanel.Height;
             }
 
-            GamePanel.Location = new Point(newGamePanelX, newGamePanelY);
+            GamePanel.Location = new(gamePanelX, gamePanelY);
         }
 
         private void GamePanel_SizeChanged(object sender, EventArgs e)
         {
             var minWidth = Math.Max(GamePanel.Width, TimePanel.MinimumSize.Width) + (Width - ClientRectangle.Width);
-            var minHeight = MenuPanel.Height + TimePanel.Height + GamePanel.Height + (Height - ClientRectangle.Height);
-            MinimumSize = new Size(minWidth, minHeight);
+            var minHeight = MenuStrip.Height + TimePanel.Height + GamePanel.Height + (Height - ClientRectangle.Height);
+            MinimumSize = new(minWidth, minHeight);
 
-            if (GamePanel.Location.X + GamePanel.Width > ClientRectangle.Width)
+            var gamePanelX = GamePanel.Location.X;
+            var gamePanelY = GamePanel.Location.Y;
+
+            if (gamePanelX > ClientRectangle.Width - GamePanel.Width)
             {
-                GamePanel.Location = new Point(ClientRectangle.Width - GamePanel.Width, GamePanel.Location.Y);
+                gamePanelX = ClientRectangle.Width - GamePanel.Width;
             }
 
-            if (GamePanel.Location.Y + GamePanel.Height > ClientRectangle.Height)
+            if (gamePanelY > ClientRectangle.Height - GamePanel.Height)
             {
-                GamePanel.Location = new Point(GamePanel.Location.X, ClientRectangle.Height - GamePanel.Height);
+                gamePanelY = ClientRectangle.Height - GamePanel.Height;
             }
+
+            GamePanel.Location = new(gamePanelX, gamePanelY);
         }
-
-        public Color PanelColor => DefaultBackColor;
-
-        public int TimeFontSize => MenuPanel.Font.Height;
     }
 }

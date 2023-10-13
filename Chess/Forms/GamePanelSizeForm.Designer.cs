@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(GamePanelSizeForm));
             this.TextBox = new System.Windows.Forms.TextBox();
             this.Label = new System.Windows.Forms.Label();
             this.SelectButton = new System.Windows.Forms.Button();
@@ -42,7 +43,6 @@
             this.TextBox.Size = new System.Drawing.Size(74, 23);
             this.TextBox.TabIndex = 0;
             this.TextBox.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            this.TextBox.Leave += new System.EventHandler(this.TextBox_Leave);
             // 
             // Label
             // 
@@ -93,10 +93,11 @@
             this.Controls.Add(this.SelectButton);
             this.Controls.Add(this.Label);
             this.Controls.Add(this.TextBox);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "GamePanelSizeForm";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.ResumeLayout(false);
             this.PerformLayout();
 

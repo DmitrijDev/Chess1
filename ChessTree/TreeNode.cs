@@ -24,7 +24,7 @@ namespace Chess.TreesOfAnalysis
 
         public long DescendantsCount { get; internal set; }
 
-        internal TreeNode(ChessTree tree)
+        internal TreeNode(Tree tree)
         {
             if (tree.Board.MovesCount > 0)
             {

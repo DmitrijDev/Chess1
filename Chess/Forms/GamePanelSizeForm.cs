@@ -5,35 +5,16 @@ namespace Chess
     {
         private readonly GamePanel _gamePanel;
 
-        internal GamePanelSizeForm(GamePanel gamePanel)
+        public GamePanelSizeForm(GamePanel gamePanel)
         {
             InitializeComponent();
             _gamePanel = gamePanel;
 
-            MinimumSize = new Size(Width, Height);
-            MaximumSize = new Size(Width, Height);
+            MinimumSize = Size;
+            MaximumSize = MinimumSize;
 
             TextBox.Text = _gamePanel.ButtonSize.ToString();
-        }
-
-        private void TextBox_Leave(object sender, EventArgs e)
-        {
-            if (!int.TryParse(TextBox.Text, out var buttonSize))
-            {
-                TextBox.Text = "";
-                return;
-            }
-
-            if (buttonSize < _gamePanel.MinimumButtonSize)
-            {
-                TextBox.Text = _gamePanel.MinimumButtonSize.ToString();
-            }
-
-            if (buttonSize > _gamePanel.MaximumButtonSize)
-            {
-                TextBox.Text = _gamePanel.MaximumButtonSize.ToString();
-            }
-        }
+        }        
 
         private void PlusButton_Click(object sender, EventArgs e)
         {
@@ -43,8 +24,15 @@ namespace Chess
                 return;
             }
 
-            if (buttonSize == _gamePanel.MaximumButtonSize)
+            if (buttonSize < _gamePanel.MinimumButtonSize)
             {
+                TextBox.Text = _gamePanel.MinimumButtonSize.ToString();
+                return;
+            }
+
+            if (buttonSize >= _gamePanel.MaximumButtonSize)
+            {
+                TextBox.Text = _gamePanel.MaximumButtonSize.ToString();
                 return;
             }
 
@@ -59,8 +47,15 @@ namespace Chess
                 return;
             }
 
-            if (buttonSize == _gamePanel.MinimumButtonSize)
+            if (buttonSize <= _gamePanel.MinimumButtonSize)
             {
+                TextBox.Text = _gamePanel.MinimumButtonSize.ToString();
+                return;
+            }
+
+            if (buttonSize > _gamePanel.MaximumButtonSize)
+            {
+                TextBox.Text = _gamePanel.MaximumButtonSize.ToString();
                 return;
             }
 

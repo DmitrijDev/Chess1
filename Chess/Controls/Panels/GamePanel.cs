@@ -52,9 +52,15 @@ namespace Chess
             _form = form;
             BorderStyle = BorderStyle.FixedSingle;
 
-            _defaultButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuPanel.Height - _form.TimePanel.Height) / 16;
+            _defaultButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuStrip.Height - _form.TimePanel.Height) / 16;
             MinimumButtonSize = _form.GetCaptionHeight();
-            MaximumButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuPanel.Height - _form.TimePanel.Height) / 9;
+            MaximumButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuStrip.Height - _form.TimePanel.Height) / 9;
+
+            if (_defaultButtonSize < MinimumButtonSize)
+            {
+                _defaultButtonSize = MinimumButtonSize;
+            }
+
             ButtonSize = _defaultButtonSize;
 
             _timer.Tick += Timer_Tick;
@@ -89,7 +95,7 @@ namespace Chess
 
                     _buttons[i, j].Width = ButtonSize;
                     _buttons[i, j].Height = ButtonSize;
-                    _buttons[i, j].Location = new Point(buttonX, buttonY);
+                    _buttons[i, j].Location = new(buttonX, buttonY);
 
                     buttonY += _orientation == Orientation.Standart ? ButtonSize : -ButtonSize;
                 }
@@ -195,6 +201,12 @@ namespace Chess
         {
             _timer.Stop();
 
+            if (pieceColor == _gameBoard.MovingSideColor)
+            {
+                StopThinking();
+                CancelMoveChoice();
+            }
+
             if (pieceColor == ChessPieceColor.White)
             {
                 _whiteVirtualPlayer = _whiteVirtualPlayer == null ? Players.Players.GetNewPlayer(0) : null;
@@ -204,18 +216,12 @@ namespace Chess
                 _blackVirtualPlayer = _blackVirtualPlayer == null ? Players.Players.GetNewPlayer(0) : null;
             }
 
-            if (pieceColor == _gameBoard.MovingSideColor)
-            {
-                StopThinking();
-                CancelMoveChoice();
-            }
-
             if (GameIsOver)
             {
                 return;
             }
 
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor) && (_thinkingThread == null || _thinkingThread.ThreadState == ThreadState.Stopped))
+            if (pieceColor == _gameBoard.MovingSideColor && ProgramPlaysFor(pieceColor))
             {
                 _thinkingThread = new Thread(Think);
                 _thinkingThread.Start();

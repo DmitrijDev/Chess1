@@ -70,9 +70,9 @@ namespace Chess.StrategicPart
             return 0;
         }
 
-        public static ChessTree BuildTree(ChessBoard board) => new ChessTree(board, 4);
+        public static Tree BuildTree(ChessBoard board) => new Tree(board, 4);
 
-        public static IEnumerable<TreeNode[]> Traverse(this ChessTree tree) => tree.GetGameLines();
+        public static IEnumerable<TreeNode[]> Traverse(this Tree tree) => tree.GetGameLines();
 
         public static int EvaluatePiece(this GamePosition position, int vertical, int horizontal)
         {
@@ -97,7 +97,7 @@ namespace Chess.StrategicPart
             return result;
         }
 
-        public static int Evaluate(this ChessTree tree, TreeNode node, Func<GamePosition, int, int, int> evaluatePiece)
+        public static int Evaluate(this Tree tree, TreeNode node, Func<GamePosition, int, int, int> evaluatePiece)
         {
             if (tree.EndsGame(node, out var gameResult))
             {

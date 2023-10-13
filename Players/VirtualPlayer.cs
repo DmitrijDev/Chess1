@@ -8,20 +8,20 @@ namespace Chess.Players
         private readonly object _locker = new();
         private ulong _boardModCount;
         private ChessBoard _board;
-        private ChessTree _tree;
+        private Tree _tree;
 
-        public Func<ChessBoard, ChessTree> BuildTree { get; internal set; }
+        public Func<ChessBoard, Tree> BuildTree { get; internal set; }
 
-        public Func<ChessTree, IEnumerable<TreeNode[]>> Traverse { get; internal set; }
+        public Func<Tree, IEnumerable<TreeNode[]>> Traverse { get; internal set; }
 
         public Func<GamePosition, int, int, int> EvaluatePiece { get; internal set; }
 
-        public Func<ChessTree, TreeNode, Func<GamePosition, int, int, int>, int> EvaluateNode { get; internal set; }
+        public Func<Tree, TreeNode, Func<GamePosition, int, int, int>, int> EvaluateNode { get; internal set; }
 
         public bool ThinkingDisabled { get; set; }
 
-        public VirtualPlayer(Func<ChessBoard, ChessTree> buildTree, Func<ChessTree, IEnumerable<TreeNode[]>> traverse,
-            Func<GamePosition, int, int, int> evaluatePiece, Func<ChessTree, TreeNode, Func<GamePosition, int, int, int>, int> evaluateNode)
+        public VirtualPlayer(Func<ChessBoard, Tree> buildTree, Func<Tree, IEnumerable<TreeNode[]>> traverse,
+            Func<GamePosition, int, int, int> evaluatePiece, Func<Tree, TreeNode, Func<GamePosition, int, int, int>, int> evaluateNode)
         {
             BuildTree = buildTree;
             Traverse = traverse;

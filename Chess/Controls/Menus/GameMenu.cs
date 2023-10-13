@@ -6,84 +6,70 @@ namespace Chess
     {
         private readonly GameForm _form;
 
-        private readonly ToolStripMenuItem _whitePlayerMenu = new("Белые");
-        private readonly ToolStripMenuItem _blackPlayerMenu = new("Черные");
-        private readonly ToolStripMenuItem _timeMenu = new("Время на партию");
+        private readonly ToolStripMenuItem _whitePlayerMenu;
+        private readonly ToolStripMenuItem _blackPlayerMenu;
+        private readonly ToolStripMenuItem _timeMenu;
 
         public GameMenu(GameForm form) : base("Игра")
         {
             _form = form;
 
-            var startGameItem = new ToolStripMenuItem("Новая партия");
-            var escapeItem = new ToolStripMenuItem("Выход");
+            // Начало новой партии.
+            var item = new ToolStripMenuItem("Новая партия");
+            DropDownItems.Add(item);
+            item.Click += (sender, e) => _form.GamePanel.StartNewGame();
 
-            DropDownItems.Add(startGameItem);
+            // Смена игроков.
+            _whitePlayerMenu = GetChangePlayerMenu(ChessPieceColor.White);
             DropDownItems.Add(_whitePlayerMenu);
+
+            _blackPlayerMenu = GetChangePlayerMenu(ChessPieceColor.Black);
             DropDownItems.Add(_blackPlayerMenu);
+
+            // Смена контроля времени.
+            _timeMenu = GetTimeMenu();
             DropDownItems.Add(_timeMenu);
-            DropDownItems.Add(escapeItem);
 
-            startGameItem.Click += (sender, e) => _form.GamePanel.StartNewGame();
-            BuildChangePlayerMenus();
-            BuildTimeMenu();
-            escapeItem.Click += (sender, e) => _form.Close();
+            // Выход.
+            item = new("Выход");
+            DropDownItems.Add(item);
+            item.Click += (sender, e) => _form.Close();
         }
 
-        private void BuildChangePlayerMenus()
+        private ToolStripMenuItem GetChangePlayerMenu(ChessPieceColor color)
         {
-            var userPlaysWhiteItem = new ToolStripMenuItem("Вы") { CheckOnClick = true, Checked = true };
-            var programPlaysWhiteItem = new ToolStripMenuItem("Соперник") { CheckOnClick = true };
-            var userPlaysBlackItem = new ToolStripMenuItem("Вы") { CheckOnClick = true };
-            var programPlaysBlackItem = new ToolStripMenuItem("Соперник") { CheckOnClick = true, Checked = true };
+            var menu = new ToolStripMenuItem(color == ChessPieceColor.White ? "Белые" : "Черные");
 
-            _whitePlayerMenu.DropDownItems.Add(userPlaysWhiteItem);
-            _whitePlayerMenu.DropDownItems.Add(programPlaysWhiteItem);
-            _blackPlayerMenu.DropDownItems.Add(userPlaysBlackItem);
-            _blackPlayerMenu.DropDownItems.Add(programPlaysBlackItem);
+            var item1 = new ToolStripMenuItem("Вы") { CheckOnClick = true, Checked = color == ChessPieceColor.White };
+            var item2 = new ToolStripMenuItem("Соперник") { CheckOnClick = true, Checked = color == ChessPieceColor.Black };
 
-            userPlaysWhiteItem.Click += WhitePlayerMenu_ItemClick;
-            programPlaysWhiteItem.Click += WhitePlayerMenu_ItemClick;
-            userPlaysBlackItem.Click += BlackPlayerMenu_ItemClick;
-            programPlaysBlackItem.Click += BlackPlayerMenu_ItemClick;
+            menu.DropDownItems.Add(item1);
+            menu.DropDownItems.Add(item2);
+
+            item1.Click += ChangePlayerMenu_ItemClick;
+            item2.Click += ChangePlayerMenu_ItemClick;
+
+            return menu;
         }
 
-        private void BuildTimeMenu()
+        private ToolStripMenuItem GetTimeMenu()
         {
-            var items = new ToolStripMenuItem[7]
+            var menu = new ToolStripMenuItem("Время на партию");
+            var itemTexts = new string[] { "5 минут", "15 минут", "30 минут", "1 час", "1,5 часа", "2 часа", "3 часа" };
+
+            foreach (var text in itemTexts)
             {
-                new ToolStripMenuItem("5 минут"), new ToolStripMenuItem("15 минут"), new ToolStripMenuItem("30 минут"), new ToolStripMenuItem("1 час"),
-                    new ToolStripMenuItem("1,5 часа"), new ToolStripMenuItem("2 часа"), new ToolStripMenuItem("3 часа")
-            };
-
-            _timeMenu.DropDownItems.AddRange(items);
-            Array.ForEach(items, item => item.CheckOnClick = true);
-            items[0].Checked = true;
-            Array.ForEach(items, item => item.Click += TimeMenu_ItemClick); 
-        }
-
-        private void WhitePlayerMenu_ItemClick(object sender, EventArgs e)
-        {
-            var clickedItem = (ToolStripMenuItem)sender;
-
-            if (!clickedItem.Checked)
-            {
-                clickedItem.Checked = true;
-                return;
+                var item = new ToolStripMenuItem(text) { CheckOnClick = true };
+                menu.DropDownItems.Add(item);
+                item.Click += TimeMenu_ItemClick;
             }
 
-            foreach (var obj in _whitePlayerMenu.DropDownItems)
-            {
-                if (obj != sender)
-                {
-                    var item = (ToolStripMenuItem)obj;
-                    item.Checked = false;
-                }
-            }
-
-            _form.GamePanel.ChangePlayer(ChessPieceColor.White);
+            var firstItem = (ToolStripMenuItem)menu.DropDownItems[0];
+            firstItem.Checked = true;
+            return menu;
         }
 
-        private void BlackPlayerMenu_ItemClick(object sender, EventArgs e)
+        private void ChangePlayerMenu_ItemClick(object sender, EventArgs e)
         {
             var clickedItem = (ToolStripMenuItem)sender;
 
@@ -93,16 +79,20 @@ namespace Chess
                 return;
             }
 
-            foreach (var obj in _blackPlayerMenu.DropDownItems)
+            var color = _whitePlayerMenu.DropDownItems.Contains(clickedItem) ? ChessPieceColor.White : ChessPieceColor.Black;
+            var menu = color == ChessPieceColor.White ? _whitePlayerMenu : _blackPlayerMenu;
+
+            foreach (var obj in menu.DropDownItems)
             {
                 if (obj != sender)
                 {
                     var item = (ToolStripMenuItem)obj;
                     item.Checked = false;
+                    break;
                 }
             }
 
-            _form.GamePanel.ChangePlayer(ChessPieceColor.Black);
+            _form.GamePanel.ChangePlayer(color);
         }
 
         private void TimeMenu_ItemClick(object sender, EventArgs e)
@@ -131,7 +121,7 @@ namespace Chess
                 }
             }
 
-            var timeForGameValues = new int[7] { 300, 900, 1800, 3600, 5400, 7200, 10800 };
+            var timeForGameValues = new int[] { 300, 900, 1800, 3600, 5400, 7200, 10800 };
 
             for (var i = 0; ; ++i)
             {

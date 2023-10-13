@@ -7,8 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ChessTree\ChessTree.csproj" />
     <ProjectReference Include="..\LogicPart\LogicPart.csproj" />
-    <ProjectReference Include="..\TreesOfAnalysis\TreesOfAnalysis.csproj" />
   </ItemGroup>
 
 </Project>
