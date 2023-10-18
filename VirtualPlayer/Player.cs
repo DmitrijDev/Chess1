@@ -1,9 +1,9 @@
 ﻿using Chess.LogicPart;
 using Chess.TreesOfAnalysis;
 
-namespace Chess.Players
+namespace Chess.VirtualPlayer
 {
-    public class VirtualPlayer
+    public class Player
     {
         private readonly object _locker = new();
         private ulong _boardModCount;
@@ -20,7 +20,7 @@ namespace Chess.Players
 
         public bool ThinkingDisabled { get; set; }
 
-        public VirtualPlayer(Func<ChessBoard, Tree> buildTree, Func<Tree, IEnumerable<TreeNode[]>> traverse,
+        public Player(Func<ChessBoard, Tree> buildTree, Func<Tree, IEnumerable<TreeNode[]>> traverse,
             Func<GamePosition, int, int, int> evaluatePiece, Func<Tree, TreeNode, Func<GamePosition, int, int, int>, int> evaluateNode)
         {
             BuildTree = buildTree;
@@ -29,12 +29,22 @@ namespace Chess.Players
             EvaluateNode = evaluateNode;
         }
 
-        public VirtualPlayer(VirtualPlayer other)
+        public Player(Player other)
         {
             BuildTree = other.BuildTree;
             Traverse = other.Traverse;
             EvaluatePiece = other.EvaluatePiece;
             EvaluateNode = other.EvaluateNode;
+        }
+
+        public static Player GetNewPlayer(int strengthLevel)
+        {
+            if (strengthLevel < 0 || strengthLevel >= PlayersCreator.SamplePlayers.Length)
+            {
+                throw new ArgumentOutOfRangeException();
+            }
+
+            return new(PlayersCreator.SamplePlayers[strengthLevel]);
         }
 
         private int Evaluate(TreeNode node) => EvaluateNode(_tree, node, EvaluatePiece);

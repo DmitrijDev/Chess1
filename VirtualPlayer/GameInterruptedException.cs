@@ -1,5 +1,5 @@
 ﻿
-namespace Chess.Players
+namespace Chess.VirtualPlayer
 {
     public class GameInterruptedException : ApplicationException
     {

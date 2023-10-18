@@ -16,7 +16,8 @@ namespace Chess
         {
             InitializeComponent();
             Text = "Шахматы";
-            Icon = new("Images/Icon.ico");
+            Icon = new("Images/Icon-2.png");
+            WindowState = FormWindowState.Maximized;
             SetControls();
 
             SizeChanged += Size_Changed;
@@ -35,14 +36,7 @@ namespace Chess
             TimePanel = new(this);
             GamePanel = new(this);
 
-            var shift = Screen.PrimaryScreen.WorkingArea.Height / 16;
-            Width = Math.Max(shift * 2 + GamePanel.Width, TimePanel.MinimumSize.Width);
-            Width += Width - ClientRectangle.Width;
-            Height = shift * 2 + MenuStrip.Height + TimePanel.Height + GamePanel.Height;
-            Height += Height - ClientRectangle.Height;
-
             TimePanel.Location = new(0, MenuStrip.Height);
-            TimePanel.Width = ClientRectangle.Width;
             PutGamePanelToCenter();
 
             Controls.Add(MenuStrip);

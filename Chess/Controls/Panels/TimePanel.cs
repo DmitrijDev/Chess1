@@ -1,14 +1,22 @@
 ﻿using Chess.LogicPart;
 using System.Text;
+using Timer = System.Windows.Forms.Timer;
 
 namespace Chess
 {
     internal class TimePanel : Panel
     {
         private readonly GameForm _form;
+        private readonly Timer _timer = new() { Interval = 1000 };
 
-        private readonly Label _whiteTimer;
-        private readonly Label _blackTimer;
+        private readonly Label _whiteTimeLabel;
+        private readonly Label _blackTimeLabel;
+
+        public int TimeForGame { get; private set; } = 300;
+
+        public int WhiteTimeLeft { get; private set; } = 300;
+
+        public int BlackTimeLeft { get; private set; } = 300;
 
         public TimePanel(GameForm form)
         {
@@ -17,36 +25,40 @@ namespace Chess
             BackColor = DefaultBackColor;
             Font = GetNewFont();
 
-            _whiteTimer = GetNewTimer();
-            _blackTimer = GetNewTimer();
+            _whiteTimeLabel = GetNewLabel();
+            _blackTimeLabel = GetNewLabel();
 
-            var timerWidth = _whiteTimer.Width;
-            var interval = timerWidth + timerWidth / 2;
+            var labelWidth = _whiteTimeLabel.Width;
+            var interval = labelWidth + labelWidth / 2;
 
-            MinimumSize = new(timerWidth * 2 + interval, _whiteTimer.Height);
-            Height = _whiteTimer.Height;
+            MinimumSize = new(labelWidth * 2 + interval, _whiteTimeLabel.Height);
+            Width = _form.ClientRectangle.Width;
+            Height = _whiteTimeLabel.Height;
 
-            _whiteTimer.Location = new(Width / 2 - interval / 2 - timerWidth, 0);
-            _blackTimer.Location = new(Width / 2 + interval / 2, 0);
+            _whiteTimeLabel.Location = new(Width / 2 - interval / 2 - labelWidth, 0);
+            _blackTimeLabel.Location = new(Width / 2 + interval / 2, 0);
 
-            Controls.Add(_whiteTimer);
-            Controls.Add(_blackTimer);
+            Controls.Add(_whiteTimeLabel);
+            Controls.Add(_blackTimeLabel);
+
+            ShowTime();            
 
             _form.SizeChanged += (sender, e) => Width = _form.ClientRectangle.Width;
             SizeChanged += Size_Changed;
+            _timer.Tick += Timer_Tick;
         }
 
         private Font GetNewFont()
         {
-            var result = new Font("TimesNewRoman", 1, FontStyle.Bold, GraphicsUnit.Pixel);
+            var font = new Font("TimesNewRoman", 1, FontStyle.Bold, GraphicsUnit.Pixel);
 
             for (; ; )
             {
-                var newFont = new Font("TimesNewRoman", result.Size + 1, FontStyle.Bold, GraphicsUnit.Pixel);
+                var newFont = new Font("TimesNewRoman", font.Size + 1, FontStyle.Bold, GraphicsUnit.Pixel);
 
                 if (newFont.Height <= _form.MenuStrip.Height)
                 {
-                    result = newFont;
+                    font = newFont;
                 }
                 else
                 {
@@ -54,17 +66,17 @@ namespace Chess
                 }
             }
 
-            return result;
+            return font;
         }
 
-        private Label GetNewTimer() => new()
+        private Label GetNewLabel() => new()
         {
             BackColor = Color.LightSlateGray,
             ForeColor = Color.Black,
-            TextAlign = ContentAlignment.TopCenter,
+            TextAlign = ContentAlignment.MiddleCenter,
             Height = Font.Height,
             Width = Font.Height * 4
-        };
+        };        
 
         private static string GetTimeText(int time)
         {
@@ -90,24 +102,66 @@ namespace Chess
             return text.ToString();
         }
 
-        public void ShowTime(ChessPieceColor color, int time)
+        private void ShowTime()
         {
-            var timer = color == ChessPieceColor.White ? _whiteTimer : _blackTimer;
-            timer.Text = GetTimeText(time);
+            _whiteTimeLabel.Text = GetTimeText(WhiteTimeLeft);
+            _blackTimeLabel.Text = GetTimeText(BlackTimeLeft);
         }
 
-        public void ShowTime(int whiteTimeLeft, int blackTimeLeft)
+        public void ResetTime()
         {
-            _whiteTimer.Text = GetTimeText(whiteTimeLeft);
-            _blackTimer.Text = GetTimeText(blackTimeLeft);
+            WhiteTimeLeft = TimeForGame;
+            BlackTimeLeft = TimeForGame;
+            ShowTime();
         }
+
+        public void ResetTime(int timeForGame)
+        {
+            if (timeForGame <= 0)
+            {
+                throw new ArgumentOutOfRangeException();
+            }
+
+            TimeForGame = timeForGame;
+            ResetTime();
+        }
+
+        public void StartTimer() => _timer.Start();
+
+        public void StopTimer() => _timer.Stop();
 
         private void Size_Changed(object sender, EventArgs e)
         {
-            var timerWidth = _whiteTimer.Width;
-            var interval = timerWidth + timerWidth / 2;
-            _whiteTimer.Location = new(Width / 2 - interval / 2 - timerWidth, 0);
-            _blackTimer.Location = new(Width / 2 + interval / 2, 0);
+            var labelWidth = _whiteTimeLabel.Width;
+            var interval = labelWidth + labelWidth / 2;
+            _whiteTimeLabel.Location = new(Width / 2 - interval / 2 - labelWidth, 0);
+            _blackTimeLabel.Location = new(Width / 2 + interval / 2, 0);
+        }
+
+        private void Timer_Tick(object sender, EventArgs e)
+        {
+            if (_form.GamePanel.MovingSideColor == ChessPieceColor.White)
+            {
+                --WhiteTimeLeft;
+                _whiteTimeLabel.Text = GetTimeText(WhiteTimeLeft);
+
+                if (WhiteTimeLeft == 0)
+                {
+                    _timer.Stop();
+                    _form.GamePanel.EndGame(BoardStatus.BlackWin);
+                }
+            }
+            else
+            {
+                --BlackTimeLeft;
+                _blackTimeLabel.Text = GetTimeText(BlackTimeLeft);
+
+                if (BlackTimeLeft == 0)
+                {
+                    _timer.Stop();
+                    _form.GamePanel.EndGame(BoardStatus.WhiteWin);
+                }
+            }
         }
     }
 }

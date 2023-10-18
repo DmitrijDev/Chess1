@@ -127,7 +127,7 @@ namespace Chess
             {
                 if (_timeMenu.DropDownItems[i] == sender)
                 {
-                    _form.GamePanel.SetTimeControl(timeForGameValues[i]);
+                    _form.TimePanel.ResetTime(timeForGameValues[i]);
                     return;
                 }
             }

@@ -2,16 +2,17 @@
 
 namespace Chess
 {
-    internal class GamePanelButton : Button
+    internal class GamePanelSquare : Control
     {
         private readonly GamePanel _gamePanel;
+        private readonly Control _innerControl;
         private static Bitmap[][][] _images;
         /*Три массива, в одном - фигуры на белых полях, в другом - на черных, в третьем - на подсвеченных.
          В каждом из этих массивов еще по два массива: один с белыми фигурами, другой - с черными.*/
 
-        public int X { get; }
+        public int Vertical { get; }
 
-        public int Y { get; }
+        public int Horizontal { get; }
 
         public bool IsHighlighted { get; private set; }
 
@@ -21,18 +22,31 @@ namespace Chess
 
         public ChessPieceColor? DisplayedPieceColor { get; private set; }
 
-        public GamePanelButton(GamePanel gamePanel, int x, int y)
+        public static int BorderSize { get; } = 2;
+
+        public GamePanelSquare(GamePanel gamePanel, int x, int y)
         {
             _gamePanel = gamePanel;
-            X = x;
-            Y = y;
+            Vertical = x;
+            Horizontal = y;
 
-            FlatStyle = FlatStyle.Flat;
-            FlatAppearance.BorderSize = 2;
-            BackgroundImageLayout = ImageLayout.Zoom;
+            _innerControl = new()
+            {
+                BackgroundImageLayout = ImageLayout.Zoom,
+                Location = new(BorderSize, BorderSize)
+            };
+
+            SizeChanged += (sender, e) =>
+            {
+                _innerControl.Width = Width - BorderSize * 2;
+                _innerControl.Height = _innerControl.Width;
+            };
+
+            _innerControl.MouseClick += (sender, e) => OnMouseClick(e);
+            Controls.Add(_innerControl);
         }
 
-        internal static void SetNewImagesFor(GamePanel gamePanel)
+        public static void SetNewImagesFor(GamePanel gamePanel)
         {
             _images = new Bitmap[3][][] { new Bitmap[2][] { new Bitmap[6] , new Bitmap[6] }, new Bitmap[2][] { new Bitmap[6], new Bitmap[6] },
                 new Bitmap[2][] { new Bitmap[6], new Bitmap[6] } };
@@ -55,21 +69,27 @@ namespace Chess
             }
         }
 
+        public void SetColors()
+        {
+            BackColor = IsOutlined || IsHighlighted ? _gamePanel.HighlightColor : MainColor;
+            _innerControl.BackColor = IsHighlighted ? _gamePanel.HighlightColor : MainColor;
+        }
+
         public void RenewImage()
         {
             if (IsClear)
             {
-                BackgroundImage = null;
+                _innerControl.BackgroundImage = null;
                 return;
             }
 
             if (IsHighlighted)
             {
-                BackgroundImage = _images[2][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
+                _innerControl.BackgroundImage = _images[2][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
                 return;
             }
 
-            BackgroundImage = _images[X % 2 == Y % 2 ? 1 : 0][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
+            _innerControl.BackgroundImage = _images[Vertical % 2 == Horizontal % 2 ? 1 : 0][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
         }
 
         public void DisplayPiece(ChessPieceName? pieceName, ChessPieceColor? pieceColor)
@@ -91,28 +111,18 @@ namespace Chess
 
         public void Highlight()
         {
-            if (IsClear)
-            {
-                return;
-            }
-
-            BackgroundImage = _images[2][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
-            FlatAppearance.BorderColor = _gamePanel.HighlightColor;
+            _innerControl.BackgroundImage = _images[2][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
+            BackColor = _gamePanel.HighlightColor;
             IsHighlighted = true;
         }
 
         public void RemoveHighlight()
         {
-            if (!IsHighlighted)
-            {
-                return;
-            }
-
-            BackgroundImage = _images[X % 2 == Y % 2 ? 1 : 0][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
+            _innerControl.BackgroundImage = _images[Vertical % 2 == Horizontal % 2 ? 1 : 0][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
 
             if (!IsOutlined)
             {
-                FlatAppearance.BorderColor = BackColor;
+                BackColor = MainColor;
             }
 
             IsHighlighted = false;
@@ -120,7 +130,7 @@ namespace Chess
 
         public void Outline()
         {
-            FlatAppearance.BorderColor = _gamePanel.HighlightColor;
+            BackColor = _gamePanel.HighlightColor;
             IsOutlined = true;
         }
 
@@ -128,12 +138,14 @@ namespace Chess
         {
             if (!IsHighlighted)
             {
-                FlatAppearance.BorderColor = BackColor;
+                BackColor = MainColor;
             }
 
             IsOutlined = false;
         }
 
         public bool IsClear => DisplayedPieceName == null;
+
+        public Color MainColor => Vertical % 2 == Horizontal % 2 ? _gamePanel.DarkSquaresColor : _gamePanel.LightSquaresColor;
     }
 }

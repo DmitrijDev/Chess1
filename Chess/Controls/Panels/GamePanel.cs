@@ -1,5 +1,5 @@
 ﻿using Chess.LogicPart;
-using Chess.Players;
+using Chess.VirtualPlayer;
 using Timer = System.Windows.Forms.Timer;
 
 namespace Chess
@@ -8,28 +8,19 @@ namespace Chess
     {
         private readonly GameForm _form;
 
-        private VirtualPlayer _whiteVirtualPlayer; // == null, если за эту сторону играет пользователь.
-        private VirtualPlayer _blackVirtualPlayer = Players.Players.GetNewPlayer(0); //Аналогично.
-
         private readonly ChessBoard _gameBoard = new();
+        private Player _whitePlayer; // == null, если за эту сторону играет пользователь.
+        private Player _blackPlayer = Player.GetNewPlayer(0); //Аналогично.
         private Thread _thinkingThread;
+        private Move _selectedMove;
+        private readonly Timer _moveChecker = new() { Interval = 100 };
 
-        private readonly GamePanelButton[,] _buttons = new GamePanelButton[8, 8];
+        private readonly GamePanelSquare[,] _squares = new GamePanelSquare[8, 8];
         private readonly int _defaultButtonSize;
-
         private Orientation _orientation = Orientation.Standart;
-
         private int? _highlightedButtonX;
         private int? _highlightedButtonY;
-
         private readonly NewPieceMenu _newPieceMenu;
-
-        private int _whiteTimeLeft;
-        private int _blackTimeLeft;
-        private readonly Timer _timer = new() { Interval = 1000 };
-        private int _timeForGame = 300; // В секундах.
-
-        private Move _selectedMove;
 
         public Color WhitePiecesColor { get; private set; }
 
@@ -52,9 +43,15 @@ namespace Chess
             _form = form;
             BorderStyle = BorderStyle.FixedSingle;
 
-            _defaultButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuStrip.Height - _form.TimePanel.Height) / 16;
             MinimumButtonSize = _form.GetCaptionHeight();
             MaximumButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuStrip.Height - _form.TimePanel.Height) / 9;
+
+            if (MaximumButtonSize < MinimumButtonSize)
+            {
+                MaximumButtonSize = MinimumButtonSize;
+            }
+
+            _defaultButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuStrip.Height - _form.TimePanel.Height) / 16;
 
             if (_defaultButtonSize < MinimumButtonSize)
             {
@@ -63,7 +60,7 @@ namespace Chess
 
             ButtonSize = _defaultButtonSize;
 
-            _timer.Tick += Timer_Tick;
+            _moveChecker.Tick += MoveChecker_Tick;
             _form.FormClosing += (sender, e) => StopThinking();
 
             SetButtons();
@@ -86,16 +83,16 @@ namespace Chess
                 for (var j = 7; j >= 0; --j)
                 {
                     // Возможно, кнопки уже созданы, и теперь нужно только изменить их размер.
-                    if (_buttons[i, j] == null)
+                    if (_squares[i, j] == null)
                     {
-                        _buttons[i, j] = new GamePanelButton(this, i, j);
-                        Controls.Add(_buttons[i, j]);
-                        _buttons[i, j].Click += Button_Click;
+                        _squares[i, j] = new(this, i, j);
+                        Controls.Add(_squares[i, j]);
+                        _squares[i, j].MouseClick += Square_MouseClick;
                     }
 
-                    _buttons[i, j].Width = ButtonSize;
-                    _buttons[i, j].Height = ButtonSize;
-                    _buttons[i, j].Location = new(buttonX, buttonY);
+                    _squares[i, j].Width = ButtonSize;
+                    _squares[i, j].Height = ButtonSize;
+                    _squares[i, j].Location = new(buttonX, buttonY);
 
                     buttonY += _orientation == Orientation.Standart ? ButtonSize : -ButtonSize;
                 }
@@ -144,97 +141,60 @@ namespace Chess
             BackColor = colorsArray[5];
             _form.BackColor = colorsArray[6];
 
-            GamePanelButton.SetNewImagesFor(this);
+            GamePanelSquare.SetNewImagesFor(this);
 
             for (var i = 0; i < 8; ++i)
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    _buttons[i, j].BackColor = i % 2 == j % 2 ? DarkSquaresColor : LightSquaresColor;
-                    _buttons[i, j].FlatAppearance.BorderColor = _buttons[i, j].IsHighlighted || _buttons[i, j].IsOutlined ? HighlightColor : _buttons[i, j].BackColor;
-                    _buttons[i, j].RenewImage();
+                    _squares[i, j].SetColors();
+                    _squares[i, j].RenewImage();
                 }
             }
         }
 
         public void StartNewGame()
         {
-            _timer.Stop();
             StopThinking();
-            CancelMoveChoice();
 
-            var whiteMaterial = new ChessPieceName[] { ChessPieceName.King, ChessPieceName.Queen,ChessPieceName.Rook, ChessPieceName.Rook, ChessPieceName.Knight, ChessPieceName.Knight, ChessPieceName.Bishop,
-                ChessPieceName.Bishop, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn };
+            var pieceNames = new ChessPieceName[] { ChessPieceName.King, ChessPieceName.Queen,ChessPieceName.Rook, ChessPieceName.Rook,
+                ChessPieceName.Knight, ChessPieceName.Knight, ChessPieceName.Bishop, ChessPieceName.Bishop, ChessPieceName.Pawn,
+                ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn,
+                ChessPieceName.Pawn };
+
             var whitePositions = new string[] { "e1", "d1", "a1", "h1", "b1", "g1", "c1", "f1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
-            var blackMaterial = new ChessPieceName[] { ChessPieceName.King, ChessPieceName.Queen,ChessPieceName.Rook, ChessPieceName.Rook, ChessPieceName.Knight, ChessPieceName.Knight, ChessPieceName.Bishop,
-                ChessPieceName.Bishop, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn };
             var blackPositions = new string[] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
 
-            _gameBoard.SetPosition(whiteMaterial, whitePositions, blackMaterial, blackPositions, ChessPieceColor.White);
-
+            _gameBoard.SetPosition(pieceNames, whitePositions, pieceNames, blackPositions, ChessPieceColor.White);
             RenewButtonsView();
-            SetTimeLeft(_timeForGame);
-
-            if (ProgramPlaysFor(ChessPieceColor.White))
-            {
-                _thinkingThread = new Thread(Think);
-                _thinkingThread.Start();
-            }
-
-            _timer.Start();
-        }
-
-        private void SetTimeLeft(int timeLeft)
-        {
-            _whiteTimeLeft = timeLeft;
-            _blackTimeLeft = timeLeft;
-            _form.TimePanel.ShowTime(_whiteTimeLeft, _blackTimeLeft);
-        }
-
-        public void SetTimeControl(int timeForGame)
-        {
-            _timeForGame = timeForGame;
-            SetTimeLeft(timeForGame);
+            _form.TimePanel.ResetTime();
+            StartThinking();
         }
 
         public void ChangePlayer(ChessPieceColor pieceColor)
         {
-            _timer.Stop();
-
             if (pieceColor == _gameBoard.MovingSideColor)
             {
                 StopThinking();
-                CancelMoveChoice();
             }
 
             if (pieceColor == ChessPieceColor.White)
             {
-                _whiteVirtualPlayer = _whiteVirtualPlayer == null ? Players.Players.GetNewPlayer(0) : null;
+                _whitePlayer = _whitePlayer == null ? Player.GetNewPlayer(0) : null;
             }
             else
             {
-                _blackVirtualPlayer = _blackVirtualPlayer == null ? Players.Players.GetNewPlayer(0) : null;
+                _blackPlayer = _blackPlayer == null ? Player.GetNewPlayer(0) : null;
             }
 
-            if (GameIsOver)
-            {
-                return;
-            }
-
-            if (pieceColor == _gameBoard.MovingSideColor && ProgramPlaysFor(pieceColor))
-            {
-                _thinkingThread = new Thread(Think);
-                _thinkingThread.Start();
-            }
-
-            _timer.Start();
+            StartThinking();
         }
 
         private void CancelMoveChoice()
         {
             if (_highlightedButtonX != null && _highlightedButtonY != null)
             {
-                _buttons[(int)_highlightedButtonX, (int)_highlightedButtonY].RemoveHighlight();
+                _squares[(int)_highlightedButtonX, (int)_highlightedButtonY].RemoveHighlight();
             }
 
             _highlightedButtonX = null;
@@ -265,26 +225,19 @@ namespace Chess
                 return;
             }
 
-            _timer.Stop();
+            _form.TimePanel.StopTimer();
             CancelMoveChoice();
             RenewButtonsView();
-            _buttons[move.StartSquare.Vertical, move.StartSquare.Horizontal].Outline();
-            _buttons[move.MoveSquare.Vertical, move.MoveSquare.Horizontal].Outline();
+            _squares[move.StartSquare.Vertical, move.StartSquare.Horizontal].Outline();
+            _squares[move.MoveSquare.Vertical, move.MoveSquare.Horizontal].Outline();
 
-            if (GameIsOver)
+            if (_gameBoard.Status != BoardStatus.GameIsIncomplete)
             {
                 ShowEndGameMessage();
                 return;
             }
 
-            // Запускаем выбор программой ответного хода, если нужно.
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor))
-            {
-                _thinkingThread = new Thread(Think);
-                _thinkingThread.Start();
-            }
-
-            _timer.Start();
+            StartThinking();
         }
 
         private void RenewButtonsView()
@@ -295,13 +248,12 @@ namespace Chess
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    if (_buttons[i, j].IsOutlined)
+                    if (_squares[i, j].IsOutlined)
                     {
-                        _buttons[i, j].RemoveOutline();
+                        _squares[i, j].RemoveOutline();
                     }
 
-                    _buttons[i, j].FlatAppearance.BorderSize = 2;
-                    _buttons[i, j].DisplayPiece(currentPosition.GetPieceName(i, j), currentPosition.GetPieceColor(i, j));
+                    _squares[i, j].DisplayPiece(currentPosition.GetPieceName(i, j), currentPosition.GetPieceColor(i, j));
                 }
             }
         }
@@ -312,33 +264,75 @@ namespace Chess
             MakeMove(move);
         }
 
-        private void Think()
+        private void StartThinking()
         {
-            var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
-
-            try
-            {
-                _selectedMove = player.SelectMove(_gameBoard);
-            }
-
-            catch (GameInterruptedException)
-            { }
-        }
-
-        private void StopThinking()
-        {
-            if (!ProgramPlaysFor(_gameBoard.MovingSideColor))
+            if (_gameBoard.Status != BoardStatus.GameIsIncomplete)
             {
                 return;
             }
 
-            var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteVirtualPlayer : _blackVirtualPlayer;
+            var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whitePlayer : _blackPlayer;
+
+            if (player == null)
+            {
+                _form.TimePanel.StartTimer();
+                return;
+            }
+
+            if (_thinkingThread != null)
+            {
+                return;
+            }
+
+            _thinkingThread = new(() =>
+             {
+                 try
+                 {
+                     _selectedMove = player.SelectMove(_gameBoard);
+                 }
+
+                 catch (GameInterruptedException)
+                 { }
+             });
+
+            _thinkingThread.Start();
+            _moveChecker.Start();
+            _form.TimePanel.StartTimer();
+        }
+
+        private void StopThinking()
+        {
+            _moveChecker.Stop();
+            _form.TimePanel.StopTimer();
+
+            var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whitePlayer : _blackPlayer;
+
+            if (player == null)
+            {
+                CancelMoveChoice();
+                return;
+            }
+
+            if (_thinkingThread == null)
+            {
+                return;
+            }
+
             player.ThinkingDisabled = true;
 
-            while (_thinkingThread != null && _thinkingThread.ThreadState == ThreadState.Running)
+            while (_thinkingThread.ThreadState != ThreadState.Stopped)
             { }
 
             player.ThinkingDisabled = false;
+            _thinkingThread = null;
+            _selectedMove = null;
+        }
+
+        public void EndGame(BoardStatus gameResult)
+        {
+            StopThinking();
+            _gameBoard.SetStatus(gameResult);
+            ShowEndGameMessage();
         }
 
         private void ShowEndGameMessage()
@@ -347,14 +341,14 @@ namespace Chess
             {
                 case BoardStatus.WhiteWin:
                     {
-                        var message = _blackTimeLeft > 0 ? "Мат черным." : "Время истекло. Победа белых.";
+                        var message = _form.TimePanel.BlackTimeLeft > 0 ? "Мат черным." : "Время истекло. Победа белых.";
                         MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                         break;
                     }
 
                 case BoardStatus.BlackWin:
                     {
-                        var message = _whiteTimeLeft > 0 ? "Мат белым." : "Время истекло. Победа черных.";
+                        var message = _form.TimePanel.WhiteTimeLeft > 0 ? "Мат белым." : "Время истекло. Победа черных.";
                         MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                         break;
                     }
@@ -375,22 +369,22 @@ namespace Chess
             };
         }
 
-        private bool ProgramPlaysFor(ChessPieceColor color) => color == ChessPieceColor.White ? _whiteVirtualPlayer != null : _blackVirtualPlayer != null;
-        // Программа может играть и сама с собой.
+        private bool ProgramPlaysFor(ChessPieceColor color) => color == ChessPieceColor.White ? _whitePlayer != null : _blackPlayer != null;
+        // Программа может играть и сама с собой.        
 
-        private void Button_Click(object sender, EventArgs e)
+        private void Square_MouseClick(object sender, MouseEventArgs e)
         {
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor) || !_timer.Enabled || _gameBoard.Status != BoardStatus.GameIsIncomplete)
+            if (ProgramPlaysFor(_gameBoard.MovingSideColor) || _gameBoard.Status != BoardStatus.GameIsIncomplete)
             {
                 return;
             }
 
-            var button = (GamePanelButton)sender;
+            var button = (GamePanelSquare)sender;
 
             // Выбор фигуры для хода.
             if (_highlightedButtonX == null)
             {
-                if (button.IsClear)
+                if (button.IsClear || e.Button != MouseButtons.Left)
                 {
                     return;
                 }
@@ -401,14 +395,20 @@ namespace Chess
                     return;
                 }
 
-                _highlightedButtonX = button.X;
-                _highlightedButtonY = button.Y;
+                _highlightedButtonX = button.Vertical;
+                _highlightedButtonY = button.Horizontal;
                 button.Highlight();
                 return; // Запомнили координаты выбранной фигуры, ждем щелчка по полю на которое нужно сходить.
             }
 
             // Отмена выбора.
-            if (button.X == _highlightedButtonX && button.Y == _highlightedButtonY)
+            if (e.Button != MouseButtons.Left)
+            {
+                CancelMoveChoice();
+                return;
+            }
+
+            if (button.Vertical == _highlightedButtonX && button.Horizontal == _highlightedButtonY)
             {
                 CancelMoveChoice();
                 return;
@@ -418,47 +418,28 @@ namespace Chess
             if (button.DisplayedPieceColor == _gameBoard.MovingSideColor)
             {
                 CancelMoveChoice();
-                _highlightedButtonX = button.X;
-                _highlightedButtonY = button.Y;
+                _highlightedButtonX = button.Vertical;
+                _highlightedButtonY = button.Horizontal;
                 button.Highlight();
                 return;
             }
 
             var piece = _gameBoard[(int)_highlightedButtonX, (int)_highlightedButtonY].ContainedPiece;
-            var square = _gameBoard[button.X, button.Y];
+            var square = _gameBoard[button.Vertical, button.Horizontal];
             var move = new Move(piece, square);
             MakeMove(move);
         }
 
-        private void Timer_Tick(object sender, EventArgs e)
+        private void MoveChecker_Tick(object sender, EventArgs e)
         {
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor) && _selectedMove != null)
+            if (_selectedMove != null)
             {
+                _moveChecker.Stop();
+                _thinkingThread = null;
                 MakeMove(_selectedMove);
-                return;
-            }
-
-            if (_gameBoard.MovingSideColor == ChessPieceColor.White)
-            {
-                --_whiteTimeLeft;
-                _form.TimePanel.ShowTime(ChessPieceColor.White, _whiteTimeLeft);
-            }
-            else
-            {
-                --_blackTimeLeft;
-                _form.TimePanel.ShowTime(ChessPieceColor.Black, _blackTimeLeft);
-            }
-
-            if (_whiteTimeLeft == 0 || _blackTimeLeft == 0)
-            {
-                _timer.Stop();
-                StopThinking();
-                CancelMoveChoice();
-                _gameBoard.SetStatus(_whiteTimeLeft == 0 ? BoardStatus.BlackWin : BoardStatus.WhiteWin);
-                ShowEndGameMessage();
             }
         }
 
-        public bool GameIsOver => _gameBoard.Status == BoardStatus.WhiteWin || _gameBoard.Status == BoardStatus.BlackWin || _gameBoard.Status == BoardStatus.Draw;
+        public ChessPieceColor MovingSideColor => _gameBoard.MovingSideColor;
     }
 }
