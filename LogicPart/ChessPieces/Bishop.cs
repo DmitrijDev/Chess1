@@ -1,54 +1,106 @@
 ﻿
 namespace Chess.LogicPart
 {
-    public class Bishop : ChessPiece
+    public sealed class Bishop : ChessPiece
     {
         public Bishop(ChessPieceColor color) : base(color)
         { }
 
-        internal override IEnumerable<Square> GetAttackedSquares()
+        public override IEnumerable<Square> GetAttackedSquares()
         {
-            for (int i = Vertical + 1, j = Horizontal + 1; i < 8 && j < 8; ++i, ++j)
-            {
-                yield return Board[i, j];
+            var position = Position;
 
-                if (!Board[i, j].IsEmpty)
+            if (position == null)
+            {
+                yield break;
+            }
+
+            var board = position.Board;
+            var vertical = position.Vertical;
+            var horizontal = position.Horizontal;
+
+            ulong modCount;
+            ulong gameStartsCount;
+
+            lock (board)
+            {
+                modCount = board.ModCount;
+                gameStartsCount = board.GameStartsCount;
+            }
+
+            if (position != Position)
+            {
+                throw new InvalidOperationException("Изменение позиции во время перечисления.");
+            }
+
+            for (int i = vertical + 1, j = horizontal + 1; i < 8 && j < 8; ++i, ++j)
+            {
+                if (board.ModCount != modCount || board.GameStartsCount != gameStartsCount)
+                {
+                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                }
+
+                yield return board[i, j];
+
+                if (!board[i, j].IsEmpty)
                 {
                     break;
                 }
             }
 
-            for (int i = Vertical - 1, j = Horizontal - 1; i >= 0 && j >= 0; --i, --j)
+            for (int i = vertical - 1, j = horizontal - 1; i >= 0 && j >= 0; --i, --j)
             {
-                yield return Board[i, j];
+                if (board.ModCount != modCount || board.GameStartsCount != gameStartsCount)
+                {
+                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                }
 
-                if (!Board[i, j].IsEmpty)
+                yield return board[i, j];
+
+                if (!board[i, j].IsEmpty)
                 {
                     break;
                 }
             }
 
-            for (int i = Vertical + 1, j = Horizontal - 1; i < 8 && j >= 0; ++i, --j)
+            for (int i = vertical + 1, j = horizontal - 1; i < 8 && j >= 0; ++i, --j)
             {
-                yield return Board[i, j];
+                if (board.ModCount != modCount || board.GameStartsCount != gameStartsCount)
+                {
+                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                }
 
-                if (!Board[i, j].IsEmpty)
+                yield return board[i, j];
+
+                if (!board[i, j].IsEmpty)
                 {
                     break;
                 }
             }
 
-            for (int i = Vertical - 1, j = Horizontal + 1; i >= 0 && j < 8; --i, ++j)
+            for (int i = vertical - 1, j = horizontal + 1; i >= 0 && j < 8; --i, ++j)
             {
-                yield return Board[i, j];
+                if (board.ModCount != modCount || board.GameStartsCount != gameStartsCount)
+                {
+                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                }
 
-                if (!Board[i, j].IsEmpty)
+                yield return board[i, j];
+
+                if (!board[i, j].IsEmpty)
                 {
                     break;
                 }
+            }
+
+            if (board.ModCount != modCount || board.GameStartsCount != gameStartsCount)
+            {
+                throw new InvalidOperationException("Изменение позиции во время перечисления.");
             }
         }
 
         public override ChessPieceName Name => ChessPieceName.Bishop;
+
+        public override bool IsLongRanged => true;
     }
 }

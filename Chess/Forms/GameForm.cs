@@ -1,3 +1,4 @@
+using Chess.LogicPart;
 
 namespace Chess
 {
@@ -12,6 +13,8 @@ namespace Chess
 
         public GamePanel GamePanel { get; private set; }
 
+        public ColorTheme ColorTheme { get; private set; }
+
         public GameForm()
         {
             InitializeComponent();
@@ -19,6 +22,7 @@ namespace Chess
             Icon = new("Images/Icon-2.png");
             WindowState = FormWindowState.Maximized;
             SetControls();
+            SetColors(0);
 
             SizeChanged += Size_Changed;
             GamePanel.SizeChanged += GamePanel_SizeChanged;
@@ -30,8 +34,8 @@ namespace Chess
 
         private void SetControls()
         {
-            MenuStrip.Items.Add(new GameMenu(this));
-            MenuStrip.Items.Add(new ViewMenu(this));
+            MenuStrip.Items.Add(CreateGameMenu());
+            MenuStrip.Items.Add(CreateViewMenu());
 
             TimePanel = new(this);
             GamePanel = new(this);
@@ -48,6 +52,68 @@ namespace Chess
             MinimumSize = new(minWidth, minHeight);
         }
 
+        private ToolStripMenuItem CreateGameMenu()
+        {
+            var gameMenu = new ToolStripMenuItem("Игра");
+
+            // Начало новой партии.
+            var gameMenuItem = new ToolStripMenuItem("Новая партия");
+            gameMenu.DropDownItems.Add(gameMenuItem);
+            gameMenuItem.Click += (sender, e) => GamePanel.StartNewGame();
+
+            // Смена игроков.
+            gameMenuItem = new SwitchingMenu("Белые", 0, "Вы", "Соперник");
+            gameMenu.DropDownItems.Add(gameMenuItem);
+            (gameMenuItem as SwitchingMenu).SwitchTo = (itemIndex) => GamePanel.ChangePlayer(ChessPieceColor.White);
+
+            gameMenuItem = new SwitchingMenu("Черные", 1, "Вы", "Соперник");
+            gameMenu.DropDownItems.Add(gameMenuItem);
+            (gameMenuItem as SwitchingMenu).SwitchTo = (itemIndex) => GamePanel.ChangePlayer(ChessPieceColor.Black);
+
+            // Смена контроля времени.
+            var timeForGameValues = new int[] { 300, 900, 1800, 3600, 5400, 7200, 10800 };
+            gameMenuItem = new SwitchingMenu("Время на партию", 0, "5 минут", "15 минут", "30 минут", "1 час", "1,5 часа", "2 часа", "3 часа");
+            gameMenu.DropDownItems.Add(gameMenuItem);
+            (gameMenuItem as SwitchingMenu).SwitchTo = (itemIndex) => TimePanel.ResetTime(timeForGameValues[itemIndex]);
+
+            // Выход.
+            gameMenuItem = new("Выход");
+            gameMenu.DropDownItems.Add(gameMenuItem);
+            gameMenuItem.Click += (sender, e) => Close();
+
+            return gameMenu;
+        }
+
+        private ToolStripMenuItem CreateViewMenu()
+        {
+            var viewMenu = new ToolStripMenuItem("Вид");
+
+            // Разворот доски.
+            var viewMenuItem = new ToolStripMenuItem("Развернуть доску");
+            viewMenu.DropDownItems.Add(viewMenuItem);
+            viewMenuItem.Click += (sender, e) => GamePanel.Rotate();
+
+            // Выбор цветов.
+            var colorThemesNames = ColorTheme.GetStandartThemes().Select(theme => theme.Name).ToArray();
+            viewMenuItem = new SwitchingMenu("Выбор цветов", 0, colorThemesNames);
+            viewMenu.DropDownItems.Add(viewMenuItem);
+            (viewMenuItem as SwitchingMenu).SwitchTo = (itemIndex) => SetColors(itemIndex);
+
+            // Изменение размера.
+            viewMenuItem = new ToolStripMenuItem("Изменить размер доски");
+            viewMenu.DropDownItems.Add(viewMenuItem);
+            viewMenuItem.Click += (sender, e) => new GamePanelSizeForm(GamePanel).ShowDialog();
+
+            return viewMenu;
+        }
+
+        private void SetColors(int colorsThemeIndex)
+        {
+            ColorTheme = ColorTheme.GetStandartThemes()[colorsThemeIndex];
+            BackColor = ColorTheme.FormBackColor;
+            GamePanel.SetColors();
+        }
+
         public int GetCaptionHeight()
         {
             var clientRectangle = RectangleToScreen(ClientRectangle);
@@ -61,8 +127,18 @@ namespace Chess
             GamePanel.Location = new(gamePanelX, gamePanelY);
         }
 
-        private void GamePanel_MouseDown(object sender, EventArgs e)
+        private void GamePanel_MouseDown(object sender, MouseEventArgs e)
         {
+            if (e.Button != MouseButtons.Left)
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    GamePanel.CancelMoveChoice();
+                }
+
+                return;
+            }
+
             var clientRectangle = RectangleToScreen(ClientRectangle);
             _fromDragCursorToGamePanelLeft = Cursor.Position.X - clientRectangle.Left - GamePanel.Location.X;
             _fromDragCursorToGamePanelTop = Cursor.Position.Y - clientRectangle.Top - GamePanel.Location.Y;

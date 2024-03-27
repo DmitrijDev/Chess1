@@ -2,7 +2,7 @@
 
 namespace Chess.LogicPart
 {
-    public static class StringsUsing
+    internal static class StringsUsing
     {
         public static int[] GetChessSquareCoordinates(string squareName)
         {
@@ -55,9 +55,9 @@ namespace Chess.LogicPart
             return new int[2] { vertical, horizontal };
         }
 
-        public static string TrimAndLower(string s)
+        private static string TrimAndLower(string s)
         {
-            if (string.IsNullOrEmpty(s))
+            if (s == "")
             {
                 return s;
             }
@@ -77,11 +77,6 @@ namespace Chess.LogicPart
 
         public static string GetChessSquareName(int squareVertical, int squareHorizontal)
         {
-            if (squareVertical < 0 || squareVertical >= 8 || squareHorizontal < 0 || squareHorizontal >= 8)
-            {
-                throw new IndexOutOfRangeException("Поля с указанными координатами нет на доске.");
-            }
-
             const string verticalNames = "abcdefgh";
             return new StringBuilder().Append(verticalNames[squareVertical]).Append(squareHorizontal + 1).ToString();
         }

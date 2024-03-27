@@ -1,267 +1,277 @@
 ﻿using Chess.LogicPart;
 
-namespace Chess.TreesOfAnalysis
+namespace Chess.ChessTree
 {
-    public class Tree
+    public class Tree<TBoard> : IChessTree
+        where TBoard : ChessBoard, new()
     {
-        private readonly Stack<TreeNode> _activeNodes = new();
-        private bool _activeNodesCorrespondBoardPosition;
-        private readonly object _locker = new();
+        private readonly TBoard _board = new();
+        private GamePosition _boardInitialPosition;
+        private Move _rootMove;
 
-        internal ChessBoard Board { get; }
+        private Node _activeNode;
+        private bool _workWithBoardIncomplete;
+        private Node _lastActiveNode;
+        private Move _lastActiveNodeMove;
 
-        public TreeNode Root { get; }
+        private readonly Node[] _nodes = new Node[35200]; // Больше ходов в партии не может быть даже теоретически.
+        private readonly Move[] _moves = new Move[35200];
 
-        public ChessPieceColor StartPositionMoveTurn { get; }
+        private Func<TBoard, int> _evaluatePosition = new(board => 0);
 
-        public Tree(ChessBoard board, int depth)
+        public Node Root { get; }
+
+        public Tree(ChessBoard board)
         {
-            lock (_locker)
+            _board.CopyGameState(board);
+
+            if (_board.Status != BoardStatus.GameIsIncomplete)
             {
-                if (depth < 0)
+                throw new ArgumentException("На доске невозможно сделать ход.");
+            }
+
+            _boardInitialPosition = _board.InitialPosition;
+            _rootMove = _board.GetLastMove();
+
+            Root = _board.MovesCount > 0 ? new(_rootMove) : new();
+            Root.Depth = (ushort)_board.MovesCount;
+
+            _activeNode = Root;
+
+            Root.Children = _board.GetLegalMoves().Select(move => new Node(move, Root)).ToArray();
+            Root.DescendantsCount = Root.Children.Length;
+        }
+
+        private void RestoreCorrectWork()
+        {
+            if (!_workWithBoardIncomplete)
+            {
+                return;
+            }
+
+            if (_board.GetLastMove() == _lastActiveNodeMove && _activeNode == _lastActiveNode)
+            {
+                _workWithBoardIncomplete = false;
+                return;
+            }
+
+            if (_board.InitialPosition != _boardInitialPosition)
+            {
+                _board.SetPosition(_boardInitialPosition);
+                _boardInitialPosition = _board.InitialPosition;
+
+                foreach (var move in _rootMove.GetPrecedingMoves().Reverse())
                 {
-                    throw new ArgumentOutOfRangeException("Глубина дерева не может быть отрицательной.");
-                }
+                    var piece = _board[move.StartSquare.Vertical, move.StartSquare.Horizontal].ContainedPiece;
+                    var square = _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal];
+                    var newMove = move.IsPawnPromotion ? new Move(piece, square, move.NewPiece.Name) : new Move(piece, square);
+                    _board.MakeMove(newMove);
 
-                Board = new(board);
-                StartPositionMoveTurn = Board.MovingSideColor;
-                Root = new(this);
-                _activeNodes.Push(Root);
-
-                if (depth == 0)
-                {
-                    return;
-                }
-
-                CreateNewChildren(Root);
-
-                if (Root.Children == null || depth == 1)
-                {
-                    return;
-                }
-
-                var queues = new Stack<Queue<TreeNode>>();
-                queues.Push(new(Root.Children));
-
-                while (queues.Count > 0)
-                {
-                    var node = queues.Peek().Dequeue();
-                    CreateNewChildren(node);
-
-                    if (queues.Count < depth - 1 && node.Children != null)
+                    if (_board.MovesCount == Root.Depth)
                     {
-                        queues.Push(new(node.Children));
+                        break;
                     }
+                }
 
-                    while (queues.Count > 0 && queues.Peek().Count == 0)
+                _rootMove = _board.GetLastMove();
+                _activeNode = Root;
+                _workWithBoardIncomplete = false;
+                return;
+            }
+
+            var move1 = _lastActiveNodeMove;
+            var node = _lastActiveNode;
+            var move2 = _board.GetLastMove();
+
+            var movesCount = 0;
+            var nodesCount = 0;
+
+            while (move1 != move2)
+            {
+                var depth1 = move1 != null ? move1.Depth : 0;
+                var depth2 = move2 != null ? move2.Depth : 0;
+
+                if (depth1 >= depth2)
+                {
+                    _moves[movesCount] = move1;
+                    ++movesCount;
+                    move1 = move1.PrecedingMove;
+
+                    if (node != null)
                     {
-                        queues.Pop();
+                        _nodes[nodesCount] = node;
+                        ++nodesCount;
+                        node = node.Parent;
                     }
+                }
+
+                if (depth2 >= depth1)
+                {
+                    _board.TakebackMove();
+                    move2 = move2.PrecedingMove;
+                }
+            }
+
+            if (movesCount == nodesCount)
+            {
+                _activeNode = nodesCount > 0 ? _nodes[nodesCount - 1] : _lastActiveNode;
+                _workWithBoardIncomplete = false;
+                return;
+            }
+
+            for (var i = movesCount - 1; ; --i)
+            {
+                _board.MakeMove(_moves[i]);
+
+                if (i < nodesCount)
+                {
+                    _activeNode = _nodes[i];
+                    _workWithBoardIncomplete = false;
+                    return;
                 }
             }
         }
 
-        private void MakeMove(TreeNode node)
+        private void SetBoardTo(Node targetNode)
         {
-            var piece = Board[node.StartSquareVertical, node.StartSquareHorizontal].ContainedPiece;
-            var square = Board[node.MoveSquareVertical, node.MoveSquareHorizontal];
+            RestoreCorrectWork();
+
+            if (targetNode == _activeNode)
+            {
+                return;
+            }
+
+            _lastActiveNode = _activeNode;
+            _lastActiveNodeMove = _board.GetLastMove();
+            _workWithBoardIncomplete = true;
+
+            var node = targetNode;
+            var count = 0;
+
+            while (node != _activeNode)
+            {
+                var depth1 = node.Depth;
+                var depth2 = _activeNode.Depth;
+                var moved = false;
+
+                if (depth1 >= depth2 && node.Parent != null)
+                {
+                    _nodes[count] = node;
+                    ++count;
+                    node = node.Parent;
+                    moved = true;
+                }
+
+                if (depth2 >= depth1 && _activeNode != Root)
+                {
+                    _board.TakebackMove();
+                    _activeNode = _activeNode.Parent;
+                    moved = true;
+                }
+
+                if (!moved)
+                {
+                    throw new InvalidOperationException("Указанный узел отсутствует в дереве.");
+                }
+            }
+
+            for (var i = count - 1; i >= 0; --i)
+            {
+                MakeMove(_nodes[i]);
+            }
+
+            _activeNode = targetNode;
+            _workWithBoardIncomplete = false;
+        }
+
+        private void MakeMove(Node node)
+        {
+            var piece = _board[node.StartSquareVertical, node.StartSquareHorizontal].ContainedPiece;
+            var square = _board[node.MoveSquareVertical, node.MoveSquareHorizontal];
             var move = node.IsPawnPromotion ? new Move(piece, square, node.NewPieceName) : new Move(piece, square);
-            Board.MakeMove(move);
+            _board.MakeMove(move);
         }
 
-        private void ReturnToRoot()
+        public void Evaluate(Node node)
         {
-            while (Board.MovesCount > Root.Depth)
-            {
-                Board.TakebackMove();
-            }
-
-            _activeNodes.Clear();
-            _activeNodes.Push(Root);
-        }
-
-        private IEnumerable<TreeNode> TryGetGameLineTo(TreeNode targetNode)
-        {
-            yield return Root;
-
-            var node = Root;
-
-            if (targetNode.Path != null)
-            {
-                foreach (var index in targetNode.Path)
-                {
-                    node = node.Children.Where(child => child.Index == index).FirstOrDefault();
-
-                    if (node == null)
-                    {
-                        yield break;
-                    }
-
-                    yield return node;
-                }
-            }            
-
-            if (node.Children.Contains(targetNode))
-            {
-                yield return targetNode;
-            }
-        }
-
-        private void SetBoardTo(TreeNode targetNode)
-        {
-            if (!_activeNodesCorrespondBoardPosition)
-            {
-                ReturnToRoot();
-            }
-
-            _activeNodesCorrespondBoardPosition = false;
-
-            if (_activeNodes.Peek() == targetNode)
-            {
-                _activeNodesCorrespondBoardPosition = true;
-                return;
-            }
-
-            var gameLine = TryGetGameLineTo(targetNode).ToArray();
-
-            if (gameLine[gameLine.Length - 1] != targetNode)
-            {
-                throw new InvalidOperationException("Указанный узел отсутствует в дереве.");
-            }
-
-            while (!gameLine.Contains(_activeNodes.Peek()))
-            {
-                Board.TakebackMove();
-                _activeNodes.Pop();
-            }
-
-            if (_activeNodes.Peek() == targetNode)
-            {
-                _activeNodesCorrespondBoardPosition = true;
-                return;
-            }
-
-            var activeNode = _activeNodes.Peek();
-
-            foreach (var node in gameLine.SkipWhile(node => node != activeNode).Skip(1))
-            {
-                MakeMove(node);
-                _activeNodes.Push(node);
-            }
-
-            _activeNodesCorrespondBoardPosition = true;
-        }
-
-        private void CreateNewChildren(TreeNode parent)
-        {
-            SetBoardTo(parent);
-
-            if (Board.Status != BoardStatus.GameIsIncomplete)
-            {
-                return;
-            }
-
-            var path = parent == Root ? null : parent.Path == null ? new short[] { parent.Index } : parent.Path.Append(parent.Index).ToArray();
-
-            parent.Children = Board.GetLegalMoves().Select(move => new TreeNode(move)
-            {
-                Path = path,
-                Depth = (short)(parent.Depth + 1),
-                IsWhiteMove = Board.MovingSideColor == ChessPieceColor.White,
-            }).ToArray();
-
-            foreach (var node in TryGetGameLineTo(parent))
-            {
-                node.DescendantsCount += parent.Children.Length;
-            }
-        }
-
-        public IEnumerable<TreeNode[]> GetGameLines()
-        {
-            var comparison = new Comparison<TreeNode>((node1, node2) => !node1.IsEvaluated ? (!node2.IsEvaluated ? 0 : 1) :
-            !node2.IsEvaluated ? -1 : node1.Evaluation == node2.Evaluation ? 0 :
-            node1.IsWhiteMove ? (node1.Evaluation > node2.Evaluation ? -1 : 1) : (node1.Evaluation < node2.Evaluation ? -1 : 1));
-
-            var gameLine = new Stack<TreeNode>();
-            gameLine.Push(Root);
-
-            var queues = new Stack<Queue<TreeNode>>();
-
-            if (Root.Children == null)
-            {
-                queues.Push(new());
-            }
-            else
-            {
-                Array.Sort(Root.Children, comparison);
-                queues.Push(new(Root.Children));
-            }
-
-            while (gameLine.Count > 1 || queues.Peek().Count > 0)
-            {
-                if (queues.Peek().Count > 0)
-                {
-                    var node = queues.Peek().Dequeue();
-                    gameLine.Push(node);
-
-                    if (node.Children == null)
-                    {
-                        queues.Push(new());
-                    }
-                    else
-                    {
-                        Array.Sort(node.Children, comparison);
-                        queues.Push(new(node.Children));
-                    }
-
-                    continue;
-                }
-
-                if (gameLine.Peek().Children == null)
-                {
-                    yield return gameLine.ToArray();
-                }
-
-                gameLine.Pop();
-                queues.Pop();
-            }
-        }
-
-        public bool EndsGame(TreeNode node, out BoardStatus? gameResult)
-        {
-            lock (_locker)
+            lock (this)
             {
                 SetBoardTo(node);
-
-                var endsGame = Board.Status == BoardStatus.WhiteWin || Board.Status == BoardStatus.BlackWin ||
-                Board.Status == BoardStatus.Draw;
-
-                gameResult = endsGame ? Board.Status : null;
-                return endsGame;
+                _lastActiveNode = node;
+                _lastActiveNodeMove = _board.GetLastMove();
+                _workWithBoardIncomplete = true;
+                node.Evaluation = _evaluatePosition(_board);
             }
         }
 
-        public GamePosition GetPosition(TreeNode node)
+        public void AddChildren(Node parent, Func<Move, bool> predicate)
         {
-            lock (_locker)
+            lock (this)
             {
-                SetBoardTo(node);
-                return Board.GetCurrentPosition();
+                SetBoardTo(parent);
+
+                if (_board.Status != BoardStatus.GameIsIncomplete)
+                {
+                    return;
+                }
+
+                var oldChildrenCount = parent.Children != null ? parent.Children.Length : 0;
+                var legalMoves = _board.GetLegalMoves();
+
+                if (legalMoves.Count == oldChildrenCount)
+                {
+                    return;
+                }
+
+                var newChildren = legalMoves.Where(predicate).Select(move => new Node(move, parent));
+
+                if (oldChildrenCount == 0)
+                {
+                    parent.Children = newChildren.ToArray();
+                }
+                else
+                {
+                    newChildren = newChildren.Where(newChild => !parent.Children.Any(oldChild => oldChild.Coincides(newChild)));
+                    parent.Children = parent.Children.Concat(newChildren).ToArray();
+                }
+
+                var newChildrenCount = parent.Children.Length - oldChildrenCount;
+                parent.DescendantsCount += newChildrenCount;
+
+                foreach (var precedent in parent.GetPrecedents())
+                {
+                    precedent.DescendantsCount += newChildrenCount;
+                }
             }
         }
 
-        public TreeNode[] GetChildren(TreeNode node)
+        public void AddChildren(Node parent) => AddChildren(parent, move => true);
+
+        public void DoWithBoard(Action<TBoard> work)
         {
-            var children = node.Children;
-
-            if (children == null)
+            lock (this)
             {
-                return Array.Empty<TreeNode>();
+                RestoreCorrectWork();
+                _lastActiveNode = _activeNode;
+                _lastActiveNodeMove = _board.GetLastMove();
+                _workWithBoardIncomplete = true;
+                work(_board);
             }
+        }
 
-            var result = new TreeNode[children.Length];
-            Array.Copy(children, result, children.Length);
-            return result;
+        public Func<TBoard, int> EvaluatePosition
+        {
+            get => _evaluatePosition;
+
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException();
+                }
+
+                _evaluatePosition = value;
+            }
         }
     }
 }

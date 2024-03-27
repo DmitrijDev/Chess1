@@ -9,7 +9,7 @@ namespace Chess.LogicPart
 
         public int FirstMoveMoment { get; internal set; }
 
-        public ChessPiece(ChessPieceColor color) => Color = color;
+        internal ChessPiece(ChessPieceColor color) => Color = color;
 
         internal void PutTo(Square newPosition)
         {
@@ -35,27 +35,37 @@ namespace Chess.LogicPart
             }
         }
 
-        internal abstract IEnumerable<Square> GetAttackedSquares();
+        public abstract IEnumerable<Square> GetAttackedSquares();
 
         public bool Attacks(Square square)
         {
-            square.Board.Lock();
-            var result = square.IsMenacedBy(this);
-            square.Board.Unlock();
-            return result;
+            var flag = Color == ChessPieceColor.White ? square.Board.WhiteMenacesActual :
+                square.Board.BlackMenacesActual;
+
+            if (flag)
+            {
+                var menaces = Color == ChessPieceColor.White ? square.WhiteMenaces : square.BlackMenaces;
+                return menaces != null && menaces.Contains(this);
+            }
+
+            return GetAttackedSquares().Contains(square);
         }
 
-        public bool Attacks(ChessPiece otherPiece) => otherPiece.IsOnBoard && Attacks(otherPiece.Position);
+        public bool Attacks(ChessPiece otherPiece)
+        {
+            var position = otherPiece.Position;
+            return position != null && Attacks(position);
+        }
 
         // Реализация для всех фигур, кроме пешки и короля.
         internal virtual IEnumerable<Square> GetAccessibleSquares()
         {
-            var moveSquares = GetAttackedSquares().Where(square => square.IsEmpty || square.ContainedPiece.Color != Color);
-            return FilterSafeForKingMoves(moveSquares);
+            var squares = GetAttackedSquares().Where(square => square.IsEmpty || square.ContainedPiece.Color != Color);
+            return FilterSafeForKingMoves(squares);
         }
 
         // Реализация для всех фигур, кроме короля.
-        private protected virtual IEnumerable<Square> FilterSafeForKingMoves(IEnumerable<Square> moveSquares)
+        private protected virtual IEnumerable<Square> FilterSafeForKingMoves(IEnumerable<Square> squares)
         {
             var checkingPieces = FriendlyKing.GetCheckingPieces().ToArray();
 
@@ -64,7 +74,7 @@ namespace Chess.LogicPart
                 return Enumerable.Empty<Square>();
             }
 
-            var result = checkingPieces.Length == 1 ? moveSquares.Where(square => ProtectsKingByMoveTo(square, checkingPieces[0])) : moveSquares;
+            var result = checkingPieces.Length == 1 ? squares.Where(square => ProtectsKingByMoveTo(square, checkingPieces[0])) : squares;
 
             if (IsPinnedVertically())
             {
@@ -89,30 +99,30 @@ namespace Chess.LogicPart
                 return true;
             }
 
-            if (square == Board.PassedByPawnSquare && checkingPiece.Name == ChessPieceName.Pawn)
+            if (checkingPiece.Name == ChessPieceName.Pawn)
             {
-                return Name == ChessPieceName.Pawn;
+                return square == Board.PassedByPawnSquare && Name == ChessPieceName.Pawn;
+            }
+
+            if (checkingPiece.Name == ChessPieceName.Knight)
+            {
+                return false;
             }
 
             if (checkingPiece.Vertical == FriendlyKing.Vertical)
             {
                 return square.Vertical == FriendlyKing.Vertical &&
-                    (FriendlyKing.Horizontal < square.Horizontal ^ checkingPiece.Horizontal < square.Horizontal);
+                (FriendlyKing.Horizontal < square.Horizontal ^ checkingPiece.Horizontal < square.Horizontal);
             }
 
             if (checkingPiece.Horizontal == FriendlyKing.Horizontal)
             {
                 return square.Horizontal == FriendlyKing.Horizontal &&
-                    (FriendlyKing.Vertical < square.Vertical ^ checkingPiece.Vertical < square.Vertical);
+                (FriendlyKing.Vertical < square.Vertical ^ checkingPiece.Vertical < square.Vertical);
             }
 
-            if (checkingPiece.IsOnSameDiagonal(FriendlyKing))
-            {
-                return square.IsOnSameDiagonal(FriendlyKing) && square.IsOnSameDiagonal(checkingPiece) &&
-                    (FriendlyKing.Vertical < square.Vertical ^ checkingPiece.Vertical < square.Vertical);
-            }
-
-            return false;
+            return square.IsOnSameDiagonal(FriendlyKing) && square.IsOnSameDiagonal(checkingPiece) &&
+            (FriendlyKing.Vertical < square.Vertical ^ checkingPiece.Vertical < square.Vertical);
         }
 
         private protected bool IsPinnedVertically()
@@ -208,37 +218,48 @@ namespace Chess.LogicPart
             return false;
         }
 
-        public bool IsOnSameDiagonal(Square square) => IsOnBoard && Position.IsOnSameDiagonal(square);
+        // Реализация для всех фигур, кроме короля.
+        internal virtual bool CanMove() => GetAccessibleSquares().Any();
 
-        public bool IsOnSameDiagonal(ChessPiece otherPiece) => IsOnBoard && Position.IsOnSameDiagonal(otherPiece);
+        public bool IsOnSameDiagonal(Square square)
+        {
+            var position = Position;
+            return position != null && position.IsOnSameDiagonal(square);
+        }
+
+        public bool IsOnSameDiagonal(ChessPiece other)
+        {
+            var otherPosition = other.Position;
+            return otherPosition != null && IsOnSameDiagonal(otherPosition);
+        }
 
         // Переопределено для короля и пешки.        
-        internal virtual IllegalMoveException CheckMoveLegacy(Move move)
+        internal virtual void CheckLegacy(Move move)
         {
-            if (!move.MoveSquare.IsMenacedBy(this))
+            if (!Attacks(move.MoveSquare))
             {
-                return new IllegalMoveException("Невозможный ход.");
+                throw new IllegalMoveException("Невозможный ход.");
             }
 
             if (IsPinnedVertically())
             {
                 if (move.MoveSquare.Vertical != Vertical)
                 {
-                    return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                    throw new IllegalMoveException("Невозможный ход. Фигура связана.");
                 }
             }
             else if (IsPinnedHorizontally())
             {
                 if (move.MoveSquare.Horizontal != Horizontal)
                 {
-                    return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                    throw new IllegalMoveException("Невозможный ход. Фигура связана.");
                 }
             }
             else if (IsPinnedDiagonally())
             {
                 if (!IsOnSameDiagonal(move.MoveSquare) || !FriendlyKing.IsOnSameDiagonal(move.MoveSquare))
                 {
-                    return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                    throw new IllegalMoveException("Невозможный ход. Фигура связана.");
                 }
             }
 
@@ -246,15 +267,13 @@ namespace Chess.LogicPart
 
             if (checkingPieces.Length > 1)
             {
-                return new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
+                throw new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
             }
 
             if (checkingPieces.Length == 1 && !ProtectsKingByMoveTo(move.MoveSquare, checkingPieces[0]))
             {
-                return new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
+                throw new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
             }
-
-            return null;
         }
 
         public static ChessPiece GetNewPiece(ChessPieceName name, ChessPieceColor color) => name switch
@@ -265,18 +284,34 @@ namespace Chess.LogicPart
             ChessPieceName.Knight => new Knight(color),
             ChessPieceName.Bishop => new Bishop(color),
             _ => new Pawn(color)
-        };        
+        };
 
         public bool IsOnBoard => Position != null;
 
-        public ChessBoard Board => IsOnBoard ? Position.Board : null;
+        public ChessBoard Board
+        {
+            get
+            {
+                var position = Position;
+                return position != null ? position.Board : null;
+            }
+        }
 
         public int Vertical => Position.Vertical;
 
         public int Horizontal => Position.Horizontal;
 
-        public King FriendlyKing => !IsOnBoard ? null : Color == ChessPieceColor.White ? Board.WhiteKing : Board.BlackKing;
+        public King FriendlyKing
+        {
+            get
+            {
+                var position = Position;
+                return position == null ? null : Color == ChessPieceColor.White ? position.Board.WhiteKing : position.Board.BlackKing;
+            }
+        }
 
         public abstract ChessPieceName Name { get; }
+
+        public abstract bool IsLongRanged { get; }
     }
 }

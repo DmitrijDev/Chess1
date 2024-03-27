@@ -9,34 +9,28 @@ namespace Chess
         private readonly GameForm _form;
 
         private readonly ChessBoard _gameBoard = new();
-        private Player _whitePlayer; // == null, если за эту сторону играет пользователь.
-        private Player _blackPlayer = Player.GetNewPlayer(0); //Аналогично.
+        private IChessRobot _whiteRobot; // == null, если за эту сторону играет пользователь.
+        private IChessRobot _blackRobot = RobotsConstructor.GetRobot(0); //Аналогично.
         private Thread _thinkingThread;
         private Move _selectedMove;
         private readonly Timer _moveChecker = new() { Interval = 100 };
 
         private readonly GamePanelSquare[,] _squares = new GamePanelSquare[8, 8];
-        private readonly int _defaultButtonSize;
-        private Orientation _orientation = Orientation.Standart;
-        private int? _highlightedButtonX;
-        private int? _highlightedButtonY;
         private readonly NewPieceMenu _newPieceMenu;
-
-        public Color WhitePiecesColor { get; private set; }
-
-        public Color BlackPiecesColor { get; private set; }
-
-        public Color LightSquaresColor { get; private set; }
-
-        public Color DarkSquaresColor { get; private set; }
-
-        public Color HighlightColor { get; private set; }
 
         public int ButtonSize { get; private set; }
 
         public int MinimumButtonSize { get; private set; }
 
         public int MaximumButtonSize { get; private set; }
+
+        public int DefaultButtonSize { get; }
+
+        public bool IsReversed { get; private set; }
+
+        public int? HighlightedButtonX { get; private set; }
+
+        public int? HighlightedButtonY { get; private set; }
 
         public GamePanel(GameForm form)
         {
@@ -51,32 +45,31 @@ namespace Chess
                 MaximumButtonSize = MinimumButtonSize;
             }
 
-            _defaultButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuStrip.Height - _form.TimePanel.Height) / 16;
+            DefaultButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuStrip.Height - _form.TimePanel.Height) / 16;
 
-            if (_defaultButtonSize < MinimumButtonSize)
+            if (DefaultButtonSize < MinimumButtonSize)
             {
-                _defaultButtonSize = MinimumButtonSize;
+                DefaultButtonSize = MinimumButtonSize;
             }
 
-            ButtonSize = _defaultButtonSize;
+            ButtonSize = DefaultButtonSize;
 
             _moveChecker.Tick += MoveChecker_Tick;
             _form.FormClosing += (sender, e) => StopThinking();
 
             SetButtons();
-            SetColors(0);
 
             _newPieceMenu = new(this);
         }
 
         private void SetButtons()
         {
-            var shift = Math.Min(_defaultButtonSize / 2, ButtonSize / 2);
+            var shift = Math.Min(DefaultButtonSize / 2, ButtonSize / 2);
             Width = ButtonSize * 8 + shift * 2;
             Height = Width;
 
-            var buttonX = _orientation == Orientation.Standart ? shift : Width - shift - ButtonSize;
-            var buttonY = _orientation == Orientation.Standart ? shift : Height - shift - ButtonSize;
+            var buttonX = !IsReversed ? shift : Width - shift - ButtonSize;
+            var buttonY = !IsReversed ? shift : Height - shift - ButtonSize;
 
             for (var i = 0; i < 8; ++i)
             {
@@ -94,17 +87,17 @@ namespace Chess
                     _squares[i, j].Height = ButtonSize;
                     _squares[i, j].Location = new(buttonX, buttonY);
 
-                    buttonY += _orientation == Orientation.Standart ? ButtonSize : -ButtonSize;
+                    buttonY += !IsReversed ? ButtonSize : -ButtonSize;
                 }
 
-                buttonX += _orientation == Orientation.Standart ? ButtonSize : -ButtonSize;
-                buttonY = _orientation == Orientation.Standart ? shift : Height - shift - ButtonSize;
+                buttonX += !IsReversed ? ButtonSize : -ButtonSize;
+                buttonY = !IsReversed ? shift : Height - shift - ButtonSize;
             }
         }
 
         public void Rotate()
         {
-            _orientation = _orientation == Orientation.Standart ? Orientation.Reversed : Orientation.Standart;
+            IsReversed = !IsReversed;
             SetButtons();
         }
 
@@ -119,28 +112,9 @@ namespace Chess
             SetButtons();
         }
 
-        public void SetColors(int colorsArrayIndex)
+        public void SetColors()
         {
-            var colors = new Color[6][]
-            {
-              new Color[7] {Color.White, Color.Black, Color.SandyBrown, Color.Sienna, Color.Blue, Color.SaddleBrown, Color.Wheat},
-              new Color[7] {Color.Goldenrod, Color.DarkRed, Color.White, Color.Black, Color.LawnGreen, Color.Black, Color.Khaki},
-              new Color[7] {Color.White, Color.Black, Color.DarkGray, Color.Gray, Color.LightGreen, Color.Black, Color.LightGray},
-              new Color[7] {Color.White, Color.Black, Color.Gray, Color.SeaGreen, Color.GreenYellow, Color.DimGray, Color.LightSkyBlue},
-              new Color[7] {Color.White, Color.Black, Color.DarkKhaki, Color.Chocolate, Color.DarkBlue, Color.SaddleBrown, Color.SandyBrown},
-              new Color[7] {Color.White, Color.Black, Color.Goldenrod, Color.SaddleBrown, Color.Blue, Color.Maroon, Color.Olive}
-            };
-
-            var colorsArray = colors[colorsArrayIndex];
-
-            WhitePiecesColor = colorsArray[0];
-            BlackPiecesColor = colorsArray[1];
-            LightSquaresColor = colorsArray[2];
-            DarkSquaresColor = colorsArray[3];
-            HighlightColor = colorsArray[4];
-            BackColor = colorsArray[5];
-            _form.BackColor = colorsArray[6];
-
+            BackColor = _form.ColorTheme.BoardColor;
             GamePanelSquare.SetNewImagesFor(this);
 
             for (var i = 0; i < 8; ++i)
@@ -165,7 +139,8 @@ namespace Chess
             var whitePositions = new string[] { "e1", "d1", "a1", "h1", "b1", "g1", "c1", "f1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
             var blackPositions = new string[] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
 
-            _gameBoard.SetPosition(pieceNames, whitePositions, pieceNames, blackPositions, ChessPieceColor.White);
+            _gameBoard.SetPosition(pieceNames, whitePositions, pieceNames, blackPositions, ChessPieceColor.White);            
+
             RenewButtonsView();
             _form.TimePanel.ResetTime();
             StartThinking();
@@ -180,25 +155,25 @@ namespace Chess
 
             if (pieceColor == ChessPieceColor.White)
             {
-                _whitePlayer = _whitePlayer == null ? Player.GetNewPlayer(0) : null;
+                _whiteRobot = _whiteRobot == null ? RobotsConstructor.GetRobot(0) : null;
             }
             else
             {
-                _blackPlayer = _blackPlayer == null ? Player.GetNewPlayer(0) : null;
+                _blackRobot = _blackRobot == null ? RobotsConstructor.GetRobot(0) : null;
             }
 
             StartThinking();
         }
 
-        private void CancelMoveChoice()
+        public void CancelMoveChoice()
         {
-            if (_highlightedButtonX != null && _highlightedButtonY != null)
+            if (HighlightedButtonX != null && HighlightedButtonY != null)
             {
-                _squares[(int)_highlightedButtonX, (int)_highlightedButtonY].RemoveHighlight();
+                _squares[(int)HighlightedButtonX, (int)HighlightedButtonY].RemoveHighlight();
             }
 
-            _highlightedButtonX = null;
-            _highlightedButtonY = null;
+            HighlightedButtonX = null;
+            HighlightedButtonY = null;
             _selectedMove = null;
             _newPieceMenu.Close();
         }
@@ -242,8 +217,6 @@ namespace Chess
 
         private void RenewButtonsView()
         {
-            var currentPosition = _gameBoard.GetCurrentPosition();
-
             for (var i = 0; i < 8; ++i)
             {
                 for (var j = 0; j < 8; ++j)
@@ -253,7 +226,16 @@ namespace Chess
                         _squares[i, j].RemoveOutline();
                     }
 
-                    _squares[i, j].DisplayPiece(currentPosition.GetPieceName(i, j), currentPosition.GetPieceColor(i, j));
+                    var piece = _gameBoard[i, j].ContainedPiece;
+
+                    if (piece != null)
+                    {
+                        _squares[i, j].DisplayPiece(piece.Name, piece.Color);
+                    }
+                    else
+                    {
+                        _squares[i, j].DisplayPiece(null, null);
+                    }
                 }
             }
         }
@@ -271,9 +253,9 @@ namespace Chess
                 return;
             }
 
-            var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whitePlayer : _blackPlayer;
+            var robot = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteRobot : _blackRobot;
 
-            if (player == null)
+            if (robot == null)
             {
                 _form.TimePanel.StartTimer();
                 return;
@@ -288,7 +270,7 @@ namespace Chess
              {
                  try
                  {
-                     _selectedMove = player.SelectMove(_gameBoard);
+                     _selectedMove = robot.SelectMove(_gameBoard);
                  }
 
                  catch (GameInterruptedException)
@@ -305,9 +287,9 @@ namespace Chess
             _moveChecker.Stop();
             _form.TimePanel.StopTimer();
 
-            var player = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whitePlayer : _blackPlayer;
+            var robot = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteRobot : _blackRobot;
 
-            if (player == null)
+            if (robot == null)
             {
                 CancelMoveChoice();
                 return;
@@ -318,12 +300,12 @@ namespace Chess
                 return;
             }
 
-            player.ThinkingDisabled = true;
+            robot.ThinkingDisabled = true;
 
             while (_thinkingThread.ThreadState != ThreadState.Stopped)
             { }
 
-            player.ThinkingDisabled = false;
+            robot.ThinkingDisabled = false;
             _thinkingThread = null;
             _selectedMove = null;
         }
@@ -369,7 +351,7 @@ namespace Chess
             };
         }
 
-        private bool ProgramPlaysFor(ChessPieceColor color) => color == ChessPieceColor.White ? _whitePlayer != null : _blackPlayer != null;
+        private bool ProgramPlaysFor(ChessPieceColor color) => color == ChessPieceColor.White ? _whiteRobot != null : _blackRobot != null;
         // Программа может играть и сама с собой.        
 
         private void Square_MouseClick(object sender, MouseEventArgs e)
@@ -379,53 +361,56 @@ namespace Chess
                 return;
             }
 
-            var button = (GamePanelSquare)sender;
+            var squareControl = (GamePanelSquare)sender;
 
             // Выбор фигуры для хода.
-            if (_highlightedButtonX == null)
+            if (HighlightedButtonX == null)
             {
-                if (button.IsClear || e.Button != MouseButtons.Left)
+                if (squareControl.IsClear || e.Button != MouseButtons.Left)
                 {
                     return;
                 }
 
-                if (button.DisplayedPieceColor != _gameBoard.MovingSideColor)
+                if (squareControl.DisplayedPieceColor != _gameBoard.MovingSideColor)
                 {
                     MessageBox.Show("Это не ваша фигура.", "", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
 
-                _highlightedButtonX = button.Vertical;
-                _highlightedButtonY = button.Horizontal;
-                button.Highlight();
+                HighlightedButtonX = squareControl.Vertical;
+                HighlightedButtonY = squareControl.Horizontal;
+                squareControl.Highlight();
                 return; // Запомнили координаты выбранной фигуры, ждем щелчка по полю на которое нужно сходить.
             }
 
             // Отмена выбора.
             if (e.Button != MouseButtons.Left)
             {
-                CancelMoveChoice();
+                if (e.Button == MouseButtons.Right)
+                {
+                    CancelMoveChoice();
+                }
+
                 return;
             }
 
-            if (button.Vertical == _highlightedButtonX && button.Horizontal == _highlightedButtonY)
+            if (squareControl.Vertical == HighlightedButtonX && squareControl.Horizontal == HighlightedButtonY)
             {
-                CancelMoveChoice();
                 return;
             }
 
             //Замена выбранной фигуры на другую.
-            if (button.DisplayedPieceColor == _gameBoard.MovingSideColor)
+            if (squareControl.DisplayedPieceColor == _gameBoard.MovingSideColor)
             {
                 CancelMoveChoice();
-                _highlightedButtonX = button.Vertical;
-                _highlightedButtonY = button.Horizontal;
-                button.Highlight();
+                HighlightedButtonX = squareControl.Vertical;
+                HighlightedButtonY = squareControl.Horizontal;
+                squareControl.Highlight();
                 return;
             }
 
-            var piece = _gameBoard[(int)_highlightedButtonX, (int)_highlightedButtonY].ContainedPiece;
-            var square = _gameBoard[button.Vertical, button.Horizontal];
+            var piece = _gameBoard[(int)HighlightedButtonX, (int)HighlightedButtonY].ContainedPiece;
+            var square = _gameBoard[squareControl.Vertical, squareControl.Horizontal];
             var move = new Move(piece, square);
             MakeMove(move);
         }
@@ -441,5 +426,15 @@ namespace Chess
         }
 
         public ChessPieceColor MovingSideColor => _gameBoard.MovingSideColor;
+
+        public Color WhitePiecesColor => _form.ColorTheme.WhitePiecesColor;
+
+        public Color BlackPiecesColor => _form.ColorTheme.BlackPiecesColor;
+
+        public Color LightSquaresColor => _form.ColorTheme.LightSquaresColor;
+
+        public Color DarkSquaresColor => _form.ColorTheme.DarkSquaresColor;
+
+        public Color HighlightColor => _form.ColorTheme.HighlightColor;
     }
 }

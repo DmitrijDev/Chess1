@@ -10,6 +10,7 @@
     <ProjectReference Include="..\ChessTree\ChessTree.csproj" />
     <ProjectReference Include="..\LogicPart\LogicPart.csproj" />
     <ProjectReference Include="..\StrategicPart\StrategicPart.csproj" />
+    <ProjectReference Include="..\TacticalPart\TacticalPart.csproj" />
   </ItemGroup>
 
 </Project>

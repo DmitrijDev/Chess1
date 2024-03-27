@@ -24,17 +24,19 @@ namespace Chess
 
         public static int BorderSize { get; } = 2;
 
-        public GamePanelSquare(GamePanel gamePanel, int x, int y)
+        public GamePanelSquare(GamePanel gamePanel, int vertical, int horizontal)
         {
             _gamePanel = gamePanel;
-            Vertical = x;
-            Horizontal = y;
+            Vertical = vertical;
+            Horizontal = horizontal;
 
             _innerControl = new()
             {
-                BackgroundImageLayout = ImageLayout.Zoom,
-                Location = new(BorderSize, BorderSize)
+                Location = new(BorderSize, BorderSize),
+                BackgroundImageLayout = ImageLayout.Zoom
             };
+
+            Controls.Add(_innerControl);
 
             SizeChanged += (sender, e) =>
             {
@@ -43,7 +45,6 @@ namespace Chess
             };
 
             _innerControl.MouseClick += (sender, e) => OnMouseClick(e);
-            Controls.Add(_innerControl);
         }
 
         public static void SetNewImagesFor(GamePanel gamePanel)
@@ -72,7 +73,7 @@ namespace Chess
         public void SetColors()
         {
             BackColor = IsOutlined || IsHighlighted ? _gamePanel.HighlightColor : MainColor;
-            _innerControl.BackColor = IsHighlighted ? _gamePanel.HighlightColor : MainColor;
+            _innerControl.BackColor = MainColor;
         }
 
         public void RenewImage()

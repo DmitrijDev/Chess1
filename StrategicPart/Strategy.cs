@@ -1,131 +1,97 @@
-﻿using Chess.LogicPart;
-using Chess.TreesOfAnalysis;
+﻿using Chess.ChessTree;
+using Chess.LogicPart;
 
 namespace Chess.StrategicPart
 {
     public static class Strategy
     {
-        public static int CompareTo(this GamePosition position1, GamePosition position2)
+        public static bool CorrectParentEvaluation(this Node child)
         {
-            if (position1.MovingSideColor == ChessPieceColor.White)
+            var parent = child.Parent;
+
+            if (parent == null)
             {
-                if (position2.MovingSideColor == ChessPieceColor.Black)
-                {
-                    return -1;
-                }
-            }
-            else
-            {
-                if (position2.MovingSideColor == ChessPieceColor.White)
-                {
-                    return 1;
-                }
+                return false;
             }
 
-            for (var i = 0; i < 8; ++i)
+            if (!parent.IsEvaluated)
             {
-                for (var j = 0; j < 8; ++j)
-                {
-                    if (position1.GetPieceColor(i, j) != null)
-                    {
-                        if (position2.GetPieceColor(i, j) == null)
-                        {
-                            return 1;
-                        }
-                    }
-                    else
-                    {
-                        if (position2.GetPieceColor(i, j) == null)
-                        {
-                            continue;
-                        }
-                        else
-                        {
-                            return -1;
-                        }
-                    }
-
-                    if (position1.GetPieceColor(i, j) == ChessPieceColor.White)
-                    {
-                        if (position2.GetPieceColor(i, j) == ChessPieceColor.Black)
-                        {
-                            return -1;
-                        }
-                    }
-                    else
-                    {
-                        if (position2.GetPieceColor(i, j) == ChessPieceColor.White)
-                        {
-                            return 1;
-                        }
-                    }
-
-                    if (position1.GetPieceName(i, j) != position2.GetPieceName(i, j))
-                    {
-                        return (int)position1.GetPieceName(i, j) - (int)position2.GetPieceName(i, j);
-                    }
-                }
+                parent.Evaluation = child.Evaluation;
+                return true;
             }
 
-            return 0;
+            if (parent.Evaluation == child.Evaluation)
+            {
+                return false;
+            }
+
+            if ((child.MovingPieceColor == ChessPieceColor.White && child.Evaluation > parent.Evaluation) ||
+                (child.MovingPieceColor == ChessPieceColor.Black && child.Evaluation < parent.Evaluation))
+            {
+                parent.Evaluation = child.Evaluation;
+                return true;
+            }
+
+            var evaluations = parent.GetChildren().Where(node => node.IsEvaluated).Select(node => node.Evaluation);
+            var newEvaluation = child.MovingPieceColor == ChessPieceColor.White ? evaluations.Max() : evaluations.Min();
+
+            if (parent.Evaluation == newEvaluation)
+            {
+                return false;
+            }
+
+            parent.Evaluation = newEvaluation;
+            return true;
         }
 
-        public static Tree BuildTree(ChessBoard board) => new Tree(board, 4);
-
-        public static IEnumerable<TreeNode[]> Traverse(this Tree tree) => tree.GetGameLines();
-
-        public static int EvaluatePiece(this GamePosition position, int vertical, int horizontal)
+        public static Node GetBestMoveNode(this IChessTree  tree)
         {
-            var pieceName = position.GetPieceName(vertical, horizontal);
-
-            var result = pieceName switch
+            if (!tree.Root.IsEvaluated)
             {
-                ChessPieceName.Pawn => 100,
-                ChessPieceName.Knight => 300,
-                ChessPieceName.Bishop => 300,
-                ChessPieceName.Rook => 500,
-                ChessPieceName.Queen => 900,
-                ChessPieceName.King => throw new ApplicationException("Короля невозможно оценить в баллах."),
-                _ => throw new ApplicationException("Указано пустое поле.")
-            };
+                throw new InvalidOperationException("Ошибка: анализ не завершен.");
+            }
 
-            if (position.GetPieceColor(vertical, horizontal) == ChessPieceColor.Black)
+            Node result = null;
+            var rand = new Random();
+
+            foreach (var node in tree.Root.GetChildren())
             {
-                result = -result;
+                if (!node.IsEvaluated)
+                {
+                    continue;
+                }
+
+                if (result == null)
+                {
+                    result = node;
+                    continue;
+                }
+
+                if (node.Evaluation == result.Evaluation)
+                {
+                    var r = rand.Next(2);
+
+                    if (r == 0)
+                    {
+                        result = node;
+                    }
+
+                    continue;
+                }
+
+                if (node.MovingPieceColor == ChessPieceColor.White && node.Evaluation > result.Evaluation)
+                {
+                    result = node;
+                    continue;
+                }
+
+                if (node.MovingPieceColor == ChessPieceColor.Black && node.Evaluation < result.Evaluation)
+                {
+                    result = node;
+                }
             }
 
             return result;
-        }
-
-        public static int Evaluate(this Tree tree, TreeNode node, Func<GamePosition, int, int, int> evaluatePiece)
-        {
-            if (tree.EndsGame(node, out var gameResult))
-            {
-                return gameResult switch
-                {
-                    BoardStatus.WhiteWin => int.MaxValue,
-                    BoardStatus.BlackWin => -int.MaxValue,
-                    _ => 0
-                };
-            }
-
-            var position = tree.GetPosition(node);
-            var evaluation = 0;
-
-            for (var i = 0; i < 8; ++i)
-            {
-                for (var j = 0; j < 8; ++j)
-                {
-                    var pieceName = position.GetPieceName(i, j);
-
-                    if (pieceName != null && pieceName != ChessPieceName.King)
-                    {
-                        evaluation += evaluatePiece(position, i, j);
-                    }
-                }
-            }            
-
-            return evaluation;
         }
     }
 }

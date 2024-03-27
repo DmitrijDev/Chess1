@@ -3,8 +3,6 @@ namespace Chess.LogicPart
 {
     public class Square
     {
-        private List<ChessPiece> _menaces;
-
         public ChessBoard Board { get; }
 
         public int Vertical { get; }
@@ -12,6 +10,10 @@ namespace Chess.LogicPart
         public int Horizontal { get; }
 
         public ChessPiece ContainedPiece { get; private set; }
+
+        internal List<ChessPiece> WhiteMenaces { get; set; }
+
+        internal List<ChessPiece> BlackMenaces { get; set; }
 
         internal Square(ChessBoard board, int vertical, int horizontal)
         {
@@ -44,36 +46,56 @@ namespace Chess.LogicPart
             }
         }
 
-        internal bool IsMenacedBy(ChessPiece piece)
+        public bool IsMenacedBy(ChessPieceColor color)
         {
-            Board.RenewMenaces();
-            return _menaces != null && _menaces.Contains(piece);
+            Board.RenewMenaces(color);
+            var menaces = color == ChessPieceColor.White ? WhiteMenaces : BlackMenaces;
+            return menaces != null && menaces.Any(piece => piece.Color == color);
         }
 
-        internal bool IsMenacedBy(ChessPieceColor color)
+        public IEnumerable<ChessPiece> GetMenaces(ChessPieceColor color)
         {
-            Board.RenewMenaces();
-            return _menaces != null && _menaces.Any(piece => piece.Color == color);
-        }        
+            ulong modCount;
+            ulong gameStartsCount;
 
-        internal void AddMenace(ChessPiece piece)
-        {
-            _menaces ??= new List<ChessPiece>();
-            _menaces.Add(piece);
+            lock (Board)
+            {
+                modCount = Board.ModCount;
+                gameStartsCount = Board.GameStartsCount;
+            }
+
+            Board.RenewMenaces(color);
+            var menaces = color == ChessPieceColor.White ? WhiteMenaces : BlackMenaces;
+
+            if (Board.ModCount != modCount || Board.GameStartsCount != gameStartsCount)
+            {
+                throw new InvalidOperationException("Изменение позиции во время перечисления.");
+            }
+
+            if (menaces == null)
+            {
+                yield break;
+            }
+
+            foreach (var piece in menaces)
+            {
+                if (Board.ModCount != modCount || Board.GameStartsCount != gameStartsCount)
+                {
+                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                }
+
+                yield return piece;
+            }
         }
 
-        internal void ClearMenaces() => _menaces = null;
+        public bool IsOnSameDiagonal(Square other) => other.Board == Board &&
+            Math.Abs(Vertical - other.Vertical) == Math.Abs(Horizontal - other.Horizontal);
 
-        internal IEnumerable<ChessPiece> EnumerateMenaces(ChessPieceColor color)
+        public bool IsOnSameDiagonal(ChessPiece piece)
         {
-            Board.RenewMenaces();
-            return _menaces == null ? Enumerable.Empty<ChessPiece>() : _menaces.Where(piece => piece.Color == color);
-        }        
-
-        public bool IsOnSameDiagonal(Square otherSquare) => otherSquare.Board == Board &&
-            Math.Abs(Vertical - otherSquare.Vertical) == Math.Abs(Horizontal - otherSquare.Horizontal);
-
-        public bool IsOnSameDiagonal(ChessPiece piece) => piece.IsOnBoard && IsOnSameDiagonal(piece.Position);
+            var position = piece.Position;
+            return position != null && IsOnSameDiagonal(position);
+        }
 
         public bool IsEmpty => ContainedPiece == null;
     }

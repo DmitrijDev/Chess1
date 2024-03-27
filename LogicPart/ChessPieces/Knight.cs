@@ -1,30 +1,62 @@
 ﻿
 namespace Chess.LogicPart
 {
-    public class Knight : ChessPiece
+    public sealed class Knight : ChessPiece
     {
         public Knight(ChessPieceColor color) : base(color)
         { }
 
-        internal override IEnumerable<Square> GetAttackedSquares()
+        public override IEnumerable<Square> GetAttackedSquares()
         {
+            var position = Position;
+
+            if (position == null)
+            {
+                yield break;
+            }
+
+            var board = position.Board;
+            var vertical = position.Vertical;
+            var horizontal = position.Horizontal;
+
+            ulong modCount;
+            ulong gameStartsCount;
+
+            lock (board)
+            {
+                modCount = board.ModCount;
+                gameStartsCount = board.GameStartsCount;
+            }
+
+            if (position != Position)
+            {
+                throw new InvalidOperationException("Изменение позиции во время перечисления.");
+            }
+
             var verticalShifts = new int[] { 2, 2, -2, -2, 1, 1, -1, -1 };
             var horizontalShifts = new int[] { -1, 1, -1, 1, -2, 2, -2, 2 };
 
             for (var i = 0; i < 8; ++i)
             {
-                var targetVertical = Vertical + horizontalShifts[i];
-                var targetHorizontal = Horizontal + verticalShifts[i];
+                var targetVertical = vertical + horizontalShifts[i];
+                var targetHorizontal = horizontal + verticalShifts[i];
 
                 if (targetVertical < 0 || targetHorizontal < 0 || targetVertical >= 8 || targetHorizontal >= 8)
                 {
                     continue;
                 }
 
-                yield return Board[targetVertical, targetHorizontal];
+                if (board.ModCount != modCount || board.GameStartsCount != gameStartsCount)
+                {
+                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                }
+
+                yield return board[targetVertical, targetHorizontal];
             }
         }
 
         public override ChessPieceName Name => ChessPieceName.Knight;
+
+        public override bool IsLongRanged => false;
     }
 }

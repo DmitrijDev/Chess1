@@ -1,26 +1,66 @@
 ﻿
 namespace Chess.LogicPart
 {
-    public class Pawn : ChessPiece
+    public sealed class Pawn : ChessPiece
     {
         public Pawn(ChessPieceColor color) : base(color)
         { }
 
-        internal override IEnumerable<Square> GetAttackedSquares()
+        public override IEnumerable<Square> GetAttackedSquares()
         {
-            if (Horizontal == 0 || Horizontal == 7)
+            var position = Position;
+
+            if (position == null)
             {
                 yield break;
             }
 
-            if (Vertical > 0)
+            var board = position.Board;
+            var vertical = position.Vertical;
+            var horizontal = position.Horizontal;
+
+            ulong modCount;
+            ulong gameStartsCount;
+
+            lock (board)
             {
-                yield return Board[Vertical - 1, Color == ChessPieceColor.White ? Horizontal + 1 : Horizontal - 1];
+                modCount = board.ModCount;
+                gameStartsCount = board.GameStartsCount;
             }
 
-            if (Vertical < 7)
+            if (position != Position)
             {
-                yield return Board[Vertical + 1, Color == ChessPieceColor.White ? Horizontal + 1 : Horizontal - 1];
+                throw new InvalidOperationException("Изменение позиции во время перечисления.");
+            }
+
+            if ((Color == ChessPieceColor.White && horizontal == 7) ||
+                (Color == ChessPieceColor.Black && horizontal == 0))
+            {
+                yield break;
+            }
+
+            if (vertical > 0)
+            {
+                var square = board[vertical - 1, Color == ChessPieceColor.White ? horizontal + 1 : horizontal - 1];
+
+                if (board.ModCount != modCount || board.GameStartsCount != gameStartsCount)
+                {
+                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                }
+
+                yield return square;
+            }
+
+            if (vertical < 7)
+            {
+                var square = board[vertical + 1, Color == ChessPieceColor.White ? horizontal + 1 : horizontal - 1];
+
+                if (board.ModCount != modCount || board.GameStartsCount != gameStartsCount)
+                {
+                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                }
+
+                yield return square;
             }
         }
 
@@ -57,44 +97,44 @@ namespace Chess.LogicPart
             return FilterSafeForKingMoves(moveSquares);
         }
 
-        internal override IllegalMoveException CheckMoveLegacy(Move move)
+        internal override void CheckLegacy(Move move)
         {
-            if (move.MoveSquare.IsMenacedBy(this))
+            if (Attacks(move.MoveSquare))
             {
                 if (move.MoveSquare.IsEmpty && move.MoveSquare != Board.PassedByPawnSquare)
                 {
-                    return new IllegalMoveException("Невозможный ход.");
+                    throw new IllegalMoveException("Невозможный ход.");
                 }
             }
             else
             {
                 if (!move.MoveSquare.IsEmpty || move.MoveSquare.Vertical != Vertical)
                 {
-                    return new IllegalMoveException("Невозможный ход.");
+                    throw new IllegalMoveException("Невозможный ход.");
                 }
 
                 if (Color == ChessPieceColor.White)
                 {
-                    if (move.MoveSquare.Horizontal != Horizontal + 1 && move.MoveSquare.Horizontal != Horizontal + 2)
+                    if (move.MoveSquare.Horizontal < Horizontal || move.MoveSquare.Horizontal > Horizontal + 2)
                     {
-                        return new IllegalMoveException("Невозможный ход.");
+                        throw new IllegalMoveException("Невозможный ход.");
                     }
 
                     if (move.MoveSquare.Horizontal == Horizontal + 2 && !(Horizontal == 1 && Board[Vertical, 2].IsEmpty))
                     {
-                        return new IllegalMoveException("Невозможный ход.");
+                        throw new IllegalMoveException("Невозможный ход.");
                     }
                 }
                 else
                 {
-                    if (move.MoveSquare.Horizontal != Horizontal - 1 && move.MoveSquare.Horizontal != Horizontal - 2)
+                    if (move.MoveSquare.Horizontal > Horizontal || move.MoveSquare.Horizontal < Horizontal - 2)
                     {
-                        return new IllegalMoveException("Невозможный ход.");
+                        throw new IllegalMoveException("Невозможный ход.");
                     }
 
                     if (move.MoveSquare.Horizontal == Horizontal - 2 && !(Horizontal == 6 && Board[Vertical, 5].IsEmpty))
                     {
-                        return new IllegalMoveException("Невозможный ход.");
+                        throw new IllegalMoveException("Невозможный ход.");
                     }
                 }
             }
@@ -103,18 +143,18 @@ namespace Chess.LogicPart
             {
                 if (move.MoveSquare.Vertical != Vertical)
                 {
-                    return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                    throw new IllegalMoveException("Невозможный ход. Фигура связана.");
                 }
             }
             else if (IsPinnedHorizontally())
             {
-                return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                throw new IllegalMoveException("Невозможный ход. Фигура связана.");
             }
             else if (IsPinnedDiagonally())
             {
                 if (!IsOnSameDiagonal(move.MoveSquare) || !FriendlyKing.IsOnSameDiagonal(move.MoveSquare))
                 {
-                    return new IllegalMoveException("Невозможный ход. Фигура связана.");
+                    throw new IllegalMoveException("Невозможный ход. Фигура связана.");
                 }
             }
 
@@ -122,22 +162,22 @@ namespace Chess.LogicPart
 
             if (checkingPieces.Length > 1)
             {
-                return new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
+                throw new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
             }
 
             if (checkingPieces.Length == 1 && !ProtectsKingByMoveTo(move.MoveSquare, checkingPieces[0]))
             {
-                return new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
+                throw new IllegalMoveException("Невозможный ход. Ваш король под шахом.");
             }
 
             if (move.IsPawnPromotion && !move.NewPieceSelected)
             {
-                return new NewPieceNotSelectedException();
+                throw new NewPieceNotSelectedException();
             }
-
-            return null;
         }
 
         public override ChessPieceName Name => ChessPieceName.Pawn;
+
+        public override bool IsLongRanged => false;
     }
 }
