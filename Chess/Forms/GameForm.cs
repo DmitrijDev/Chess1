@@ -13,7 +13,7 @@ namespace Chess
 
         public GamePanel GamePanel { get; private set; }
 
-        public ColorTheme ColorTheme { get; private set; }
+        public ColorSet ColorSet { get; private set; }
 
         public GameForm()
         {
@@ -28,6 +28,8 @@ namespace Chess
             GamePanel.SizeChanged += GamePanel_SizeChanged;
             GamePanel.MouseDown += GamePanel_MouseDown;
             QueryContinueDrag += GamePanel_Drag;
+            MouseClick += CancelMoveChoice;
+            MenuStrip.MouseClick += CancelMoveChoice;
 
             GamePanel.StartNewGame();
         }
@@ -76,6 +78,11 @@ namespace Chess
             gameMenu.DropDownItems.Add(gameMenuItem);
             (gameMenuItem as SwitchingMenu).SwitchTo = (itemIndex) => TimePanel.ResetTime(timeForGameValues[itemIndex]);
 
+            // Сохранение игры.
+            gameMenuItem = new ToolStripMenuItem("Сохранить игру");
+            gameMenu.DropDownItems.Add(gameMenuItem);
+            gameMenuItem.Click += (sender, e) => GamePanel.SaveGame();
+
             // Выход.
             gameMenuItem = new("Выход");
             gameMenu.DropDownItems.Add(gameMenuItem);
@@ -94,8 +101,8 @@ namespace Chess
             viewMenuItem.Click += (sender, e) => GamePanel.Rotate();
 
             // Выбор цветов.
-            var colorThemesNames = ColorTheme.GetStandartThemes().Select(theme => theme.Name).ToArray();
-            viewMenuItem = new SwitchingMenu("Выбор цветов", 0, colorThemesNames);
+            var colorSetsNames = ColorSet.GetStandartSets().Select(theme => theme.Name).ToArray();
+            viewMenuItem = new SwitchingMenu("Выбор цветов", 0, colorSetsNames);
             viewMenu.DropDownItems.Add(viewMenuItem);
             (viewMenuItem as SwitchingMenu).SwitchTo = (itemIndex) => SetColors(itemIndex);
 
@@ -109,8 +116,8 @@ namespace Chess
 
         private void SetColors(int colorsThemeIndex)
         {
-            ColorTheme = ColorTheme.GetStandartThemes()[colorsThemeIndex];
-            BackColor = ColorTheme.FormBackColor;
+            ColorSet = ColorSet.GetStandartSets()[colorsThemeIndex];
+            BackColor = ColorSet.FormBackColor;
             GamePanel.SetColors();
         }
 
@@ -131,11 +138,6 @@ namespace Chess
         {
             if (e.Button != MouseButtons.Left)
             {
-                if (e.Button == MouseButtons.Right)
-                {
-                    GamePanel.CancelMoveChoice();
-                }
-
                 return;
             }
 
@@ -227,5 +229,16 @@ namespace Chess
 
             GamePanel.Location = new(gamePanelX, gamePanelY);
         }
+
+        public void CancelMoveChoice(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                GamePanel.CancelMoveChoice();
+            }
+        }
+
+        private void GameForm_Load(object sender, EventArgs e)
+        { }
     }
 }

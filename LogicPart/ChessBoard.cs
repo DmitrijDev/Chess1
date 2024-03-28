@@ -577,7 +577,7 @@ namespace Chess.LogicPart
 
         public Square GetSquare(string squareName)
         {
-            var coordinates = StringsUsing.GetChessSquareCoordinates(squareName);
+            var coordinates = StringsUsing.GetSquareCoordinates(squareName);
             return _board[coordinates[0], coordinates[1]];
         }
 
@@ -853,6 +853,8 @@ namespace Chess.LogicPart
                 Status = newStatus;
             }
         }
+
+        public string GetGameText() => StringsUsing.GetGameText(this);
 
         protected virtual void DoAfterPositionSet()
         { }

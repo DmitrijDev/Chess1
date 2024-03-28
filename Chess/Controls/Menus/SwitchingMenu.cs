@@ -1,7 +1,7 @@
 ﻿
 namespace Chess
 {
-    public class SwitchingMenu : ToolStripMenuItem
+    internal class SwitchingMenu : ToolStripMenuItem
     {
         private Action<int> _switchTo = (itemIndex) => { };
 

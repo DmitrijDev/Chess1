@@ -72,7 +72,7 @@ namespace Chess
 
         public void SetColors()
         {
-            BackColor = IsOutlined || IsHighlighted ? _gamePanel.HighlightColor : MainColor;
+            BackColor = IsOutlined ? _gamePanel.OutlineColor : IsHighlighted ? _gamePanel.HighlightColor : MainColor;
             _innerControl.BackColor = MainColor;
         }
 
@@ -120,28 +120,19 @@ namespace Chess
         public void RemoveHighlight()
         {
             _innerControl.BackgroundImage = _images[Vertical % 2 == Horizontal % 2 ? 1 : 0][DisplayedPieceColor == ChessPieceColor.White ? 0 : 1][(int)DisplayedPieceName];
-
-            if (!IsOutlined)
-            {
-                BackColor = MainColor;
-            }
-
+            BackColor = MainColor;
             IsHighlighted = false;
         }
 
         public void Outline()
         {
-            BackColor = _gamePanel.HighlightColor;
+            BackColor = _gamePanel.OutlineColor;
             IsOutlined = true;
         }
 
         public void RemoveOutline()
         {
-            if (!IsHighlighted)
-            {
-                BackColor = MainColor;
-            }
-
+            BackColor = MainColor;
             IsOutlined = false;
         }
 

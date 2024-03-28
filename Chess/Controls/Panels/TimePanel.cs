@@ -28,6 +28,9 @@ namespace Chess
             _whiteTimeLabel = GetNewLabel();
             _blackTimeLabel = GetNewLabel();
 
+            _whiteTimeLabel.MouseClick += _form.CancelMoveChoice;
+            _blackTimeLabel.MouseClick += _form.CancelMoveChoice;
+
             var labelWidth = _whiteTimeLabel.Width;
             var interval = labelWidth + labelWidth / 2;
 
@@ -46,6 +49,7 @@ namespace Chess
             _form.SizeChanged += (sender, e) => Width = _form.ClientRectangle.Width;
             SizeChanged += Size_Changed;
             _timer.Tick += Timer_Tick;
+            MouseClick += _form.CancelMoveChoice;
         }
 
         private Font GetNewFont()

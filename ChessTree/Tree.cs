@@ -235,7 +235,19 @@ namespace Chess.ChessTree
                     parent.Children = parent.Children.Concat(newChildren).ToArray();
                 }
 
+                if (parent.Children.Length == 0)
+                {
+                    parent.Children = null;
+                    return;
+                }
+
                 var newChildrenCount = parent.Children.Length - oldChildrenCount;
+
+                if (newChildrenCount == 0)
+                {
+                    return;
+                }
+
                 parent.DescendantsCount += newChildrenCount;
 
                 foreach (var precedent in parent.GetPrecedents())

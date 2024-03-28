@@ -1,5 +1,6 @@
 ﻿using Chess.LogicPart;
 using Chess.VirtualPlayer;
+using System.Text;
 using Timer = System.Windows.Forms.Timer;
 
 namespace Chess
@@ -53,6 +54,14 @@ namespace Chess
             }
 
             ButtonSize = DefaultButtonSize;
+
+            MouseClick += (sender, e) =>
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    CancelMoveChoice();
+                }
+            };
 
             _moveChecker.Tick += MoveChecker_Tick;
             _form.FormClosing += (sender, e) => StopThinking();
@@ -114,7 +123,7 @@ namespace Chess
 
         public void SetColors()
         {
-            BackColor = _form.ColorTheme.BoardColor;
+            BackColor = _form.ColorSet.BoardColor;
             GamePanelSquare.SetNewImagesFor(this);
 
             for (var i = 0; i < 8; ++i)
@@ -139,7 +148,7 @@ namespace Chess
             var whitePositions = new string[] { "e1", "d1", "a1", "h1", "b1", "g1", "c1", "f1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
             var blackPositions = new string[] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
 
-            _gameBoard.SetPosition(pieceNames, whitePositions, pieceNames, blackPositions, ChessPieceColor.White);            
+            _gameBoard.SetPosition(pieceNames, whitePositions, pieceNames, blackPositions, ChessPieceColor.White);
 
             RenewButtonsView();
             _form.TimePanel.ResetTime();
@@ -302,7 +311,7 @@ namespace Chess
 
             robot.ThinkingDisabled = true;
 
-            while (_thinkingThread.ThreadState != ThreadState.Stopped)
+            while (_thinkingThread.ThreadState == ThreadState.Running)
             { }
 
             robot.ThinkingDisabled = false;
@@ -352,7 +361,22 @@ namespace Chess
         }
 
         private bool ProgramPlaysFor(ChessPieceColor color) => color == ChessPieceColor.White ? _whiteRobot != null : _blackRobot != null;
-        // Программа может играть и сама с собой.        
+        // Программа может играть и сама с собой.
+         
+        public void SaveGame()
+        {
+            var date = DateTime.Now;
+
+            var fileName = new StringBuilder(date.Year).Append(date.Month).Append(date.Day).Append(date.Hour).
+            Append(date.Minute).Append(date.Second).Append(date.Millisecond).Append(".txt").ToString();
+
+            using (var writer = new StreamWriter(fileName))
+            {
+                writer.Write(_gameBoard.GetGameText());
+            }
+
+            MessageBox.Show("Игра сохранена.", "", MessageBoxButtons.OK);
+        }
 
         private void Square_MouseClick(object sender, MouseEventArgs e)
         {
@@ -427,14 +451,16 @@ namespace Chess
 
         public ChessPieceColor MovingSideColor => _gameBoard.MovingSideColor;
 
-        public Color WhitePiecesColor => _form.ColorTheme.WhitePiecesColor;
+        public Color WhitePiecesColor => _form.ColorSet.WhitePiecesColor;
 
-        public Color BlackPiecesColor => _form.ColorTheme.BlackPiecesColor;
+        public Color BlackPiecesColor => _form.ColorSet.BlackPiecesColor;
 
-        public Color LightSquaresColor => _form.ColorTheme.LightSquaresColor;
+        public Color LightSquaresColor => _form.ColorSet.LightSquaresColor;
 
-        public Color DarkSquaresColor => _form.ColorTheme.DarkSquaresColor;
+        public Color DarkSquaresColor => _form.ColorSet.DarkSquaresColor;
 
-        public Color HighlightColor => _form.ColorTheme.HighlightColor;
+        public Color HighlightColor => _form.ColorSet.HighlightColor;
+
+        public Color OutlineColor => _form.ColorSet.OutlineColor;
     }
 }

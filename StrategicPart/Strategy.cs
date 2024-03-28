@@ -44,24 +44,25 @@ namespace Chess.StrategicPart
             return true;
         }
 
-        public static Node GetBestMoveNode(this IChessTree  tree)
+        public static Node GetBestMoveNode(this IChessTree tree)
         {
-            if (!tree.Root.IsEvaluated)
-            {
-                throw new InvalidOperationException("Ошибка: анализ не завершен.");
-            }
-
             Node result = null;
             var rand = new Random();
 
             foreach (var node in tree.Root.GetChildren())
             {
+                if (result == null)
+                {
+                    result = node;
+                    continue;
+                }
+
                 if (!node.IsEvaluated)
                 {
                     continue;
                 }
 
-                if (result == null)
+                if (!result.IsEvaluated)
                 {
                     result = node;
                     continue;
@@ -79,15 +80,20 @@ namespace Chess.StrategicPart
                     continue;
                 }
 
-                if (node.MovingPieceColor == ChessPieceColor.White && node.Evaluation > result.Evaluation)
+                if (node.MovingPieceColor == ChessPieceColor.White)
                 {
-                    result = node;
-                    continue;
-                }
+                    if (node.Evaluation > result.Evaluation)
+                    {
+                        result = node;
 
-                if (node.MovingPieceColor == ChessPieceColor.Black && node.Evaluation < result.Evaluation)
+                    }
+                }
+                else
                 {
-                    result = node;
+                    if (node.Evaluation < result.Evaluation)
+                    {
+                        result = node;
+                    }
                 }
             }
 
