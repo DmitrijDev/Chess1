@@ -5,11 +5,23 @@ namespace Chess
     {
         private Action<int> _switchTo = (itemIndex) => { };
 
+        public int SelectedItemIndex { get; private set; }
+
         public SwitchingMenu(string name, int selectedItemDefaultIndex, params string[] itemTexts) : base(name)
         {
+            if (name == null || itemTexts == null)
+            {
+                throw new ArgumentNullException();
+            }
+
+            if (name.Length == 0)
+            {
+                throw new ArgumentException("Не указано имя меню.");
+            }
+
             if (itemTexts.Length < 2)
             {
-                throw new ArgumentException("В меню должно быть не меньше двух элементов.");
+                throw new ArgumentOutOfRangeException("В меню должно быть не меньше двух элементов.");
             }
 
             if (selectedItemDefaultIndex < 0 || selectedItemDefaultIndex >= itemTexts.Length)
@@ -25,7 +37,8 @@ namespace Chess
                 item.Click += Item_Click;
             }
 
-            var selectedItem = (ToolStripMenuItem)DropDownItems[selectedItemDefaultIndex];
+            SelectedItemIndex = selectedItemDefaultIndex;
+            var selectedItem = (ToolStripMenuItem)DropDownItems[SelectedItemIndex];
             selectedItem.Checked = true;
         }
 
@@ -59,6 +72,7 @@ namespace Chess
             {
                 if (DropDownItems[i] == sender)
                 {
+                    SelectedItemIndex = i;
                     _switchTo(i);
                     return;
                 }

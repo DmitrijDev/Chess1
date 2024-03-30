@@ -84,5 +84,10 @@ namespace Chess
 
             _gamePanel.SetButtonSize(buttonSize);
         }
+
+        private void GamePanelSizeForm_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }

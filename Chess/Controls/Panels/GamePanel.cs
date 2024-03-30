@@ -11,7 +11,7 @@ namespace Chess
 
         private readonly ChessBoard _gameBoard = new();
         private IChessRobot _whiteRobot; // == null, если за эту сторону играет пользователь.
-        private IChessRobot _blackRobot = RobotsConstructor.GetRobot(0); //Аналогично.
+        private IChessRobot _blackRobot; //Аналогично.
         private Thread _thinkingThread;
         private Move _selectedMove;
         private readonly Timer _moveChecker = new() { Interval = 100 };
@@ -67,8 +67,9 @@ namespace Chess
             _form.FormClosing += (sender, e) => StopThinking();
 
             SetButtons();
-
             _newPieceMenu = new(this);
+            _whiteRobot = _form.WhitePlayerMenu.SelectedItemIndex == 1 ? RobotsConstructor.GetRobot(0) : null;
+            _blackRobot = _form.BlackPlayerMenu.SelectedItemIndex == 1 ? RobotsConstructor.GetRobot(0) : null;
         }
 
         private void SetButtons()

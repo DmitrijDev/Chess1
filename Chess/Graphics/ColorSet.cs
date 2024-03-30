@@ -42,8 +42,8 @@ namespace Chess
             BlackPiecesColor = Color.DarkRed,
             LightSquaresColor = Color.White,
             DarkSquaresColor = Color.Black,
-            HighlightColor = Color.SkyBlue,
-            OutlineColor = Color.Lime,
+            HighlightColor = Color.LawnGreen,
+            OutlineColor = Color.Aqua,
             BoardColor = Color.Black,
             FormBackColor = Color.Khaki,
             Name = "Цветные фигуры"
@@ -94,8 +94,8 @@ namespace Chess
             BlackPiecesColor = Color.Black,
             LightSquaresColor = Color.Goldenrod,
             DarkSquaresColor = Color.SaddleBrown,
-            HighlightColor = Color.DarkCyan,
-            OutlineColor = Color.DarkBlue,
+            HighlightColor = Color.BlueViolet,
+            OutlineColor = Color.Cyan,
             BoardColor = Color.Maroon,
             FormBackColor = Color.Olive,
             Name = "Осень"

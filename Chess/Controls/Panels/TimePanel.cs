@@ -12,11 +12,11 @@ namespace Chess
         private readonly Label _whiteTimeLabel;
         private readonly Label _blackTimeLabel;
 
-        public int TimeForGame { get; private set; } = 300;
+        public int TimeForGame { get; private set; }
 
-        public int WhiteTimeLeft { get; private set; } = 300;
+        public int WhiteTimeLeft { get; private set; }
 
-        public int BlackTimeLeft { get; private set; } = 300;
+        public int BlackTimeLeft { get; private set; }
 
         public TimePanel(GameForm form)
         {
@@ -44,7 +44,8 @@ namespace Chess
             Controls.Add(_whiteTimeLabel);
             Controls.Add(_blackTimeLabel);
 
-            ShowTime();            
+            ResetTime(_form.TimeForGameValues[_form.TimeMenu.SelectedItemIndex]);
+            ShowTime();
 
             _form.SizeChanged += (sender, e) => Width = _form.ClientRectangle.Width;
             SizeChanged += Size_Changed;
@@ -80,7 +81,7 @@ namespace Chess
             TextAlign = ContentAlignment.MiddleCenter,
             Height = Font.Height,
             Width = Font.Height * 4
-        };        
+        };
 
         private static string GetTimeText(int time)
         {
@@ -121,7 +122,7 @@ namespace Chess
 
         public void ResetTime(int timeForGame)
         {
-            if (timeForGame <= 0)
+            if (timeForGame <= 0 || timeForGame >= 36000)
             {
                 throw new ArgumentOutOfRangeException();
             }
