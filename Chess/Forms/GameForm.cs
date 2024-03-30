@@ -23,7 +23,7 @@ namespace Chess
 
         public ColorSet ColorSet { get; private set; }
 
-        public int[] TimeForGameValues { get; } = new int[] { 300, 900, 1800, 3600, 5400, 7200, 10800 };
+        public static int[] TimeForGameValues { get; } = new int[] { 300, 900, 1800, 3600, 5400, 7200, 10800 };
 
         public GameForm()
         {
@@ -31,23 +31,25 @@ namespace Chess
             Text = "Шахматы";
             Icon = new("Images/Icon-2.png");
 
-            var settings = SettingsSaver.LoadSettings();
+            var setting = SettingsSaver.LoadSetting();
 
-            if (settings == null)
+            if (setting == null)
             {
                 WindowState = FormWindowState.Maximized;
             }
             else
             {
-                WindowState = (FormWindowState)settings[0];
-                Location = new(settings[1], settings[2]);
-                Width = settings[3];
-                Height = settings[4];
-                MinimumSize = new(settings[5], settings[6]);
+                WindowState = setting.WindowState;
+                Location = new(setting.FormX, setting.FormY);
+                Width = setting.FormWidth;
+                Height = setting.FormHeight;
+                MinimumSize = new(setting.FormMinWidth, setting.FormMinHeight);
             }
 
-            SetControls(settings);
-            SetColors(ColorsMenu.SelectedItemIndex);
+            SetControls(setting);
+
+            var colorSetIndex = setting != null ? setting.ColorSetIndex : 0;
+            SetColors(colorSetIndex);
 
             SizeChanged += Size_Changed;
             GamePanel.SizeChanged += GamePanel_SizeChanged;
@@ -55,37 +57,37 @@ namespace Chess
             QueryContinueDrag += GamePanel_Drag;
             MouseClick += CancelMoveChoice;
             MenuStrip.MouseClick += CancelMoveChoice;
-            FormClosing += (sender, e) => SettingsSaver.SaveSettings(this);
+            FormClosing += (sender, e) => SettingsSaver.SaveSetting(this);
 
             GamePanel.StartNewGame();
         }
 
-        private void SetControls(int[] settings)
+        private void SetControls(FormSetting setting)
         {
-            MenuStrip.Items.Add(CreateGameMenu(settings));
-            MenuStrip.Items.Add(CreateViewMenu(settings));
+            MenuStrip.Items.Add(CreateGameMenu(setting));
+            MenuStrip.Items.Add(CreateViewMenu(setting));
 
             TimePanel = new(this);
             GamePanel = new(this);
 
             TimePanel.Location = new(0, MenuStrip.Height);
 
-            if (settings == null)
+            if (setting == null)
             {
                 PutGamePanelToCenter();
             }
             else
             {
-                GamePanel.Location = new(settings[7], settings[8]);
-                GamePanel.SetButtonSize(settings[9]);
+                GamePanel.Location = new(setting.BoardX, setting.BoardY);
+                GamePanel.SetButtonSize(setting.ButtonSize);
 
-                if (settings[10] == 1)
+                if (setting.BoardIsReversed)
                 {
                     GamePanel.Rotate();
                 }
             }
 
-            if (settings == null)
+            if (setting == null)
             {
                 var minWidth = Math.Max(GamePanel.Width, TimePanel.MinimumSize.Width) + (Width - ClientRectangle.Width);
                 var minHeight = MenuStrip.Height + TimePanel.Height + GamePanel.Height + (Height - ClientRectangle.Height);
@@ -97,7 +99,7 @@ namespace Chess
             Controls.Add(GamePanel);
         }
 
-        private ToolStripMenuItem CreateGameMenu(int[] settings)
+        private ToolStripMenuItem CreateGameMenu(FormSetting setting)
         {
             var gameMenu = new ToolStripMenuItem("Игра");
 
@@ -107,16 +109,18 @@ namespace Chess
             gameMenuItem.Click += (sender, e) => GamePanel.StartNewGame();
 
             // Смена игроков.
-            WhitePlayerMenu = new SwitchingMenu("Белые", settings == null ? 0 : settings[12], "Вы", "Соперник");
+            var programPlaysForWhite = setting != null && setting.ProgramPlaysForWhite;
+            WhitePlayerMenu = new SwitchingMenu("Белые", programPlaysForWhite ? 1 : 0, "Вы", "Соперник");
             gameMenu.DropDownItems.Add(WhitePlayerMenu);
             WhitePlayerMenu.SwitchTo = (itemIndex) => GamePanel.ChangePlayer(ChessPieceColor.White);
 
-            BlackPlayerMenu = new SwitchingMenu("Черные", settings == null ? 1 : settings[13], "Вы", "Соперник");
+            var programPlaysForBlack = setting == null || setting.ProgramPlaysForBlack;
+            BlackPlayerMenu = new SwitchingMenu("Черные", programPlaysForBlack ? 1 : 0, "Вы", "Соперник");
             gameMenu.DropDownItems.Add(BlackPlayerMenu);
             BlackPlayerMenu.SwitchTo = (itemIndex) => GamePanel.ChangePlayer(ChessPieceColor.Black);
 
             // Смена контроля времени.          
-            TimeMenu = new SwitchingMenu("Время на партию", settings == null ? 0 : settings[14],
+            TimeMenu = new SwitchingMenu("Время на партию", setting == null ? 0 : setting.TimeMenuSelectedItemIndex,
                 "5 минут", "15 минут", "30 минут", "1 час", "1,5 часа", "2 часа", "3 часа");
 
             gameMenu.DropDownItems.Add(TimeMenu);
@@ -135,7 +139,7 @@ namespace Chess
             return gameMenu;
         }
 
-        private ToolStripMenuItem CreateViewMenu(int[] settings)
+        private ToolStripMenuItem CreateViewMenu(FormSetting setting)
         {
             var viewMenu = new ToolStripMenuItem("Вид");
 
@@ -146,7 +150,7 @@ namespace Chess
 
             // Выбор цветов.
             var colorSetsNames = ColorSet.GetStandartSets().Select(set => set.Name).ToArray();
-            ColorsMenu = new SwitchingMenu("Выбор цветов", settings == null ? 0 : settings[11], colorSetsNames);
+            ColorsMenu = new SwitchingMenu("Выбор цветов", setting == null ? 0 : setting.ColorSetIndex, colorSetsNames);
             viewMenu.DropDownItems.Add(ColorsMenu);
             ColorsMenu.SwitchTo = (itemIndex) => SetColors(itemIndex);
 
@@ -158,11 +162,17 @@ namespace Chess
             return viewMenu;
         }
 
-        private void SetColors(int colorsThemeIndex)
+        private void SetColors(ColorSet colors)
         {
-            ColorSet = ColorSet.GetStandartSets()[colorsThemeIndex];
-            BackColor = ColorSet.FormBackColor;
+            ColorSet = colors;
+            BackColor = colors.FormBackColor;
             GamePanel.SetColors();
+        }
+
+        private void SetColors(int colorsSetIndex)
+        {
+            var colorSet = ColorSet.GetStandartSets()[colorsSetIndex];
+            SetColors(colorSet);
         }
 
         public int GetCaptionHeight()

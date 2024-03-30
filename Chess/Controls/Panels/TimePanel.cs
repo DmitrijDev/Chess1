@@ -44,7 +44,7 @@ namespace Chess
             Controls.Add(_whiteTimeLabel);
             Controls.Add(_blackTimeLabel);
 
-            ResetTime(_form.TimeForGameValues[_form.TimeMenu.SelectedItemIndex]);
+            ResetTime(GameForm.TimeForGameValues[_form.TimeMenu.SelectedItemIndex]);
             ShowTime();
 
             _form.SizeChanged += (sender, e) => Width = _form.ClientRectangle.Width;

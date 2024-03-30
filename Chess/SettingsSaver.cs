@@ -3,20 +3,20 @@ namespace Chess
 {
     internal static class SettingsSaver
     {
-        private static string _fileName = "UserSettings.bin";
+        private readonly static string _fileName = "UserSettings.bin";
 
         private static IEnumerable<byte> Split(int number)
         {
             var remained = number;
 
-            var byte3 = (byte)(remained % 256);
-            remained /= 256;
+            var byte3 = (byte)(remained % (byte.MaxValue + 1));
+            remained /= byte.MaxValue + 1;
 
-            var byte2 = (byte)(remained % 256);
-            remained /= 256;
+            var byte2 = (byte)(remained % (byte.MaxValue + 1));
+            remained /= byte.MaxValue + 1;
 
-            var byte1 = (byte)(remained % 256);
-            remained /= 256;
+            var byte1 = (byte)(remained % (byte.MaxValue + 1));
+            remained /= byte.MaxValue + 1;
 
             yield return (byte)remained;
             yield return byte1;
@@ -30,7 +30,7 @@ namespace Chess
 
             foreach (var b in bytes)
             {
-                result *= 256;
+                result *= byte.MaxValue + 1;
                 result += b;
             }
 
@@ -40,6 +40,11 @@ namespace Chess
         private static IEnumerable<byte> GetSettingsBytes(this GameForm form)
         {
             yield return (byte)form.WindowState;
+            yield return form.GamePanel.IsReversed ? (byte)1 : (byte)0;
+            yield return (byte)form.ColorsMenu.SelectedItemIndex;
+            yield return (byte)form.WhitePlayerMenu.SelectedItemIndex;
+            yield return (byte)form.BlackPlayerMenu.SelectedItemIndex;
+            yield return (byte)form.TimeMenu.SelectedItemIndex;
 
             var numbers = new int[] { form.Location.X, form.Location.Y, form.Width, form.Height, form.MinimumSize.Width,
             form.MinimumSize.Height , form.GamePanel.Location.X, form.GamePanel.Location.Y, form.GamePanel.ButtonSize };
@@ -50,16 +55,10 @@ namespace Chess
                 {
                     yield return b;
                 }
-            }
-
-            yield return form.GamePanel.IsReversed ? (byte)1 : (byte)0;
-            yield return (byte)form.ColorsMenu.SelectedItemIndex;
-            yield return (byte)form.WhitePlayerMenu.SelectedItemIndex;
-            yield return (byte)form.BlackPlayerMenu.SelectedItemIndex;
-            yield return (byte)form.TimeMenu.SelectedItemIndex;
+            }            
         }
 
-        public static void SaveSettings(this GameForm form)
+        public static void SaveSetting(this GameForm form)
         {
             using (var writer = new BinaryWriter(new FileStream(_fileName, FileMode.Create, FileAccess.Write)))
             {
@@ -68,7 +67,7 @@ namespace Chess
             }
         }
 
-        public static int[] LoadSettings()
+        public static FormSetting LoadSetting()
         {
             var bytes = new byte[42];
             var totalRead = 0;
@@ -98,20 +97,39 @@ namespace Chess
                 return null;
             }
 
-            var settings = new int[15];
-            settings[0] = bytes[0];
+            var ints = new int[9];
 
-            for (int i = 1, j = 1; i <= 9; ++i, j += 4)
+            for (int i = 0, j = 6; i < 9; ++i, j += 4)
             {
-                settings[i] = Join(new byte[] { bytes[j], bytes[j + 1], bytes[j + 2], bytes[j + 3] });
+                ints[i] = Join(new byte[] { bytes[j], bytes[j + 1], bytes[j + 2], bytes[j + 3] });
             }
 
-            for (var i = 5; i >= 1; --i)
+            var setting = new FormSetting()
             {
-                settings[settings.Length - i] = bytes[bytes.Length - i];
-            }
+                WindowState = (FormWindowState)bytes[0],
+                BoardIsReversed = bytes[1] == 1,
+                ColorSetIndex = bytes[2],
 
-            return settings;
+                ProgramPlaysForWhite = bytes[3] == 1,
+                ProgramPlaysForBlack = bytes[4] == 1,
+
+                TimeMenuSelectedItemIndex = bytes[5],
+
+                FormX = ints[0],
+                FormY = ints[1],
+
+                FormWidth = ints[2],
+                FormHeight  = ints[3],
+
+                FormMinWidth = ints[4],
+                FormMinHeight = ints[5],
+
+                BoardX = ints[6],
+                BoardY = ints[7],
+                ButtonSize = ints[8]
+            };         
+                      
+            return setting;
         }
     }
 }
