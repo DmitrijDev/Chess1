@@ -8,9 +8,10 @@ namespace Chess.VirtualPlayer
         public SourceRobotsProvider()
         { }
 
-        public IChessRobot[] GetSourceRobots() => new IChessRobot[] { Robot0 };
+        public IChessRobot[] GetSourceRobots() => new IChessRobot[] { Robot1 };
 
-        public ChessRobot<MaterialEvaluatingBoard> Robot0 => new(board => board.EvaluatePiece = PieceEvaluation.GetBasicValue, tree => tree.TraverseAtDepth(4),
-                PositionEvaluation.EvaluatePosition_1, Strategy.CorrectParentEvaluation, Strategy.GetBestMoveNode);
+        public ChessRobot<MaterialCheckingBoard> Robot1 => new(TreeTraverse.Traverse_1, (node, tree) => tree.Evaluate(node),
+        Tactics.CorrectParentEvaluation, Tactics.GetBestMoveNode, new string[] { "EvaluatePieceFunc", "EvaluatePositionFunc" },
+        new Delegate[] { PieceEvaluation.GetBasicValue, PositionEvaluation.EvaluatePosition_1 });
     }
 }

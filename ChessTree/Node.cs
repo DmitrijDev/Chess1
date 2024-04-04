@@ -4,8 +4,8 @@ namespace Chess.ChessTree
 {
     public class Node
     {
-        private readonly sbyte _startSquareVertical = -1;
-        private readonly sbyte _startSquareHorizontal = -1;
+        private readonly sbyte _startVertical = -1;
+        private readonly sbyte _startHorizontal = -1;
         private readonly sbyte _moveSquareVertical = -1;
         private readonly sbyte _moveSquareHorizontal = -1;
         private readonly ChessPieceName _newPieceName;
@@ -25,8 +25,8 @@ namespace Chess.ChessTree
 
         internal Node(Move move)
         {
-            _startSquareVertical = (sbyte)move.StartSquare.Vertical;
-            _startSquareHorizontal = (sbyte)move.StartSquare.Horizontal;
+            _startVertical = (sbyte)move.StartSquare.Vertical;
+            _startHorizontal = (sbyte)move.StartSquare.Horizontal;
             _moveSquareVertical = (sbyte)move.MoveSquare.Vertical;
             _moveSquareHorizontal = (sbyte)move.MoveSquare.Horizontal;
 
@@ -36,21 +36,36 @@ namespace Chess.ChessTree
             }
 
             _movingPieceColor = move.MovingPiece.Color;
+            Depth = (ushort)move.Depth;
         }
 
         internal Node(Move move, Node parent) : this(move)
         {
             Parent = parent;
-            Depth = (ushort)(Parent.Depth + 1);
         }
 
-        public Node Find(int startSquareVertical, int startSquareHorizontal, int moveSquareVertical, int moveSquareHorizontal) =>
-            Children.Where(child => child._startSquareVertical == startSquareVertical &&
-            child._startSquareHorizontal == startSquareHorizontal &&
-            child._moveSquareVertical == moveSquareVertical &&
-            child._moveSquareHorizontal == moveSquareHorizontal).
-            FirstOrDefault();
+        public Node GetChild(int startVertical, int startHorizontal,
+            int moveSquareVertical, int moveSquareHorizontal, ChessPieceName newPieceName)
+        {
+            var children = Children;
 
+            if (children == null)
+            {
+                return null;
+            }
+
+            return children.Where(child => child._startVertical == startVertical &&
+            child._startHorizontal == startHorizontal &&
+            child._moveSquareVertical == moveSquareVertical &&
+            child._moveSquareHorizontal == moveSquareHorizontal &&
+            child._newPieceName == newPieceName).
+            SingleOrDefault();
+        }
+
+        public Node GetChild(int startVertical, int startHorizontal,
+            int moveSquareVertical, int moveSquareHorizontal) =>
+        GetChild(startVertical, startHorizontal,
+            moveSquareVertical, moveSquareHorizontal, default);
 
         public IEnumerable<Node> GetPrecedents()
         {
@@ -65,12 +80,12 @@ namespace Chess.ChessTree
 
         internal bool Coincides(Node other)
         {
-            if (_startSquareVertical != other._startSquareVertical)
+            if (_startVertical != other._startVertical)
             {
                 return false;
             }
 
-            if (_startSquareHorizontal != other._startSquareHorizontal)
+            if (_startHorizontal != other._startHorizontal)
             {
                 return false;
             }
@@ -88,22 +103,40 @@ namespace Chess.ChessTree
             return _newPieceName == other._newPieceName;
         }
 
+        internal bool Corresponds(Move move)
+        {
+            if (_startVertical != move.StartSquare.Vertical)
+            {
+                return false;
+            }
+
+            if (_startHorizontal != move.StartSquare.Horizontal)
+            {
+                return false;
+            }
+
+            if (_moveSquareVertical != move.MoveSquare.Vertical)
+            {
+                return false;
+            }
+
+            if (_moveSquareHorizontal != move.MoveSquare.Horizontal)
+            {
+                return false;
+            }
+
+            return !move.NewPieceSelected || _newPieceName == move.NewPiece.Name;
+        }
+
         public IEnumerable<Node> GetChildren()
         {
-            var children = Children;
-
-            if (children == null)
+            if (Children == null)
             {
                 yield break;
             }
 
-            foreach (var child in children)
+            foreach (var child in Children)
             {
-                if (children != Children)
-                {
-                    throw new InvalidOperationException("Коллекция была изменена во время перечисления.");
-                }
-
                 yield return child;
             }
         }
@@ -133,9 +166,9 @@ namespace Chess.ChessTree
             }
         }
 
-        public int StartSquareVertical => _startSquareVertical >= 0 ? _startSquareVertical : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
+        public int StartVertical => _startVertical >= 0 ? _startVertical : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
 
-        public int StartSquareHorizontal => _startSquareHorizontal >= 0 ? _startSquareHorizontal : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
+        public int StartHorizontal => _startHorizontal >= 0 ? _startHorizontal : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
 
         public int MoveSquareVertical => _moveSquareVertical >= 0 ? _moveSquareVertical : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
 
@@ -146,9 +179,7 @@ namespace Chess.ChessTree
         public ChessPieceName NewPieceName => IsPawnPromotion ? _newPieceName :
         throw new InvalidOperationException("Это свойство может быть вычислено только для узла, соотв. превращению пешки.");
 
-        public ChessPieceColor MovingPieceColor => _startSquareVertical >= 0 ? _movingPieceColor : throw new InvalidOperationException("Этот корневой узел не хранит цвета фигуры.");
-
-        public bool HasChildren => Children != null;
+        public ChessPieceColor MovingPieceColor => _startVertical >= 0 ? _movingPieceColor : throw new InvalidOperationException("Этот корневой узел не хранит цвета фигуры.");
 
         public int ChildrenCount
         {

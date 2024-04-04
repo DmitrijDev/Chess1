@@ -366,6 +366,12 @@ namespace Chess
          
         public void SaveGame()
         {
+            if (_gameBoard.MovesCount == 0)
+            {
+                MessageBox.Show("Игра еще не начата.", "", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
             var date = DateTime.Now;
 
             var fileName = new StringBuilder(date.Year).Append(date.Month).Append(date.Day).Append(date.Hour).

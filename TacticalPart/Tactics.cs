@@ -1,9 +1,9 @@
 ﻿using Chess.ChessTree;
 using Chess.LogicPart;
 
-namespace Chess.StrategicPart
+namespace Chess.TacticalPart
 {
-    public static class Strategy
+    public static class Tactics
     {
         public static bool CorrectParentEvaluation(this Node child)
         {
@@ -85,7 +85,6 @@ namespace Chess.StrategicPart
                     if (node.Evaluation > result.Evaluation)
                     {
                         result = node;
-
                     }
                 }
                 else

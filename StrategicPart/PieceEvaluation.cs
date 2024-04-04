@@ -1,6 +1,6 @@
 ﻿using Chess.LogicPart;
 
-namespace Chess.TacticalPart
+namespace Chess.StrategicPart
 {
     public static class PieceEvaluation
     {       
@@ -13,7 +13,7 @@ namespace Chess.TacticalPart
                 ChessPieceName.Bishop => 300,
                 ChessPieceName.Rook => 500,
                 ChessPieceName.Queen => 900,
-                _ => throw new ApplicationException("Короля невозможно оценить в баллах."),
+                _ => throw new InvalidOperationException("Короля невозможно оценить в баллах."),
             };
 
             if (piece.Color == ChessPieceColor.Black)

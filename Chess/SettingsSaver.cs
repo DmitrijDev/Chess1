@@ -24,11 +24,11 @@ namespace Chess
             yield return byte3;
         }
 
-        private static int Join(IEnumerable<byte> bytes)
+        private static int Join(params byte[] bytes)
         {
             var result = 0;
 
-            foreach (var b in bytes)
+            foreach (var b in bytes.Take(4))
             {
                 result *= byte.MaxValue + 1;
                 result += b;
@@ -55,7 +55,7 @@ namespace Chess
                 {
                     yield return b;
                 }
-            }            
+            }
         }
 
         public static void SaveSetting(this GameForm form)
@@ -101,7 +101,7 @@ namespace Chess
 
             for (int i = 0, j = 6; i < 9; ++i, j += 4)
             {
-                ints[i] = Join(new byte[] { bytes[j], bytes[j + 1], bytes[j + 2], bytes[j + 3] });
+                ints[i] = Join(bytes[j], bytes[j + 1], bytes[j + 2], bytes[j + 3]);
             }
 
             var setting = new FormSetting()
@@ -119,7 +119,7 @@ namespace Chess
                 FormY = ints[1],
 
                 FormWidth = ints[2],
-                FormHeight  = ints[3],
+                FormHeight = ints[3],
 
                 FormMinWidth = ints[4],
                 FormMinHeight = ints[5],
@@ -127,8 +127,8 @@ namespace Chess
                 BoardX = ints[6],
                 BoardY = ints[7],
                 ButtonSize = ints[8]
-            };         
-                      
+            };
+
             return setting;
         }
     }

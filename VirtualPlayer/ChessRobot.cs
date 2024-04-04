@@ -1,21 +1,23 @@
 ﻿using Chess.LogicPart;
 using Chess.ChessTree;
+using Chess.StrategicPart;
 
 namespace Chess.VirtualPlayer
 {
     public class ChessRobot<TBoard> : IChessRobot
-        where TBoard : ChessBoard, new()
+       where TBoard : AnalysisBoard, new()
     {
-        private ChessBoard _board;
-        private ulong _boardModCount;
-        private ulong _boardGameStartsCount;
-        private Tree<TBoard> _tree;
+        private ChessBoard _gameBoard;
+        private ulong _gameBoardModCount;
+        private ulong _gameBoardGameStartsCount;
+        private IChessTree _tree;
 
-        public Action<TBoard> SetBoardParams { get; }
+        private readonly string[] _boardPropNames;
+        private readonly Delegate[] _boardFuncs;
 
-        public Func<Tree<TBoard>, IEnumerable<Node>> Traverse { get; }
+        public Func<IChessTree, IEnumerable<Node>> Traverse { get; }
 
-        public Func<TBoard, int> EvaluatePosition { get; }
+        public Func<Node, IChessTree, int> Evaluate { get; }
 
         public Func<Node, bool> CorrectParentEvaluation { get; }
 
@@ -23,23 +25,91 @@ namespace Chess.VirtualPlayer
 
         public bool ThinkingDisabled { get; set; }
 
-        public ChessRobot(Action<TBoard> setBoardParams, Func<Tree<TBoard>, IEnumerable<Node>> traverse, Func<TBoard, int> evaluatePosition,
-            Func<Node, bool> correctParentEvaluation, Func<IChessTree, Node> getBestMoveNode)
+        public ChessRobot(Func<IChessTree, IEnumerable<Node>> traverse, Func<Node, IChessTree, int> evaluate,
+        Func<Node, bool> correctParentEvaluation, Func<IChessTree, Node> getBestMoveNode)
         {
-            SetBoardParams = setBoardParams;
+            if (traverse == null || evaluate == null || correctParentEvaluation == null ||
+            getBestMoveNode == null)
+            {
+                throw new ArgumentNullException();
+            }
+
             Traverse = traverse;
-            EvaluatePosition = evaluatePosition;
+            Evaluate = evaluate;
             CorrectParentEvaluation = correctParentEvaluation;
             GetBestMoveNode = getBestMoveNode;
         }
 
+        public ChessRobot(Func<IChessTree, IEnumerable<Node>> traverse, Func<Node, IChessTree, int> evaluate,
+        Func<Node, bool> correctParentEvaluation, Func<IChessTree, Node> getBestMoveNode,
+        IEnumerable<string> boardPropNames, IEnumerable<Delegate> boardFuncs) :
+        this(traverse, evaluate, correctParentEvaluation, getBestMoveNode)
+        {
+            if (boardPropNames == null || boardFuncs == null)
+            {
+                throw new ArgumentNullException();
+            }
+
+            _boardPropNames = boardPropNames.ToArray();
+            _boardFuncs = boardFuncs.ToArray();
+            CheckBoardProps();
+        }
+
         public ChessRobot(ChessRobot<TBoard> other)
         {
-            SetBoardParams = other.SetBoardParams;
             Traverse = other.Traverse;
-            EvaluatePosition = other.EvaluatePosition;
+            Evaluate = other.Evaluate;
             CorrectParentEvaluation = other.CorrectParentEvaluation;
             GetBestMoveNode = other.GetBestMoveNode;
+
+            if (other._boardPropNames.Length == 0)
+            {
+                return;
+            }
+
+            _boardPropNames = new string[other._boardPropNames.Length];
+            Array.Copy(other._boardPropNames, _boardPropNames, _boardPropNames.Length);
+
+            _boardFuncs = new Delegate[other._boardFuncs.Length];
+            Array.Copy(other._boardFuncs, _boardFuncs, _boardFuncs.Length);
+        }
+
+        private void CheckBoardProps()
+        {
+            if (_boardPropNames.Length != _boardFuncs.Length)
+            {
+                throw new ArgumentException("Число указ. свойств доски должно быть равно числу указ. значений.");
+            }
+
+            var boardType = typeof(TBoard);
+
+            for (var i = 0; i < _boardPropNames.Length; ++i)
+            {
+                if (_boardFuncs[i] == null)
+                {
+                    throw new ArgumentNullException("Среди указ. значений свойств не может быть == null.");
+                }
+
+                var property = boardType.GetProperty(_boardPropNames[i]);
+
+                if (property == null)
+                {
+                    throw new ArgumentException($"Не найдено подходящего открытого свойства {_boardPropNames[i]}.");
+                }
+
+                if (!property.CanWrite)
+                {
+                    throw new ArgumentException($"Свойству {_boardPropNames[i]} невозможно присвоить значение.");
+                }
+
+                var propType = property.PropertyType;
+                var valueType = _boardFuncs[i].GetType();
+
+                if (!propType.IsAssignableFrom(valueType))
+                {
+                    throw new ArgumentException($"Свойство {_boardPropNames[i]} имеет тип {propType.FullName} и ему невозможно присвоить значение типа {valueType.FullName}.");
+                }
+            }
         }
 
         public IChessRobot Copy() => new ChessRobot<TBoard>(this);
@@ -50,23 +120,19 @@ namespace Chess.VirtualPlayer
             {
                 lock (board)
                 {
-                    _board = board;
-                    _boardModCount = _board.ModCount;
-                    _boardGameStartsCount = _board.GameStartsCount;
+                    _gameBoard = board;
+                    _gameBoardModCount = _gameBoard.ModCount;
+                    _gameBoardGameStartsCount = _gameBoard.GameStartsCount;
 
-                    _tree = new(_board)
-                    {
-                        EvaluatePosition = EvaluatePosition
-                    };
+                    _tree = _boardPropNames == null || _boardPropNames.Length == 0 ? new Tree<TBoard>(_gameBoard) :
+                    new Tree<TBoard>(_gameBoard, _boardPropNames, _boardFuncs);
                 }
 
-                _tree.DoWithBoard(SetBoardParams);
-                var rootChildren = _tree.Root.GetChildren();
                 Node resultNode;
 
                 if (_tree.Root.ChildrenCount == 1)
                 {
-                    resultNode = rootChildren.Single();
+                    resultNode = _tree.Root.GetChildren().Single();
                 }
                 else
                 {
@@ -80,22 +146,22 @@ namespace Chess.VirtualPlayer
                     }
                 }
 
-                lock (_board)
+                lock (_gameBoard)
                 {
                     if (ThinkingDisabled)
                     {
-                        _board = null;
+                        _gameBoard = null;
                         _tree = null;
                         throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
                     }
 
-                    if (_board.ModCount != _boardModCount || _boardGameStartsCount != _board.GameStartsCount)
+                    if (_gameBoard.ModCount != _gameBoardModCount || _gameBoardGameStartsCount != _gameBoard.GameStartsCount)
                     {
                         throw new InvalidOperationException("На доске изменилась позиция во время анализа.");
                     }
 
-                    var piece = _board[resultNode.StartSquareVertical, resultNode.StartSquareHorizontal].ContainedPiece;
-                    var square = _board[resultNode.MoveSquareVertical, resultNode.MoveSquareHorizontal];
+                    var piece = _gameBoard[resultNode.StartVertical, resultNode.StartHorizontal].ContainedPiece;
+                    var square = _gameBoard[resultNode.MoveSquareVertical, resultNode.MoveSquareHorizontal];
                     return resultNode.IsPawnPromotion ? new Move(piece, square, resultNode.NewPieceName) : new Move(piece, square);
                 }
             }
@@ -105,22 +171,22 @@ namespace Chess.VirtualPlayer
         {
             foreach (var node in Traverse(_tree))
             {
-                lock (_board)
+                lock (_gameBoard)
                 {
                     if (ThinkingDisabled)
                     {
-                        _board = null;
+                        _gameBoard = null;
                         _tree = null;
                         throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
                     }
 
-                    if (_board.ModCount != _boardModCount || _boardGameStartsCount != _board.GameStartsCount)
+                    if (_gameBoard.ModCount != _gameBoardModCount || _gameBoardGameStartsCount != _gameBoard.GameStartsCount)
                     {
                         throw new InvalidOperationException("На доске изменилась позиция во время анализа.");
                     }
                 }
 
-                _tree.Evaluate(node);
+                node.Evaluation = Evaluate(node, _tree);
                 CorrectEvaluations(node);
             }
         }

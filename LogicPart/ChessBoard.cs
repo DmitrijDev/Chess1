@@ -63,6 +63,7 @@ namespace Chess.LogicPart
 
                     if (source.Status == BoardStatus.ClearBoard)
                     {
+                        DoAfterPositionSet();
                         return;
                     }
 
@@ -84,6 +85,7 @@ namespace Chess.LogicPart
                     }
 
                     DrawReason = source.DrawReason;
+                    DoAfterPositionSet();
                 }
             }
         }
