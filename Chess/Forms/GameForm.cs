@@ -28,8 +28,6 @@ namespace Chess
         public GameForm()
         {
             InitializeComponent();
-            Text = "Шахматы";
-            Icon = new("Images/Icon-2.png");
 
             var setting = SettingsSaver.LoadSetting();
 
@@ -39,7 +37,7 @@ namespace Chess
             }
             else
             {
-                WindowState = setting.WindowState;
+                WindowState = setting.WindowState != FormWindowState.Minimized ? setting.WindowState : FormWindowState.Normal;
                 Location = new(setting.FormX, setting.FormY);
                 Width = setting.FormWidth;
                 Height = setting.FormHeight;

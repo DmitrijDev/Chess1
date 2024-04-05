@@ -75,7 +75,7 @@ namespace Chess.ChessTree
 
                 if (!propType.IsAssignableFrom(valueType))
                 {
-                    throw new ArgumentException($"Свойство {propNames[i]} имеет тип {propType.FullName} и ему невозможно присвоить значение типа {valueType.FullName}.");
+                    throw new ArgumentException($"Свойству {propNames[i]} указано неподходящее значение.");
                 }
 
                 property.SetValue(_board, delegates[i]);

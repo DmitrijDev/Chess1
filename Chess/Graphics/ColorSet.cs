@@ -95,7 +95,7 @@ namespace Chess
             LightSquaresColor = Color.Goldenrod,
             DarkSquaresColor = Color.SaddleBrown,
             HighlightColor = Color.BlueViolet,
-            OutlineColor = Color.Cyan,
+            OutlineColor = Color.DarkCyan,
             BoardColor = Color.Maroon,
             FormBackColor = Color.Olive,
             Name = "Осень"

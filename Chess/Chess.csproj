@@ -10,36 +10,30 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Images\**" />
+    <Compile Remove="bin\**" />
     <Compile Remove="Pictures\**" />
-    <EmbeddedResource Remove="Images\**" />
+    <Compile Remove="Properties\**" />
+    <EmbeddedResource Remove="bin\**" />
     <EmbeddedResource Remove="Pictures\**" />
-    <None Remove="Images\**" />
+    <EmbeddedResource Remove="Properties\**" />
+    <None Remove="bin\**" />
     <None Remove="Pictures\**" />
+    <None Remove="Properties\**" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="bin\Debug\net6.0-windows\Images\Bishop.jpg" />
     <Content Include="bin\Debug\net6.0-windows\Images\Icon.ico" />
+    <Content Include="bin\Debug\net6.0-windows\Images\King.jpg" />
+    <Content Include="bin\Debug\net6.0-windows\Images\Knight.jpg" />
+    <Content Include="bin\Debug\net6.0-windows\Images\Pawn.jpg" />
+    <Content Include="bin\Debug\net6.0-windows\Images\Queen.jpg" />
+    <Content Include="bin\Debug\net6.0-windows\Images\Rook.jpg" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\LogicPart\LogicPart.csproj" />
     <ProjectReference Include="..\VirtualPlayer\VirtualPlayer.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Update="Properties\Settings.Designer.cs">
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
   </ItemGroup>
 
 </Project>
