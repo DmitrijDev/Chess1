@@ -6,54 +6,44 @@ namespace Chess
 {
     internal class TimePanel : Panel
     {
-        private readonly GameForm _form;
         private readonly Timer _timer = new() { Interval = 1000 };
 
         private readonly Label _whiteTimeLabel;
         private readonly Label _blackTimeLabel;
+        private readonly int _interval;
 
-        public int TimeForGame { get; private set; }
+        private int _timeForGame;
+        private int _whiteTimeLeft;
+        private int _blackTimeLeft;
 
-        public int WhiteTimeLeft { get; private set; }
+        public PieceColor MovingSideColor { get; set; }
 
-        public int BlackTimeLeft { get; private set; }
-
-        public TimePanel(GameForm form)
+        public TimePanel(int width, int height, int timeForGame)
         {
-            _form = form;
             BorderStyle = BorderStyle.FixedSingle;
             BackColor = DefaultBackColor;
-            Font = GetNewFont();
+            Width = width;
+            Height = height;
+            SetFont();
 
-            _whiteTimeLabel = GetNewLabel();
-            _blackTimeLabel = GetNewLabel();
-
-            _whiteTimeLabel.MouseClick += _form.CancelMoveChoice;
-            _blackTimeLabel.MouseClick += _form.CancelMoveChoice;
-
-            var labelWidth = _whiteTimeLabel.Width;
-            var interval = labelWidth + labelWidth / 2;
-
-            MinimumSize = new(labelWidth * 2 + interval, _whiteTimeLabel.Height);
-            Width = _form.ClientRectangle.Width;
-            Height = _whiteTimeLabel.Height;
-
-            _whiteTimeLabel.Location = new(Width / 2 - interval / 2 - labelWidth, 0);
-            _blackTimeLabel.Location = new(Width / 2 + interval / 2, 0);
-
+            _whiteTimeLabel = GetLabel();
+            _blackTimeLabel = GetLabel();
             Controls.Add(_whiteTimeLabel);
             Controls.Add(_blackTimeLabel);
 
-            ResetTime(GameForm.TimeForGameValues[_form.TimeMenu.SelectedItemIndex]);
-            ShowTime();
+            var labelWidth = _whiteTimeLabel.Width;
+            _interval = labelWidth + labelWidth / 2;
+            _interval += _interval % 2;
+            MinimumSize = new(labelWidth * 2 + _interval + (Width - ClientRectangle.Width), Height);
+            LocateLabels();
 
-            _form.SizeChanged += (sender, e) => Width = _form.ClientRectangle.Width;
-            SizeChanged += Size_Changed;
+            ResetTime(timeForGame);
+
+            SizeChanged += (sender, e) => LocateLabels();
             _timer.Tick += Timer_Tick;
-            MouseClick += _form.CancelMoveChoice;
         }
 
-        private Font GetNewFont()
+        private void SetFont()
         {
             var font = new Font("TimesNewRoman", 1, FontStyle.Bold, GraphicsUnit.Pixel);
 
@@ -61,7 +51,7 @@ namespace Chess
             {
                 var newFont = new Font("TimesNewRoman", font.Size + 1, FontStyle.Bold, GraphicsUnit.Pixel);
 
-                if (newFont.Height <= _form.MenuStrip.Height)
+                if (newFont.Height <= ClientRectangle.Height)
                 {
                     font = newFont;
                 }
@@ -71,17 +61,46 @@ namespace Chess
                 }
             }
 
-            return font;
+            Font = font;
         }
 
-        private Label GetNewLabel() => new()
+        private Label GetLabel()
         {
-            BackColor = Color.LightSlateGray,
-            ForeColor = Color.Black,
-            TextAlign = ContentAlignment.MiddleCenter,
-            Height = Font.Height,
-            Width = Font.Height * 4
-        };
+            var label = new Label()
+            {
+                BackColor = Color.LightSlateGray,
+                ForeColor = Color.Black,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Height = ClientRectangle.Height,
+                Width = Font.Height * 4
+            };
+
+            label.MouseClick += (sender, e) => OnMouseClick(e);
+            return label;
+        }
+
+        private void LocateLabels()
+        {
+            var labelWidth = _whiteTimeLabel.Width;
+            _whiteTimeLabel.Location = new(ClientRectangle.Width / 2 - _interval / 2 - labelWidth, 0);
+            _blackTimeLabel.Location = new(ClientRectangle.Width / 2 + _interval / 2, 0);
+        }
+
+        public void ResetTime(int timeForGame)
+        {
+            if (timeForGame <= 0 || timeForGame >= 36000)
+            {
+                throw new ArgumentOutOfRangeException();
+            }
+
+            var timeText = GetTimeText(timeForGame);
+            _whiteTimeLabel.Text = timeText;
+            _blackTimeLabel.Text = timeText;
+
+            _timeForGame = timeForGame;
+            _whiteTimeLeft = _timeForGame;
+            _blackTimeLeft = _timeForGame;
+        }
 
         private static string GetTimeText(int time)
         {
@@ -107,66 +126,51 @@ namespace Chess
             return text.ToString();
         }
 
-        private void ShowTime()
-        {
-            _whiteTimeLabel.Text = GetTimeText(WhiteTimeLeft);
-            _blackTimeLabel.Text = GetTimeText(BlackTimeLeft);
-        }
+        public void ResetTime() => ResetTime(_timeForGame);
 
-        public void ResetTime()
-        {
-            WhiteTimeLeft = TimeForGame;
-            BlackTimeLeft = TimeForGame;
-            ShowTime();
-        }
+        public static int[] GetTimeForGameValues() =>
+        new int[] { 300, 900, 1800, 3600, 5400, 7200, 10800 };
 
-        public void ResetTime(int timeForGame)
+        public void StartTimer()
         {
-            if (timeForGame <= 0 || timeForGame >= 36000)
+            if (_whiteTimeLeft > 0 && _blackTimeLeft > 0)
             {
-                throw new ArgumentOutOfRangeException();
+                _timer.Start();
             }
-
-            TimeForGame = timeForGame;
-            ResetTime();
+            else
+            {
+                throw new InvalidOperationException("Время истекло.");
+            }
         }
-
-        public void StartTimer() => _timer.Start();
 
         public void StopTimer() => _timer.Stop();
 
-        private void Size_Changed(object sender, EventArgs e)
-        {
-            var labelWidth = _whiteTimeLabel.Width;
-            var interval = labelWidth + labelWidth / 2;
-            _whiteTimeLabel.Location = new(Width / 2 - interval / 2 - labelWidth, 0);
-            _blackTimeLabel.Location = new(Width / 2 + interval / 2, 0);
-        }
-
         private void Timer_Tick(object sender, EventArgs e)
         {
-            if (_form.GamePanel.MovingSideColor == ChessPieceColor.White)
+            if (MovingSideColor == PieceColor.White)
             {
-                --WhiteTimeLeft;
-                _whiteTimeLabel.Text = GetTimeText(WhiteTimeLeft);
+                --_whiteTimeLeft;
+                _whiteTimeLabel.Text = GetTimeText(_whiteTimeLeft);
 
-                if (WhiteTimeLeft == 0)
+                if (_whiteTimeLeft == 0)
                 {
                     _timer.Stop();
-                    _form.GamePanel.EndGame(BoardStatus.BlackWin);
+                    TimeElapsed?.Invoke(PieceColor.White);
                 }
             }
             else
             {
-                --BlackTimeLeft;
-                _blackTimeLabel.Text = GetTimeText(BlackTimeLeft);
+                --_blackTimeLeft;
+                _blackTimeLabel.Text = GetTimeText(_blackTimeLeft);
 
-                if (BlackTimeLeft == 0)
+                if (_blackTimeLeft == 0)
                 {
                     _timer.Stop();
-                    _form.GamePanel.EndGame(BoardStatus.WhiteWin);
+                    TimeElapsed?.Invoke(PieceColor.Black);
                 }
             }
         }
+
+        public event Action<PieceColor> TimeElapsed;
     }
 }

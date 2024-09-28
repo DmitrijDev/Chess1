@@ -1,6 +1,6 @@
 ﻿
 namespace Chess.LogicPart
 {
-    public enum DrawReason { Stalemate, NotEnoughMaterial, ThreeRepeatsRule, FiftyMovesRule, None};
+    public enum DrawReason { Stalemate, InsufficientMaterial, ThreeRepeatsRule, FiftyMovesRule, None};
 
 }

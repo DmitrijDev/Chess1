@@ -11,9 +11,14 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StrategicPart", "StrategicP
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChessTree", "ChessTree\ChessTree.csproj", "{4D57BD54-4287-4E67-9B5B-86DC50CCC663}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VirtualPlayer", "VirtualPlayer\VirtualPlayer.csproj", "{0CDB3418-35E9-4219-BC9F-AE8F15A6BF6B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VirtualPlayer", "VirtualPlayer\VirtualPlayer.csproj", "{0CDB3418-35E9-4219-BC9F-AE8F15A6BF6B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TacticalPart", "TacticalPart\TacticalPart.csproj", "{53C44182-E185-4482-A25B-3739AE0A0B08}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TacticalPart", "TacticalPart\TacticalPart.csproj", "{53C44182-E185-4482-A25B-3739AE0A0B08}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{82CC30C7-51AB-46DE-91C0-EB72D8FCCAC2}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

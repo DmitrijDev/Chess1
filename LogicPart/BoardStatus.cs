@@ -1,5 +1,5 @@
 ﻿
 namespace Chess.LogicPart
 {
-    public enum BoardStatus { WhiteWin, BlackWin, Draw, GameIsIncomplete, ClearBoard, IllegalPosition }; 
+    public enum BoardStatus { WhiteWon, BlackWon, Draw, GameIncomplete, Clear };
 }

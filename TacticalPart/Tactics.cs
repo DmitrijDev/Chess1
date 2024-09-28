@@ -25,15 +25,15 @@ namespace Chess.TacticalPart
                 return false;
             }
 
-            if ((child.MovingPieceColor == ChessPieceColor.White && child.Evaluation > parent.Evaluation) ||
-                (child.MovingPieceColor == ChessPieceColor.Black && child.Evaluation < parent.Evaluation))
+            if ((child.MovingPieceColor == PieceColor.White && child.Evaluation > parent.Evaluation) ||
+                (child.MovingPieceColor == PieceColor.Black && child.Evaluation < parent.Evaluation))
             {
                 parent.Evaluation = child.Evaluation;
                 return true;
             }
 
             var evaluations = parent.GetChildren().Where(node => node.IsEvaluated).Select(node => node.Evaluation);
-            var newEvaluation = child.MovingPieceColor == ChessPieceColor.White ? evaluations.Max() : evaluations.Min();
+            var newEvaluation = child.MovingPieceColor == PieceColor.White ? evaluations.Max() : evaluations.Min();
 
             if (parent.Evaluation == newEvaluation)
             {
@@ -59,6 +59,16 @@ namespace Chess.TacticalPart
 
                 if (!node.IsEvaluated)
                 {
+                    if (!result.IsEvaluated)
+                    {
+                        var r = rand.Next(2);
+
+                        if (r == 0)
+                        {
+                            result = node;
+                        }
+                    }
+
                     continue;
                 }
 
@@ -80,7 +90,7 @@ namespace Chess.TacticalPart
                     continue;
                 }
 
-                if (node.MovingPieceColor == ChessPieceColor.White)
+                if (node.MovingPieceColor == PieceColor.White)
                 {
                     if (node.Evaluation > result.Evaluation)
                     {

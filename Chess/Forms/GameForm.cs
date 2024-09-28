@@ -1,103 +1,104 @@
 using Chess.LogicPart;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Chess
 {
     internal partial class GameForm : Form
     {
+        private readonly string _settingsFileName = "UserSettings.bin";
+
         private int _fromDragCursorToGamePanelLeft;
         private int _fromDragCursorToGamePanelTop;
 
         public MenuStrip MenuStrip { get; } = new();
 
-        public SwitchingMenu WhitePlayerMenu { get; private set; }
+        public SwitchMenu WhitePlayerMenu { get; private set; }
 
-        public SwitchingMenu BlackPlayerMenu { get; private set; }
+        public SwitchMenu BlackPlayerMenu { get; private set; }
 
-        public SwitchingMenu TimeMenu { get; private set; }
+        public SwitchMenu TimeMenu { get; private set; }
 
-        public SwitchingMenu ColorsMenu { get; private set; }
+        public SwitchMenu ColorsMenu { get; private set; }
 
         public TimePanel TimePanel { get; private set; }
 
         public GamePanel GamePanel { get; private set; }
 
-        public ColorSet ColorSet { get; private set; }
-
-        public static int[] TimeForGameValues { get; } = new int[] { 300, 900, 1800, 3600, 5400, 7200, 10800 };
-
-        public GameForm()
+        public GameForm(bool loadsSettingsInfo)
         {
             InitializeComponent();
+            FormSettingsInfo settingsInfo = null;
 
-            var setting = SettingsSaver.LoadSetting();
+            if (loadsSettingsInfo)
+            {
+                settingsInfo = LoadSettingsInfo();
+            }
 
-            if (setting == null)
+            if (settingsInfo == null)
             {
                 WindowState = FormWindowState.Maximized;
             }
             else
             {
-                WindowState = setting.WindowState != FormWindowState.Minimized ? setting.WindowState : FormWindowState.Normal;
-                Location = new(setting.FormX, setting.FormY);
-                Width = setting.FormWidth;
-                Height = setting.FormHeight;
-                MinimumSize = new(setting.FormMinWidth, setting.FormMinHeight);
+                WindowState = settingsInfo.WindowState;
+                Location = new(settingsInfo.FormX, settingsInfo.FormY);
+                Width = settingsInfo.FormWidth;
+                Height = settingsInfo.FormHeight;
             }
 
-            SetControls(setting);
-
-            var colorSetIndex = setting != null ? setting.ColorSetIndex : 0;
-            SetColors(colorSetIndex);
-
-            SizeChanged += Size_Changed;
-            GamePanel.SizeChanged += GamePanel_SizeChanged;
-            GamePanel.MouseDown += GamePanel_MouseDown;
-            QueryContinueDrag += GamePanel_Drag;
-            MouseClick += CancelMoveChoice;
-            MenuStrip.MouseClick += CancelMoveChoice;
-            FormClosing += (sender, e) => SettingsSaver.SaveSetting(this);
-
+            SetControls(settingsInfo);
+            var colorsSetIndex = settingsInfo != null ? settingsInfo.ColorsSetIndex : 0;
+            SetColors(colorsSetIndex);
+            SetEventsHandlers();
             GamePanel.StartNewGame();
         }
 
-        private void SetControls(FormSetting setting)
+        private FormSettingsInfo LoadSettingsInfo()
         {
-            MenuStrip.Items.Add(CreateGameMenu(setting));
-            MenuStrip.Items.Add(CreateViewMenu(setting));
+            using (var stream = new FileStream(_settingsFileName, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                return (FormSettingsInfo)new BinaryFormatter().Deserialize(stream);
+            }
+        }
 
-            TimePanel = new(this);
+        private void SetControls(FormSettingsInfo settingsInfo)
+        {
+            CreateGameMenu(settingsInfo);
+            CreateViewMenu(settingsInfo);
+
+            var timeForGame = TimePanel.GetTimeForGameValues()[settingsInfo != null ? settingsInfo.TimeMenuSelectedItemIndex : 0];
+            TimePanel = new(ClientRectangle.Width, MenuStrip.Height, timeForGame);
             GamePanel = new(this);
 
             TimePanel.Location = new(0, MenuStrip.Height);
 
-            if (setting == null)
+            if (settingsInfo == null)
             {
                 PutGamePanelToCenter();
             }
             else
             {
-                GamePanel.Location = new(setting.BoardX, setting.BoardY);
-                GamePanel.SetButtonSize(setting.ButtonSize);
+                GamePanel.Location = new(settingsInfo.BoardX, settingsInfo.BoardY);
+                GamePanel.SetSquareSize(settingsInfo.BoardSquareSize);
 
-                if (setting.BoardIsReversed)
+                if (settingsInfo.BoardIsReversed)
                 {
                     GamePanel.Rotate();
                 }
+
+                GamePanelSquare.SetBorderSize(settingsInfo.SquareBorderSize);
             }
 
-            if (setting == null)
-            {
-                var minWidth = Math.Max(GamePanel.Width, TimePanel.MinimumSize.Width) + (Width - ClientRectangle.Width);
-                var minHeight = MenuStrip.Height + TimePanel.Height + GamePanel.Height + (Height - ClientRectangle.Height);
-                MinimumSize = new(minWidth, minHeight);
-            }
+            var minWidth = Math.Max(GamePanel.Width, TimePanel.MinimumSize.Width) + (Width - ClientRectangle.Width);
+            var minHeight = MenuStrip.Height + TimePanel.Height + GamePanel.Height + (Height - ClientRectangle.Height);
+            MinimumSize = new(minWidth, minHeight);
 
             Controls.Add(MenuStrip);
             Controls.Add(TimePanel);
             Controls.Add(GamePanel);
         }
 
-        private ToolStripMenuItem CreateGameMenu(FormSetting setting)
+        private void CreateGameMenu(FormSettingsInfo settingsInfo)
         {
             var gameMenu = new ToolStripMenuItem("Игра");
 
@@ -107,22 +108,22 @@ namespace Chess
             gameMenuItem.Click += (sender, e) => GamePanel.StartNewGame();
 
             // Смена игроков.
-            var programPlaysForWhite = setting != null && setting.ProgramPlaysForWhite;
-            WhitePlayerMenu = new SwitchingMenu("Белые", programPlaysForWhite ? 1 : 0, "Вы", "Соперник");
+            var programPlaysForWhite = settingsInfo != null && settingsInfo.ProgramPlaysForWhite;
+            WhitePlayerMenu = new("Белые", programPlaysForWhite ? 1 : 0, "Вы", "Соперник");
             gameMenu.DropDownItems.Add(WhitePlayerMenu);
-            WhitePlayerMenu.SwitchTo = (itemIndex) => GamePanel.ChangePlayer(ChessPieceColor.White);
+            WhitePlayerMenu.Switch += (itemIndex) => GamePanel.SwitchPlayer(PieceColor.White);
 
-            var programPlaysForBlack = setting == null || setting.ProgramPlaysForBlack;
-            BlackPlayerMenu = new SwitchingMenu("Черные", programPlaysForBlack ? 1 : 0, "Вы", "Соперник");
+            var programPlaysForBlack = settingsInfo == null || settingsInfo.ProgramPlaysForBlack;
+            BlackPlayerMenu = new("Черные", programPlaysForBlack ? 1 : 0, "Вы", "Соперник");
             gameMenu.DropDownItems.Add(BlackPlayerMenu);
-            BlackPlayerMenu.SwitchTo = (itemIndex) => GamePanel.ChangePlayer(ChessPieceColor.Black);
+            BlackPlayerMenu.Switch += (itemIndex) => GamePanel.SwitchPlayer(PieceColor.Black);
 
             // Смена контроля времени.          
-            TimeMenu = new SwitchingMenu("Время на партию", setting == null ? 0 : setting.TimeMenuSelectedItemIndex,
+            TimeMenu = new("Время на партию", settingsInfo == null ? 0 : settingsInfo.TimeMenuSelectedItemIndex,
                 "5 минут", "15 минут", "30 минут", "1 час", "1,5 часа", "2 часа", "3 часа");
 
             gameMenu.DropDownItems.Add(TimeMenu);
-            TimeMenu.SwitchTo = (itemIndex) => TimePanel.ResetTime(TimeForGameValues[itemIndex]);
+            TimeMenu.Switch += (itemIndex) => TimePanel.ResetTime(TimePanel.GetTimeForGameValues()[itemIndex]);
 
             // Сохранение игры.
             gameMenuItem = new("Сохранить игру");
@@ -134,10 +135,10 @@ namespace Chess
             gameMenu.DropDownItems.Add(gameMenuItem);
             gameMenuItem.Click += (sender, e) => Close();
 
-            return gameMenu;
+            MenuStrip.Items.Add(gameMenu);
         }
 
-        private ToolStripMenuItem CreateViewMenu(FormSetting setting)
+        private void CreateViewMenu(FormSettingsInfo settingsInfo)
         {
             var viewMenu = new ToolStripMenuItem("Вид");
 
@@ -147,30 +148,104 @@ namespace Chess
             viewMenuItem.Click += (sender, e) => GamePanel.Rotate();
 
             // Выбор цветов.
-            var colorSetsNames = ColorSet.GetStandartSets().Select(set => set.Name).ToArray();
-            ColorsMenu = new SwitchingMenu("Выбор цветов", setting == null ? 0 : setting.ColorSetIndex, colorSetsNames);
+            var colorsSetsNames = ColorsSet.GetStandartSets().Select(set => set.Name).ToArray();
+            ColorsMenu = new("Выбор цветов", settingsInfo == null ? 0 : settingsInfo.ColorsSetIndex, colorsSetsNames);
             viewMenu.DropDownItems.Add(ColorsMenu);
-            ColorsMenu.SwitchTo = (itemIndex) => SetColors(itemIndex);
+            ColorsMenu.Switch += (itemIndex) => SetColors(itemIndex);
 
-            // Изменение размера.
+            // Изменение размера поля.
             viewMenuItem = new ToolStripMenuItem("Изменить размер доски");
             viewMenu.DropDownItems.Add(viewMenuItem);
-            viewMenuItem.Click += (sender, e) => new GamePanelSizeForm(GamePanel).ShowDialog();
+            viewMenuItem.Click += (sender, e) => GamePanel.ShowChangeSizeForm();
 
-            return viewMenu;
+            // Изменение размера рамки.
+            var index = settingsInfo == null ? 0 : settingsInfo.SquareBorderSize == 1 ? 0 : settingsInfo.SquareBorderSize == 2 ? 1 : 2;
+            viewMenuItem = new SwitchMenu("Рамка", index, "Обычная", "Жирная", "Нет");
+            viewMenu.DropDownItems.Add(viewMenuItem);
+            (viewMenuItem as SwitchMenu).Switch += (itemIndex) => GamePanelSquare.SetBorderSize(itemIndex == 0 ? 1 : itemIndex == 1 ? 2 : 0);
+
+            MenuStrip.Items.Add(viewMenu);
         }
 
-        private void SetColors(ColorSet colors)
+        private void PutGamePanelToCenter()
         {
-            ColorSet = colors;
-            BackColor = colors.FormBackColor;
-            GamePanel.SetColors();
+            var gamePanelX = (ClientRectangle.Width - GamePanel.Width) / 2;
+
+            var gamePanelY = MenuStrip.Height + TimePanel.Height +
+            (ClientRectangle.Height - MenuStrip.Height - TimePanel.Height - GamePanel.Height) / 2;
+
+            GamePanel.Location = new(gamePanelX, gamePanelY);
         }
 
         private void SetColors(int colorsSetIndex)
         {
-            var colorSet = ColorSet.GetStandartSets()[colorsSetIndex];
-            SetColors(colorSet);
+            var colorsSet = ColorsSet.GetStandartSets()[colorsSetIndex];
+            SetColors(colorsSet);
+        }
+
+        private void SetColors(ColorsSet colorsSet)
+        {
+            BackColor = colorsSet.FormBackColor;
+            GamePanel.SetColors(colorsSet.BoardColor, colorsSet.LightSquaresColor, colorsSet.DarkSquaresColor, colorsSet.WhitePiecesColor,
+            colorsSet.BlackPiecesColor, colorsSet.HighlightColor, colorsSet.OutlineColor);
+        }
+
+        private void SetEventsHandlers()
+        {
+            MouseClick += (sender, e) =>
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    GamePanel.CancelUserMoveParams();
+                }
+            };
+
+            SizeChanged += Size_Changed;
+            GamePanel.SizeChanged += GamePanel_SizeChanged;
+            GamePanel.MouseDown += GamePanel_MouseDown;
+            QueryContinueDrag += Query_Continue_Drag;
+            MenuStrip.MouseClick += (sender, e) => OnMouseClick(e);
+            TimePanel.MouseClick += (sender, e) => OnMouseClick(e);
+            FormClosing += (sender, e) => SaveSettingsInfo();
+
+            GamePanel.PositionChanged += () => TimePanel.MovingSideColor = GamePanel.MovingSideColor;
+            GamePanel.GameStartPositionSet += TimePanel.ResetTime;
+            GamePanel.StartedExpectingMove += TimePanel.StartTimer;
+            GamePanel.StoppedExpectingMove += TimePanel.StopTimer;
+
+            TimePanel.TimeElapsed += (losingSideColor) =>
+            {
+                var gameResult = losingSideColor == PieceColor.White ? BoardStatus.BlackWon : BoardStatus.WhiteWon;
+                var message = losingSideColor == PieceColor.White ? "Время истекло. Победа черных." : "Время истекло. Победа белых.";
+                GamePanel.BreakGame(gameResult, message);
+            };
+        }
+
+        private void SaveSettingsInfo()
+        {
+            try
+            {
+                if (File.Exists(_settingsFileName))
+                {
+                    File.SetAttributes(_settingsFileName, FileAttributes.Normal);
+                }
+
+                using (var stream = new FileStream(_settingsFileName, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    new BinaryFormatter().Serialize(stream, new FormSettingsInfo(this));
+                    File.SetAttributes(_settingsFileName, FileAttributes.Hidden | FileAttributes.ReadOnly);
+                }
+            }
+
+            catch
+            {
+                try
+                {
+                    File.SetAttributes(_settingsFileName, FileAttributes.Hidden | FileAttributes.ReadOnly);
+                }
+
+                catch { }
+            }
         }
 
         public int GetCaptionHeight()
@@ -179,61 +254,15 @@ namespace Chess
             return clientRectangle.Top - Top;
         }
 
-        private void PutGamePanelToCenter()
+        private void Size_Changed(object sender, EventArgs e)
         {
-            var gamePanelX = (ClientRectangle.Width - GamePanel.Width) / 2;
-            var gamePanelY = MenuStrip.Height + TimePanel.Height + (ClientRectangle.Height - MenuStrip.Height - TimePanel.Height - GamePanel.Height) / 2;
-            GamePanel.Location = new(gamePanelX, gamePanelY);
-        }
-
-        private void GamePanel_MouseDown(object sender, MouseEventArgs e)
-        {
-            if (e.Button != MouseButtons.Left)
+            if (WindowState == FormWindowState.Minimized)
             {
                 return;
             }
 
-            var clientRectangle = RectangleToScreen(ClientRectangle);
-            _fromDragCursorToGamePanelLeft = Cursor.Position.X - clientRectangle.Left - GamePanel.Location.X;
-            _fromDragCursorToGamePanelTop = Cursor.Position.Y - clientRectangle.Top - GamePanel.Location.Y;
-            DoDragDrop(GamePanel, DragDropEffects.None);
-        }
+            TimePanel.Width = ClientRectangle.Width;
 
-        private void GamePanel_Drag(object sender, EventArgs e)
-        {
-            var clientRectangle = RectangleToScreen(ClientRectangle);
-            var gamePanelX = Cursor.Position.X - clientRectangle.Left - _fromDragCursorToGamePanelLeft;
-            var gamePanelY = Cursor.Position.Y - clientRectangle.Top - _fromDragCursorToGamePanelTop;
-
-            if (gamePanelX < 0)
-            {
-                gamePanelX = 0;
-                _fromDragCursorToGamePanelLeft = Math.Max(Cursor.Position.X - clientRectangle.Left, 0);
-            }
-
-            if (gamePanelX > clientRectangle.Width - GamePanel.Width)
-            {
-                gamePanelX = clientRectangle.Width - GamePanel.Width;
-                _fromDragCursorToGamePanelLeft = Math.Min(Cursor.Position.X - clientRectangle.Left - gamePanelX, GamePanel.Width);
-            }
-
-            if (gamePanelY < MenuStrip.Height + TimePanel.Height)
-            {
-                gamePanelY = MenuStrip.Height + TimePanel.Height;
-                _fromDragCursorToGamePanelTop = Math.Max(Cursor.Position.Y - clientRectangle.Top - gamePanelY, 0);
-            }
-
-            if (gamePanelY > clientRectangle.Height - GamePanel.Height)
-            {
-                gamePanelY = clientRectangle.Height - GamePanel.Height;
-                _fromDragCursorToGamePanelTop = Math.Min(Cursor.Position.Y - clientRectangle.Top - gamePanelY, GamePanel.Height);
-            }
-
-            GamePanel.Location = new(gamePanelX, gamePanelY);
-        }
-
-        private void Size_Changed(object sender, EventArgs e)
-        {
             var gamePanelX = GamePanel.Location.X;
             var gamePanelY = GamePanel.Location.Y;
 
@@ -282,12 +311,50 @@ namespace Chess
             GamePanel.Location = new(gamePanelX, gamePanelY);
         }
 
-        public void CancelMoveChoice(object sender, MouseEventArgs e)
+        private void GamePanel_MouseDown(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Right)
+            if (e.Button != MouseButtons.Left)
             {
-                GamePanel.CancelMoveChoice();
+                return;
             }
+
+            var clientRectangle = RectangleToScreen(ClientRectangle);
+            _fromDragCursorToGamePanelLeft = Cursor.Position.X - clientRectangle.Left - GamePanel.Location.X;
+            _fromDragCursorToGamePanelTop = Cursor.Position.Y - clientRectangle.Top - GamePanel.Location.Y;
+            DoDragDrop(GamePanel, DragDropEffects.None);
+        }
+
+        private void Query_Continue_Drag(object sender, EventArgs e)
+        {
+            var clientRectangle = RectangleToScreen(ClientRectangle);
+            var gamePanelX = Cursor.Position.X - clientRectangle.Left - _fromDragCursorToGamePanelLeft;
+            var gamePanelY = Cursor.Position.Y - clientRectangle.Top - _fromDragCursorToGamePanelTop;
+
+            if (gamePanelX < 0)
+            {
+                gamePanelX = 0;
+                _fromDragCursorToGamePanelLeft = Math.Max(Cursor.Position.X - clientRectangle.Left, 0);
+            }
+
+            if (gamePanelX > clientRectangle.Width - GamePanel.Width)
+            {
+                gamePanelX = clientRectangle.Width - GamePanel.Width;
+                _fromDragCursorToGamePanelLeft = Math.Min(Cursor.Position.X - clientRectangle.Left - gamePanelX, GamePanel.Width);
+            }
+
+            if (gamePanelY < MenuStrip.Height + TimePanel.Height)
+            {
+                gamePanelY = MenuStrip.Height + TimePanel.Height;
+                _fromDragCursorToGamePanelTop = Math.Max(Cursor.Position.Y - clientRectangle.Top - gamePanelY, 0);
+            }
+
+            if (gamePanelY > clientRectangle.Height - GamePanel.Height)
+            {
+                gamePanelY = clientRectangle.Height - GamePanel.Height;
+                _fromDragCursorToGamePanelTop = Math.Min(Cursor.Position.Y - clientRectangle.Top - gamePanelY, GamePanel.Height);
+            }
+
+            GamePanel.Location = new(gamePanelX, gamePanelY);
         }
 
         private void GameForm_Load(object sender, EventArgs e)

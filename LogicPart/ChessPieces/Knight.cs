@@ -3,59 +3,54 @@ namespace Chess.LogicPart
 {
     public sealed class Knight : ChessPiece
     {
-        public Knight(ChessPieceColor color) : base(color)
-        { }
+        public Knight(PieceColor color) : base(color) { }
 
         public override IEnumerable<Square> GetAttackedSquares()
         {
-            var position = Position;
+            var square = Square;
 
-            if (position == null)
+            if (square == null)
             {
                 yield break;
             }
 
-            var board = position.Board;
-            var vertical = position.Vertical;
-            var horizontal = position.Horizontal;
-
-            ulong modCount;
-            ulong gameStartsCount;
-
-            lock (board)
-            {
-                modCount = board.ModCount;
-                gameStartsCount = board.GameStartsCount;
-            }
-
-            if (position != Position)
-            {
-                throw new InvalidOperationException("Изменение позиции во время перечисления.");
-            }
+            var board = square.Board;
+            var gamesCount = board.GamesCount;
+            var modCount = board.ModCount;
 
             var verticalShifts = new int[] { 2, 2, -2, -2, 1, 1, -1, -1 };
             var horizontalShifts = new int[] { -1, 1, -1, 1, -2, 2, -2, 2 };
 
             for (var i = 0; i < 8; ++i)
             {
-                var targetVertical = vertical + horizontalShifts[i];
-                var targetHorizontal = horizontal + verticalShifts[i];
+                var targetSquareX = square.X + horizontalShifts[i];
+                var targetSquareY = square.Y + verticalShifts[i];
 
-                if (targetVertical < 0 || targetHorizontal < 0 || targetVertical >= 8 || targetHorizontal >= 8)
+                if (targetSquareX < 0 || targetSquareY < 0 || targetSquareX >= 8 || targetSquareY >= 8)
                 {
                     continue;
                 }
 
-                if (board.ModCount != modCount || board.GameStartsCount != gameStartsCount)
+                if (board.ModCount != modCount || board.GamesCount != gamesCount)
                 {
                     throw new InvalidOperationException("Изменение позиции во время перечисления.");
                 }
 
-                yield return board[targetVertical, targetHorizontal];
+                yield return board[targetSquareX, targetSquareY];
             }
         }
 
-        public override ChessPieceName Name => ChessPieceName.Knight;
+        internal override void RemoveExcessMenaces(Square newSquare) => RemoveMenaces();
+
+        internal override void AddMissingMenaces(Square oldSquare) => AddMenaces();
+
+        internal override void OpenLine(Square oldPiecePosition, Square newPiecePosition) =>
+        throw new NotImplementedException();
+
+        internal override void BlockLine(Square blockSquare) =>
+        throw new NotImplementedException();
+
+        public override PieceName Name => PieceName.Knight;
 
         public override bool IsLongRanged => false;
     }

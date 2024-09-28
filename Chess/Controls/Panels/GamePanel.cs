@@ -1,169 +1,379 @@
 ﻿using Chess.LogicPart;
 using Chess.VirtualPlayer;
 using System.Text;
-using Timer = System.Windows.Forms.Timer;
 
 namespace Chess
 {
     internal class GamePanel : Panel
     {
-        private readonly GameForm _form;
+        private readonly Bitmap[][][] _images = new Bitmap[][][]
+        {
+          new Bitmap[][] { new Bitmap[6], new Bitmap[6] },
+          new Bitmap[][] { new Bitmap[6], new Bitmap[6] },
+          new Bitmap[][] { new Bitmap[6], new Bitmap[6] }
+        };
+        /*Три массива, в одном - фигуры на белых полях, в другом - на черных, в третьем - на подсвеченных.
+         В каждом из этих массивов еще по два массива: один с белыми фигурами, другой - с черными.*/
+
+        private readonly GamePanelSquare[,] _squares = new GamePanelSquare[8, 8];
+        private ContextMenuStrip _newPieceMenu;
+        private readonly int _minSquareSize;
+        private readonly int _maxSquareSize;
+
+        private Color _lightSquaresColor;
+        private Color _darkSquaresColor;
+        private Color _highlightColor;
+        private Color _outlineColor;
+        private SquareLocation? _highlightLocation;
 
         private readonly ChessBoard _gameBoard = new();
         private IChessRobot _whiteRobot; // == null, если за эту сторону играет пользователь.
         private IChessRobot _blackRobot; //Аналогично.
-        private Thread _thinkingThread;
-        private Move _selectedMove;
-        private readonly Timer _moveChecker = new() { Interval = 100 };
+        private Task<Move> _thinkingTask;
+        private bool _isExpectingMove;
+        private bool _isExpectingRobotMove;
+        private ulong _whitePlayerSwitchesCount;
+        private ulong _blackPlayerSwitchesCount;
 
-        private readonly GamePanelSquare[,] _squares = new GamePanelSquare[8, 8];
-        private readonly NewPieceMenu _newPieceMenu;
-
-        public int ButtonSize { get; private set; }
-
-        public int MinimumButtonSize { get; private set; }
-
-        public int MaximumButtonSize { get; private set; }
-
-        public int DefaultButtonSize { get; }
+        public int SquareSize { get; private set; }
 
         public bool IsReversed { get; private set; }
 
-        public int? HighlightedButtonX { get; private set; }
-
-        public int? HighlightedButtonY { get; private set; }
-
-        public GamePanel(GameForm form)
+        public GamePanel(GameForm gameForm)
         {
-            _form = form;
-            BorderStyle = BorderStyle.FixedSingle;
+            BorderStyle = BorderStyle.None;
+            _minSquareSize = gameForm.GetCaptionHeight();
+            var maxWidth = Screen.PrimaryScreen.WorkingArea.Width - (gameForm.Width - gameForm.ClientRectangle.Width);
 
-            MinimumButtonSize = _form.GetCaptionHeight();
-            MaximumButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuStrip.Height - _form.TimePanel.Height) / 9;
+            var maxHeight = Screen.PrimaryScreen.WorkingArea.Height - (gameForm.Height - gameForm.ClientRectangle.Height) -
+            gameForm.MenuStrip.Height - gameForm.TimePanel.Height;
 
-            if (MaximumButtonSize < MinimumButtonSize)
+            var boardMaxSize = Math.Min(maxWidth, maxHeight);
+            var shift = Math.Min(_minSquareSize, boardMaxSize / 9 / 2);
+            _maxSquareSize = (boardMaxSize - shift * 2) / 8;
+
+            if (_maxSquareSize < _minSquareSize)
             {
-                MaximumButtonSize = MinimumButtonSize;
+                _minSquareSize = _maxSquareSize;
             }
 
-            DefaultButtonSize = (Screen.PrimaryScreen.WorkingArea.Height - _form.GetCaptionHeight() - _form.MenuStrip.Height - _form.TimePanel.Height) / 16;
-
-            if (DefaultButtonSize < MinimumButtonSize)
-            {
-                DefaultButtonSize = MinimumButtonSize;
-            }
-
-            ButtonSize = DefaultButtonSize;
+            SquareSize = (_minSquareSize + _maxSquareSize) / 2;
 
             MouseClick += (sender, e) =>
             {
                 if (e.Button == MouseButtons.Right)
                 {
-                    CancelMoveChoice();
+                    ShowContextMenu();
                 }
             };
 
-            _moveChecker.Tick += MoveChecker_Tick;
-            _form.FormClosing += (sender, e) => StopThinking();
+            _gameBoard.PositionSet += () =>
+            {
+                ShowPosition();
+                _thinkingTask = null;
+                PositionChanged?.Invoke();
+                GameStartPositionSet?.Invoke();
+                ExpectMoveAsync();
+            };
 
-            SetButtons();
-            _newPieceMenu = new(this);
-            _whiteRobot = _form.WhitePlayerMenu.SelectedItemIndex == 1 ? RobotsConstructor.GetRobot(0) : null;
-            _blackRobot = _form.BlackPlayerMenu.SelectedItemIndex == 1 ? RobotsConstructor.GetRobot(0) : null;
+            _gameBoard.MoveMade += () => MakeMoveAsync();
+
+            CreateSquares();
+            LocateSquares();
+            _whiteRobot = gameForm.WhitePlayerMenu.GetSelectedSwitchItemIndex() == 1 ? RobotsConstructor.GetRobot(0) : null;
+            _blackRobot = gameForm.BlackPlayerMenu.GetSelectedSwitchItemIndex() == 1 ? RobotsConstructor.GetRobot(0) : null;
         }
 
-        private void SetButtons()
+        private void CreateSquares()
         {
-            var shift = Math.Min(DefaultButtonSize / 2, ButtonSize / 2);
-            Width = ButtonSize * 8 + shift * 2;
-            Height = Width;
-
-            var buttonX = !IsReversed ? shift : Width - shift - ButtonSize;
-            var buttonY = !IsReversed ? shift : Height - shift - ButtonSize;
-
             for (var i = 0; i < 8; ++i)
             {
-                for (var j = 7; j >= 0; --j)
+                for (var j = 0; j < 8; ++j)
                 {
-                    // Возможно, кнопки уже созданы, и теперь нужно только изменить их размер.
-                    if (_squares[i, j] == null)
-                    {
-                        _squares[i, j] = new(this, i, j);
-                        Controls.Add(_squares[i, j]);
-                        _squares[i, j].MouseClick += Square_MouseClick;
-                    }
+                    _squares[i, j] = new();
+                    Controls.Add(_squares[i, j]);
 
-                    _squares[i, j].Width = ButtonSize;
-                    _squares[i, j].Height = ButtonSize;
-                    _squares[i, j].Location = new(buttonX, buttonY);
-
-                    buttonY += !IsReversed ? ButtonSize : -ButtonSize;
+                    var squareX = i;
+                    var squareY = j;
+                    _squares[i, j].MouseClick += (sender, e) => ClickAt(squareX, squareY, e.Button);
                 }
-
-                buttonX += !IsReversed ? ButtonSize : -ButtonSize;
-                buttonY = !IsReversed ? shift : Height - shift - ButtonSize;
             }
         }
 
-        public void Rotate()
+        private void LocateSquares()
         {
-            IsReversed = !IsReversed;
-            SetButtons();
-        }
+            var shift = Math.Min(_minSquareSize, SquareSize / 2);
+            Width = SquareSize * 8 + shift * 2;
+            Height = Width;
 
-        public void SetButtonSize(int buttonSize)
-        {
-            if (buttonSize < MinimumButtonSize || buttonSize > MaximumButtonSize)
-            {
-                return;
-            }
-
-            ButtonSize = buttonSize;
-            SetButtons();
-        }
-
-        public void SetColors()
-        {
-            BackColor = _form.ColorSet.BoardColor;
-            GamePanelSquare.SetNewImagesFor(this);
+            var squareX = !IsReversed ? shift : Width - shift - SquareSize;
+            var squareY = !IsReversed ? Height - shift - SquareSize : shift;
 
             for (var i = 0; i < 8; ++i)
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    _squares[i, j].SetColors();
-                    _squares[i, j].RenewImage();
+                    _squares[i, j].Size = new(SquareSize, SquareSize);
+                    _squares[i, j].Location = new(squareX, squareY);
+                    squareY += !IsReversed ? -SquareSize : SquareSize;
+                }
+
+                squareX += !IsReversed ? SquareSize : -SquareSize;
+                squareY = !IsReversed ? Height - shift - SquareSize : shift;
+            }
+        }
+
+        public void SetColors(Color boardColor, Color lightSquaresColor, Color darkSquaresColor, Color whitePiecesColor,
+        Color blackPiecesColor, Color highlightColor, Color outlineColor)
+        {
+            BackColor = boardColor;
+            _lightSquaresColor = lightSquaresColor;
+            _darkSquaresColor = darkSquaresColor;
+            _highlightColor = highlightColor;
+            _outlineColor = outlineColor;
+            SetImages(whitePiecesColor, blackPiecesColor);
+
+            var lastMove = _gameBoard.LastMove;
+
+            for (var i = 0; i < 8; ++i)
+            {
+                for (var j = 0; j < 8; ++j)
+                {
+                    var squareLocation = new SquareLocation(i, j);
+
+                    var squareColor = _highlightLocation == squareLocation ? _highlightColor :
+                    IsLightSquare(i, j) ? _lightSquaresColor : _darkSquaresColor;
+
+                    _squares[i, j].SetColor(squareColor);
+                    RenewImage(i, j);
+
+                    if (lastMove?.Start == squareLocation || lastMove?.Destination == squareLocation)
+                    {
+                        _squares[i, j].Outline(_outlineColor);
+                    }
                 }
             }
         }
 
+        private void SetImages(Color whitePiecesColor, Color blackPiecesColor)
+        {
+            var fileNames = new string[] { "Pawn", "Knight", "Bishop", "Rook", "Queen", "King" };
+            var originalImages = fileNames.Select(name => new Bitmap("Images/" + name + ".jpg")).ToArray();
+
+            for (var i = 0; i < originalImages.Length; ++i)
+            {
+                _images[0][0][i] = ChessPieceDrawing.GetColoredPicture(originalImages[i], whitePiecesColor, _lightSquaresColor);
+                _images[0][1][i] = ChessPieceDrawing.GetColoredPicture(originalImages[i], blackPiecesColor, _lightSquaresColor);
+
+                _images[1][0][i] = ChessPieceDrawing.GetColoredPicture(originalImages[i], whitePiecesColor, _darkSquaresColor);
+                _images[1][1][i] = ChessPieceDrawing.GetColoredPicture(originalImages[i], blackPiecesColor, _darkSquaresColor);
+
+                _images[2][0][i] = ChessPieceDrawing.GetColoredPicture(originalImages[i], whitePiecesColor, _highlightColor);
+                _images[2][1][i] = ChessPieceDrawing.GetColoredPicture(originalImages[i], blackPiecesColor, _highlightColor);
+            }
+        }
+
+        private static bool IsLightSquare(int x, int y) => x % 2 != y % 2;
+
+        private void RenewImage(int x, int y)
+        {
+            if (_gameBoard[x, y].IsClear)
+            {
+                _squares[x, y].SetImage(null);
+                return;
+            }
+
+            var piece = _gameBoard.GetPiece(x, y);
+            Bitmap image;
+
+            if (HighlightX == x && HighlightY == y)
+            {
+                image = _images[2][piece.Color == PieceColor.White ? 0 : 1][(int)piece.Name];
+                _squares[x, y].SetImage(image);
+                return;
+            }
+
+            image = _images[IsLightSquare(x, y) ? 0 : 1][piece.Color == PieceColor.White ? 0 : 1][(int)piece.Name];
+            _squares[x, y].SetImage(image);
+        }
+
+        public void Rotate()
+        {
+            IsReversed = !IsReversed;
+            LocateSquares();
+        }
+
+        public void ShowChangeSizeForm()
+        {
+            var form = new GamePanelSizeForm(SquareSize, _minSquareSize, _maxSquareSize);
+            form.SizeSelected += SetSquareSize;
+            form.ShowDialog();
+        }
+
+        public void SetSquareSize(int newSquareSize)
+        {
+            SquareSize = newSquareSize;
+            LocateSquares();
+        }
+
+        private void ShowContextMenu()
+        {
+            var menu = new ContextMenuStrip();
+
+            var itemTexts = new string[] { "Новая партия", "Развернуть", "Изменить размер" };
+            var clickActions = new Action[] { StartNewGame, Rotate, ShowChangeSizeForm };
+
+            for (var i = 0; i < itemTexts.Length; ++i)
+            {
+                var item = new ToolStripMenuItem(itemTexts[i]);
+                menu.Items.Add(item);
+                var action = clickActions[i];
+                item.Click += (sender, e) => action.Invoke();
+            }
+
+            menu.Show(Cursor.Position.X, Cursor.Position.Y);
+        }
+
         public void StartNewGame()
         {
-            StopThinking();
+            StopExpectingMove();
 
-            var pieceNames = new ChessPieceName[] { ChessPieceName.King, ChessPieceName.Queen,ChessPieceName.Rook, ChessPieceName.Rook,
-                ChessPieceName.Knight, ChessPieceName.Knight, ChessPieceName.Bishop, ChessPieceName.Bishop, ChessPieceName.Pawn,
-                ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn, ChessPieceName.Pawn,
-                ChessPieceName.Pawn };
+            var pieceNames = new PieceName[] { PieceName.King, PieceName.Queen,PieceName.Rook, PieceName.Rook,
+                PieceName.Knight, PieceName.Knight, PieceName.Bishop, PieceName.Bishop, PieceName.Pawn,
+                PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn, PieceName.Pawn,
+                PieceName.Pawn };
 
             var whitePositions = new string[] { "e1", "d1", "a1", "h1", "b1", "g1", "c1", "f1", "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2" };
             var blackPositions = new string[] { "e8", "d8", "a8", "h8", "b8", "g8", "c8", "f8", "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7" };
 
-            _gameBoard.SetPosition(pieceNames, whitePositions, pieceNames, blackPositions, ChessPieceColor.White);
-
-            RenewButtonsView();
-            _form.TimePanel.ResetTime();
-            StartThinking();
+            _gameBoard.SetPosition(pieceNames, whitePositions, pieceNames, blackPositions, PieceColor.White);
         }
 
-        public void ChangePlayer(ChessPieceColor pieceColor)
+        private void ShowPosition()
         {
-            if (pieceColor == _gameBoard.MovingSideColor)
+            for (var i = 0; i < 8; ++i)
             {
-                StopThinking();
+                for (var j = 0; j < 8; ++j)
+                {
+                    _squares[i, j].RemoveOutline();
+                    RenewImage(i, j);
+                }
             }
 
-            if (pieceColor == ChessPieceColor.White)
+            var lastMove = _gameBoard.LastMove;
+
+            if (lastMove != null)
+            {
+                _squares[lastMove.Start.X, lastMove.Start.Y].Outline(_outlineColor);
+                _squares[lastMove.Destination.X, lastMove.Destination.Y].Outline(_outlineColor);
+            }
+        }
+
+        private async Task ExpectMoveAsync()
+        {
+            if (_isExpectingMove || _gameBoard.Status != BoardStatus.GameIncomplete)
+            {
+                return;
+            }
+
+            var robot = MovingSideColor == PieceColor.White ? _whiteRobot : _blackRobot;
+
+            if (robot == null)
+            {
+                _isExpectingMove = true;
+                StartedExpectingMove?.Invoke();
+                return;
+            }
+
+            _thinkingTask ??= Task.Run(() =>
+            {
+                try
+                {
+                    return robot.GetMove(_gameBoard);
+                }
+
+                catch (ThinkingInterruptedException)
+                {
+                    return null;
+                }
+            });
+
+            var task = _thinkingTask;
+            var boardModCount = _gameBoard.ModCount;
+            var gameStartsCount = _gameBoard.GamesCount;
+
+            _isExpectingMove = true;
+            _isExpectingRobotMove = true;
+            StartedExpectingMove?.Invoke();
+
+            await task;
+
+            if (_gameBoard.ModCount == boardModCount &&
+                _gameBoard.GamesCount == gameStartsCount && _isExpectingRobotMove)
+            {
+                _gameBoard.MakeMove(task.Result);
+            }
+        }
+
+        private void StopExpectingMove()
+        {
+            if (!_isExpectingMove)
+            {
+                return;
+            }
+
+            _isExpectingMove = false;
+            _isExpectingRobotMove = false;
+            CancelUserMoveParams();
+            StoppedExpectingMove?.Invoke();
+        }
+
+        public void CancelUserMoveParams()
+        {
+            RemoveHighlight();
+            _newPieceMenu?.Close();
+        }
+
+        private void RemoveHighlight()
+        {
+            if (_highlightLocation == null)
+            {
+                return;
+            }
+
+            var x = (int)HighlightX;
+            var y = (int)HighlightY;
+            var color = IsLightSquare(x, y) ? _lightSquaresColor : _darkSquaresColor;
+            _squares[x, y].SetColor(color);
+            RenewImage(x, y);
+            _highlightLocation = null;
+        }
+
+        private void HighlightAt(int x, int y)
+        {
+            RemoveHighlight();
+            _squares[x, y].SetColor(_highlightColor);
+            RenewImage(x, y);
+            _highlightLocation = new(x, y);
+        }
+
+        public void SwitchPlayer(PieceColor pieceColor)
+        {
+            if (pieceColor == PieceColor.White)
+            {
+                ++_whitePlayerSwitchesCount;
+            }
+            else
+            {
+                ++_blackPlayerSwitchesCount;
+            }
+
+            if (pieceColor == MovingSideColor)
+            {
+                StopExpectingMove();
+            }
+
+            if (pieceColor == PieceColor.White)
             {
                 _whiteRobot = _whiteRobot == null ? RobotsConstructor.GetRobot(0) : null;
             }
@@ -172,176 +382,86 @@ namespace Chess
                 _blackRobot = _blackRobot == null ? RobotsConstructor.GetRobot(0) : null;
             }
 
-            StartThinking();
+            ExpectMoveAsync();
         }
 
-        public void CancelMoveChoice()
+        private ulong GetPlayerSwitchesCount(PieceColor pieceColor) => pieceColor == PieceColor.White ?
+        _whitePlayerSwitchesCount : _blackPlayerSwitchesCount;
+
+        private async Task MakeMoveAsync()
         {
-            if (HighlightedButtonX != null && HighlightedButtonY != null)
-            {
-                _squares[(int)HighlightedButtonX, (int)HighlightedButtonY].RemoveHighlight();
-            }
+            StopExpectingMove();
+            ShowPosition();
+            var thinkingTask = _thinkingTask;
+            _thinkingTask = null;
+            PositionChanged?.Invoke();
 
-            HighlightedButtonX = null;
-            HighlightedButtonY = null;
-            _selectedMove = null;
-            _newPieceMenu.Close();
-        }
-
-        private void MakeMove(Move move)
-        {
-            try
-            {
-                _gameBoard.MakeMove(move);
-            }
-
-            catch (IllegalMoveException exception)
-            {
-                if (exception is not NewPieceNotSelectedException)
-                {
-                    MessageBox.Show(exception.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-                else
-                {
-                    _selectedMove = move;
-                    _newPieceMenu.Show(Cursor.Position.X, Cursor.Position.Y);
-                }
-
-                return;
-            }
-
-            _form.TimePanel.StopTimer();
-            CancelMoveChoice();
-            RenewButtonsView();
-            _squares[move.StartSquare.Vertical, move.StartSquare.Horizontal].Outline();
-            _squares[move.MoveSquare.Vertical, move.MoveSquare.Horizontal].Outline();
-
-            if (_gameBoard.Status != BoardStatus.GameIsIncomplete)
+            if (_gameBoard.Status != BoardStatus.GameIncomplete)
             {
                 ShowEndGameMessage();
                 return;
             }
 
-            StartThinking();
-        }
-
-        private void RenewButtonsView()
-        {
-            for (var i = 0; i < 8; ++i)
+            if (thinkingTask == null)
             {
-                for (var j = 0; j < 8; ++j)
-                {
-                    if (_squares[i, j].IsOutlined)
-                    {
-                        _squares[i, j].RemoveOutline();
-                    }
-
-                    var piece = _gameBoard[i, j].ContainedPiece;
-
-                    if (piece != null)
-                    {
-                        _squares[i, j].DisplayPiece(piece.Name, piece.Color);
-                    }
-                    else
-                    {
-                        _squares[i, j].DisplayPiece(null, null);
-                    }
-                }
-            }
-        }
-
-        public void PromotePawnTo(ChessPieceName newPieceName)
-        {
-            var move = new Move(_selectedMove.MovingPiece, _selectedMove.MoveSquare, newPieceName);
-            MakeMove(move);
-        }
-
-        private void StartThinking()
-        {
-            if (_gameBoard.Status != BoardStatus.GameIsIncomplete)
-            {
+                ExpectMoveAsync();
                 return;
             }
 
-            var robot = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteRobot : _blackRobot;
+            var movingSideColor = MovingSideColor;
+            var gameStartsCount = _gameBoard.GamesCount;
+            var playerSwitchesCount = GetPlayerSwitchesCount(movingSideColor);
 
-            if (robot == null)
+            var task = RobotPlaysFor(PieceColor.White) && RobotPlaysFor(PieceColor.Black) ?
+            Task.WhenAll(Task.Delay(250), thinkingTask) : thinkingTask;
+
+            await task;
+
+            if (_gameBoard.GamesCount == gameStartsCount && GetPlayerSwitchesCount(movingSideColor) == playerSwitchesCount)
             {
-                _form.TimePanel.StartTimer();
-                return;
+                ExpectMoveAsync();
             }
-
-            if (_thinkingThread != null)
-            {
-                return;
-            }
-
-            _thinkingThread = new(() =>
-             {
-                 try
-                 {
-                     _selectedMove = robot.SelectMove(_gameBoard);
-                 }
-
-                 catch (GameInterruptedException)
-                 { }
-             });
-
-            _thinkingThread.Start();
-            _moveChecker.Start();
-            _form.TimePanel.StartTimer();
         }
 
-        private void StopThinking()
+        private void ShowNewPieceMenu(int startX, int startY, int destinationX, int destinationY)
         {
-            _moveChecker.Stop();
-            _form.TimePanel.StopTimer();
+            var menu = new ContextMenuStrip();
+            var itemTexts = new string[] { "Ферзь", "Ладья", "Конь", "Слон" };
+            var pieceNames = new PieceName[] { PieceName.Queen, PieceName.Rook, PieceName.Knight, PieceName.Bishop };
 
-            var robot = _gameBoard.MovingSideColor == ChessPieceColor.White ? _whiteRobot : _blackRobot;
-
-            if (robot == null)
+            for (var i = 0; i < itemTexts.Length; ++i)
             {
-                CancelMoveChoice();
-                return;
+                var item = new ToolStripMenuItem(itemTexts[i]);
+                menu.Items.Add(item);
+                var newPieceName = pieceNames[i];
+                item.Click += (sender, e) => _gameBoard.MakeMove(startX, startY, destinationX, destinationY, newPieceName);
             }
 
-            if (_thinkingThread == null)
-            {
-                return;
-            }
-
-            robot.ThinkingDisabled = true;
-
-            while (_thinkingThread.ThreadState == ThreadState.Running)
-            { }
-
-            robot.ThinkingDisabled = false;
-            _thinkingThread = null;
-            _selectedMove = null;
+            menu.Closed += (sender, e) => _newPieceMenu = null;
+            _newPieceMenu = menu;
+            _newPieceMenu.Show(Cursor.Position.X, Cursor.Position.Y);
         }
 
-        public void EndGame(BoardStatus gameResult)
+        public void BreakGame(BoardStatus gameResult, string message)
         {
-            StopThinking();
-            _gameBoard.SetStatus(gameResult);
-            ShowEndGameMessage();
+            StopExpectingMove();
+            _gameBoard.BreakGame(gameResult);
+            MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
         }
 
         private void ShowEndGameMessage()
         {
             switch (_gameBoard.Status)
             {
-                case BoardStatus.WhiteWin:
+                case BoardStatus.WhiteWon:
                     {
-                        var message = _form.TimePanel.BlackTimeLeft > 0 ? "Мат черным." : "Время истекло. Победа белых.";
-                        MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        MessageBox.Show("Мат черным.", "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                         break;
                     }
 
-                case BoardStatus.BlackWin:
+                case BoardStatus.BlackWon:
                     {
-                        var message = _form.TimePanel.WhiteTimeLeft > 0 ? "Мат белым." : "Время истекло. Победа черных.";
-                        MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        MessageBox.Show("Мат белым.", "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                         break;
                     }
 
@@ -350,7 +470,7 @@ namespace Chess
                         var message = _gameBoard.DrawReason switch
                         {
                             DrawReason.Stalemate => "Пат.",
-                            DrawReason.NotEnoughMaterial => "Ничья. Недостаточно материала для мата.",
+                            DrawReason.InsufficientMaterial => "Ничья. Недостаточно материала для мата.",
                             DrawReason.ThreeRepeatsRule => "Ничья. Трехкратное повторение позиции.",
                             _ => "Ничья по правилу 50 ходов."
                         };
@@ -361,9 +481,8 @@ namespace Chess
             };
         }
 
-        private bool ProgramPlaysFor(ChessPieceColor color) => color == ChessPieceColor.White ? _whiteRobot != null : _blackRobot != null;
-        // Программа может играть и сама с собой.
-         
+        private bool RobotPlaysFor(PieceColor color) => color == PieceColor.White ? _whiteRobot != null : _blackRobot != null;
+
         public void SaveGame()
         {
             if (_gameBoard.MovesCount == 0)
@@ -385,89 +504,133 @@ namespace Chess
             MessageBox.Show("Игра сохранена.", "", MessageBoxButtons.OK);
         }
 
-        private void Square_MouseClick(object sender, MouseEventArgs e)
+        private void ClickAt(int x, int y, MouseButtons mouseButton)
         {
-            if (ProgramPlaysFor(_gameBoard.MovingSideColor) || _gameBoard.Status != BoardStatus.GameIsIncomplete)
+            if (!_isExpectingMove || _isExpectingRobotMove)
             {
                 return;
             }
 
-            var squareControl = (GamePanelSquare)sender;
-
             // Выбор фигуры для хода.
-            if (HighlightedButtonX == null)
+            if (_highlightLocation == null)
             {
-                if (squareControl.IsClear || e.Button != MouseButtons.Left)
+                if (_gameBoard[x, y].IsClear || mouseButton != MouseButtons.Left)
                 {
                     return;
                 }
 
-                if (squareControl.DisplayedPieceColor != _gameBoard.MovingSideColor)
+                if (_gameBoard.GetPiece(x, y).Color != MovingSideColor)
                 {
                     MessageBox.Show("Это не ваша фигура.", "", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
 
-                HighlightedButtonX = squareControl.Vertical;
-                HighlightedButtonY = squareControl.Horizontal;
-                squareControl.Highlight();
+                HighlightAt(x, y);
                 return; // Запомнили координаты выбранной фигуры, ждем щелчка по полю на которое нужно сходить.
             }
 
             // Отмена выбора.
-            if (e.Button != MouseButtons.Left)
+            if (mouseButton != MouseButtons.Left)
             {
-                if (e.Button == MouseButtons.Right)
+                if (mouseButton == MouseButtons.Right)
                 {
-                    CancelMoveChoice();
+                    CancelUserMoveParams();
                 }
 
                 return;
             }
 
-            if (squareControl.Vertical == HighlightedButtonX && squareControl.Horizontal == HighlightedButtonY)
+            if (_highlightLocation.Corresponds(x, y))
             {
+                CancelUserMoveParams();
                 return;
             }
 
             //Замена выбранной фигуры на другую.
-            if (squareControl.DisplayedPieceColor == _gameBoard.MovingSideColor)
+            if (_gameBoard.GetPiece(x, y)?.Color == MovingSideColor)
             {
-                CancelMoveChoice();
-                HighlightedButtonX = squareControl.Vertical;
-                HighlightedButtonY = squareControl.Horizontal;
-                squareControl.Highlight();
+                HighlightAt(x, y);
                 return;
             }
 
-            var piece = _gameBoard[(int)HighlightedButtonX, (int)HighlightedButtonY].ContainedPiece;
-            var square = _gameBoard[squareControl.Vertical, squareControl.Horizontal];
-            var move = new Move(piece, square);
-            MakeMove(move);
-        }
+            var startX = (int)HighlightX;
+            var startY = (int)HighlightY;
 
-        private void MoveChecker_Tick(object sender, EventArgs e)
-        {
-            if (_selectedMove != null)
+            try
             {
-                _moveChecker.Stop();
-                _thinkingThread = null;
-                MakeMove(_selectedMove);
+                _gameBoard.MakeMove(startX, startY, x, y);
+            }
+
+            catch (IllegalMoveException exception)
+            {
+                if (exception is NewPieceNotSelectedException)
+                {
+                    ShowNewPieceMenu(startX, startY, x, y);
+                }
+                else
+                {
+                    var piece = _gameBoard.GetPiece(startX, startY);
+                    var message = GetIllegalMoveMessage(piece, exception);
+                    MessageBox.Show(message, "", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 
-        public ChessPieceColor MovingSideColor => _gameBoard.MovingSideColor;
+        private static string GetIllegalMoveMessage(ChessPiece piece, IllegalMoveException exception)
+        {
+            if (exception is KingUnsafetyException)
+            {
+                if (piece.Name == PieceName.King)
+                {
+                    return ((King)piece).IsChecked ? "Король не может оставаться под шахом." :
+                    "Король не может становиться под шах.";
+                }
 
-        public Color WhitePiecesColor => _form.ColorSet.WhitePiecesColor;
+                if (exception is PawnPinnedException)
+                {
+                    return "Невозможный ход: пешка связана.";
+                }
 
-        public Color BlackPiecesColor => _form.ColorSet.BlackPiecesColor;
+                if (exception is PiecePinnedException)
+                {
+                    return "Невозможный ход: фигура связана.";
+                }
 
-        public Color LightSquaresColor => _form.ColorSet.LightSquaresColor;
+                return "Невозможный ход: ваш король под шахом.";
+            }
 
-        public Color DarkSquaresColor => _form.ColorSet.DarkSquaresColor;
+            if (exception is CastlingIllegalException)
+            {
+                if (exception is CastlingKingHasMovedException)
+                {
+                    return "Рокирова невозможна: король уже сделал ход.";
+                }
 
-        public Color HighlightColor => _form.ColorSet.HighlightColor;
+                if (exception is CastlingRookHasMovedException)
+                {
+                    return "Рокирова невозможна: ладья уже сделала ход.";
+                }
 
-        public Color OutlineColor => _form.ColorSet.OutlineColor;
+                if (exception is CastlingKingCheckedException)
+                {
+                    return "Рокирова невозможна: король под шахом.";
+                }
+
+                return "При рокировке король не может пересекать угрожаемое поле.";
+            }
+
+            return "Невозможный ход";
+        }
+
+        public PieceColor MovingSideColor => _gameBoard.MoveTurn;
+
+        public int? HighlightX => _highlightLocation?.X;
+
+        public int? HighlightY => _highlightLocation?.Y;
+
+        public event Action PositionChanged;
+        public event Action GameStartPositionSet;
+        public event Action StartedExpectingMove;
+        public event Action StoppedExpectingMove;
     }
 }

@@ -1,38 +1,40 @@
 ﻿
 namespace Chess.LogicPart
 {
-    public class Move
+    public sealed class Move
     {
-        internal object Precedent { get; set; }
+        public PieceName MovingPieceName { get; }
 
-        public int Depth { get; internal set; }
+        public PieceColor MovingPieceColor { get; }
 
-        public ChessPiece MovingPiece { get; internal set; }
+        public SquareLocation Start { get; }
 
-        public Square StartSquare { get; internal set; }
+        public SquareLocation Destination { get; }
 
-        public Square MoveSquare { get; internal set; }
+        public PieceName? CapturedPieceName { get; }
 
-        public ChessPiece CapturedPiece { get; internal set; } // ==null, если ход не явл. взятием.
+        public PieceName? NewPieceName { get; }
 
-        public ChessPiece NewPiece { get; internal set; } // ==null, если ход не явл. превращением пешки.
+        public bool IsEnPassantCapture { get; }
 
-        public bool IsEnPassantCapture { get; internal set; }
+        public bool IsKingsideCastling { get; private set; }
 
-        public bool IsCastleKingside { get; internal set; }
+        public bool IsQueensideCastling { get; private set; }
 
-        public bool IsCastleQueenside { get; internal set; }
+        public int Depth { get; }
 
-        internal Move() { }
+        internal object Precedent { get; }
 
-        public Move(ChessPiece movingPiece, Square moveSquare)
+        public Move(ChessPiece movingPiece, Square destinationSquare)
         {
-            if (moveSquare == null)
+            if (destinationSquare == null)
             {
                 throw new ArgumentNullException("Не указано поле для хода.");
             }
 
-            lock (moveSquare.Board)
+            var board = destinationSquare.Board;
+
+            lock (board.Locker)
             {
                 if (movingPiece == null)
                 {
@@ -44,122 +46,168 @@ namespace Chess.LogicPart
                     throw new ArgumentException("Указанная фигура не на доске.");
                 }
 
-                if (movingPiece.Board != moveSquare.Board)
+                if (movingPiece.Board != board)
                 {
                     throw new ArgumentException("Указаны фигура и поле на разных досках.");
                 }
 
-                if (moveSquare.Board.Status != BoardStatus.GameIsIncomplete || movingPiece.Color != movingPiece.Board.MovingSideColor)
+                if (board.Status != BoardStatus.GameIncomplete || movingPiece.Color != board.MoveTurn)
                 {
                     throw new ArgumentException("Указанная фигура не может делать ходов.");
                 }
 
-                if (movingPiece.Position == moveSquare)
+                if (movingPiece.Square == destinationSquare)
                 {
                     throw new ArgumentException("Фигура не может пойти на поле, на котором уже находится.");
                 }
 
-                if (!moveSquare.IsEmpty && moveSquare.ContainedPiece.Color == movingPiece.Color)
+                if (destinationSquare.Contained?.Color == movingPiece.Color)
                 {
                     throw new ArgumentException("Фигура не может пойти на поле, занятое фигурой того же цвета.");
                 }
 
-                MovingPiece = movingPiece;
-                MoveSquare = moveSquare;
+                MovingPieceName = movingPiece.Name;
+                MovingPieceColor = movingPiece.Color;
+                Start = movingPiece.SquareLocation;
+                Destination = destinationSquare.Location;
 
-                Precedent = Board.MovesCount > 0 ? Board.GetLastMove() : Board.InitialPosition;
-                Depth = Board.MovesCount + 1;
-                StartSquare = MovingPiece.Position;
+                CheckWhetherIsCastling(board);
+                IsEnPassantCapture = IsPawnMove && destinationSquare.IsPawnPassed && movingPiece.Attacks(destinationSquare);
+                CapturedPieceName = IsEnPassantCapture ? PieceName.Pawn : destinationSquare.Contained?.Name;
 
-                CheckWhetherIsEnPassantCapture();
-                CheckWhetherIsCastleMove();
-
-                CapturedPiece = !IsEnPassantCapture ? MoveSquare.ContainedPiece :
-                    Board[MoveSquare.Vertical, StartSquare.Horizontal].ContainedPiece;
+                Depth = board.MovesCount + 1;
+                Precedent = board.LastMove == null ? board.GameStartPosition : board.LastMove;
             }
         }
 
-        public Move(ChessPiece movingPiece, Square moveSquare, ChessPieceName newPieceName) : this(movingPiece, moveSquare)
+        public Move(ChessPiece movingPiece, Square destinationSquare, PieceName newPieceName) :
+        this(movingPiece, destinationSquare)
         {
-            if (!IsPawnPromotion)
+            if (!IsPawnMove)
             {
-                throw new ArgumentException("Этот конструктор только для хода пешкой на крайнюю горизонталь.");
-            }
+                throw new ArgumentException("Только пешка может превращаться в фигуру.");
+            }            
 
-            if (newPieceName == ChessPieceName.King)
+            if (newPieceName == PieceName.King)
             {
                 throw new ArgumentException("Пешка не может превращаться в короля.");
             }
 
-            if (newPieceName == ChessPieceName.Pawn)
+            if (newPieceName == PieceName.Pawn)
             {
                 throw new ArgumentException("Пешка не может превращаться в пешку.");
             }
 
-            NewPiece = ChessPiece.GetNewPiece(newPieceName, MovingPiece.Color);
+            NewPieceName = newPieceName;
         }
 
-        private void CheckWhetherIsEnPassantCapture()
+        public static bool operator ==(Move move1, Move move2)
         {
-            if (!IsPawnMove || MoveSquare != Board.PassedByPawnSquare)
+            if (ReferenceEquals(move1, move2))
             {
-                return;
+                return true;
             }
 
-            if (!(MovingPiece.Color == ChessPieceColor.White && MovingPiece.Horizontal == 4) &&
-                !(MovingPiece.Color == ChessPieceColor.Black && MovingPiece.Horizontal == 3))
+            if (move1 is null || move2 is null)
             {
-                return;
+                return false;
             }
 
-            IsEnPassantCapture = Math.Abs(MovingPiece.Vertical - MoveSquare.Vertical) == 1;
+            return move1.EqualsInProperties(move2);
         }
 
-        private void CheckWhetherIsCastleMove()
+        public static bool operator !=(Move move1, Move move2) => !(move1 == move2);
+
+        private void CheckWhetherIsCastling(ChessBoard board)
         {
-            if (MovingPiece.Name != ChessPieceName.King || MovingPiece.Vertical != 4)
+            if (MovingPieceName != PieceName.King)
             {
                 return;
             }
 
-            if (!(MovingPiece.Color == ChessPieceColor.White && MovingPiece.Horizontal == 0) &&
-                !(MovingPiece.Color == ChessPieceColor.Black && MovingPiece.Horizontal == 7))
+            var horizontal = MovingPieceColor == PieceColor.White ? 0 : 7;
+
+            if (Start.X != 4 || Start.Y != horizontal || Destination.Y != horizontal)
             {
                 return;
             }
 
-            if (MoveSquare.Horizontal != MovingPiece.Horizontal)
+            if (Destination.X == 6)
             {
-                return;
-            }
+                var cornerPiece = board.GetPiece(7, horizontal);
 
-            if (MoveSquare.Vertical == 6)
-            {
-                var rookPosition = Board[7, MovingPiece.Horizontal];
-
-                if (rookPosition.IsEmpty || rookPosition.ContainedPiece.Name != ChessPieceName.Rook ||
-                    rookPosition.ContainedPiece.Color != MovingPiece.Color)
+                if (cornerPiece?.Name != PieceName.Rook || cornerPiece.Color != MovingPieceColor)
                 {
                     return;
                 }
 
-                IsCastleKingside = Board[5, MovingPiece.Horizontal].IsEmpty && MoveSquare.IsEmpty;
+                IsKingsideCastling = board[5, horizontal].IsClear && board[6, horizontal].IsClear;
                 return;
             }
 
-            if (MoveSquare.Vertical == 2)
+            if (Destination.X == 2)
             {
-                var rookPosition = Board[0, MovingPiece.Horizontal];
+                var cornerPiece = board.GetPiece(0, horizontal);
 
-                if (rookPosition.IsEmpty || rookPosition.ContainedPiece.Name != ChessPieceName.Rook ||
-                    rookPosition.ContainedPiece.Color != MovingPiece.Color)
+                if (cornerPiece?.Name != PieceName.Rook || cornerPiece.Color != MovingPieceColor)
                 {
                     return;
                 }
 
-                IsCastleQueenside = Board[1, MovingPiece.Horizontal].IsEmpty && MoveSquare.IsEmpty &&
-                    Board[3, MovingPiece.Horizontal].IsEmpty;
+                IsQueensideCastling = board[1, horizontal].IsClear && board[2, horizontal].IsClear &&
+                board[3, horizontal].IsClear;
             }
+        }
+
+        private bool EqualsInProperties(Move other)
+        {
+            if (MovingPieceName != other.MovingPieceName || MovingPieceColor != other.MovingPieceColor)
+            {
+                return false;
+            }
+
+            if (Start != other.Start || Destination != other.Destination)
+            {
+                return false;
+            }
+
+            if (CapturedPieceName != other.CapturedPieceName || NewPieceName != other.NewPieceName)
+            {
+                return false;
+            }
+
+            if (IsEnPassantCapture != other.IsEnPassantCapture || IsKingsideCastling != other.IsKingsideCastling ||
+                IsQueensideCastling != other.IsQueensideCastling)
+            {
+                return false;
+            }
+
+            if (Depth != other.Depth)
+            {
+                return false;
+            }
+
+            if (Depth == 1)
+            {
+                return (GamePosition)Precedent == (GamePosition)other.Precedent;
+            }
+
+            return PrecedingMove == other.PrecedingMove;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj is null || obj is not Move)
+            {
+                return false;
+            }
+
+            return EqualsInProperties((Move)obj);
         }
 
         public IEnumerable<Move> GetPrecedingMoves()
@@ -173,18 +221,16 @@ namespace Chess.LogicPart
             }
         }
 
-        public ChessBoard Board => MoveSquare.Board;
+        public bool IsPawnMove => MovingPieceName == PieceName.Pawn;
 
-        public bool IsPawnMove => MovingPiece.Name == ChessPieceName.Pawn;
+        public bool IsPawnJump => IsPawnMove && (Start.Y - Destination.Y > 1 ||
+        Destination.Y - Start.Y > 1);
 
-        public bool IsPawnDoubleVerticalMove => IsPawnMove && StartSquare.Vertical == MoveSquare.Vertical &&
-            Math.Abs(StartSquare.Horizontal - MoveSquare.Horizontal) == 2;
+        public bool IsPawnPromotion => NewPieceName != null;
 
-        public bool IsPawnPromotion => IsPawnMove && (MoveSquare.Horizontal == 0 || MoveSquare.Horizontal == 7);
+        public bool IsCapture => CapturedPieceName != null;
 
-        public bool IsCapture => CapturedPiece != null;
-
-        public bool NewPieceSelected => NewPiece != null;
+        public bool IsCastling => IsKingsideCastling || IsQueensideCastling;
 
         public Move PrecedingMove => Precedent as Move;
     }

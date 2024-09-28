@@ -6,13 +6,14 @@ namespace Chess.StrategicPart
     {
         private Func<AnalysisBoard, int> _evaluateFunc = new(board => 0);
 
-        public AnalysisBoard() : base()
-        { }
+        public AnalysisBoard() { }
 
         public virtual int Evaluate() => _evaluateFunc(this);
 
         public Func<AnalysisBoard, int> EvaluateFunc
         {
+            get => _evaluateFunc;
+
             set
             {
                 if (value == null)

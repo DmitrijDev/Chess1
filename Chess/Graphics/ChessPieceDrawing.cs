@@ -1,10 +1,10 @@
 ﻿
 namespace Chess
 {
-    internal static class Graphics
+    internal static class ChessPieceDrawing
     {
         // Раскрашивает черно-белую картинку фигуры, при условии, что фигура - белая, фон - черный.
-        public static Bitmap GetColoredPicture(Bitmap oldPicture, Color backColor, Color imageColor)
+        public static Bitmap GetColoredPicture(Bitmap oldPicture, Color imageColor, Color backColor)
         {
             var newPicture = new Bitmap(oldPicture.Width, oldPicture.Height);
             var matrix = GetMatrix(oldPicture);
@@ -13,7 +13,9 @@ namespace Chess
             {
                 for (var j = 0; j < newPicture.Height; ++j)
                 {
-                    newPicture.SetPixel(i, j, matrix[i, j] > 0 ? imageColor : backColor);
+                    var color = matrix[i, j] > 0 ? imageColor : backColor;
+                    var alpha = matrix[i,j] == -1 ? 0 : 255;
+                    newPicture.SetPixel(i, j, Color.FromArgb(alpha, color.R, color.G, color.B));
                 }
             }
 
@@ -23,7 +25,7 @@ namespace Chess
 
         private static int[,] GetMatrix(Bitmap picture)
         {
-            var result = new int[picture.Width, picture.Height];
+            var matrix = new int[picture.Width, picture.Height];
 
             for (var i = 0; i < picture.Width; ++i)
             {
@@ -32,35 +34,35 @@ namespace Chess
                     // Красный пиксель.
                     if (picture.GetPixel(i, j).R > byte.MaxValue / 2 && picture.GetPixel(i, j).G < byte.MaxValue / 2 && picture.GetPixel(i, j).B < byte.MaxValue / 2)
                     {
-                        result[i, j] = 2;
+                        matrix[i, j] = 2;
                         continue;
                     }
 
                     // Зеленый пиксель.
                     if (picture.GetPixel(i, j).G > byte.MaxValue / 2 && picture.GetPixel(i, j).R < byte.MaxValue / 2 && picture.GetPixel(i, j).B < byte.MaxValue / 2)
                     {
-                        result[i, j] = 3;
+                        matrix[i, j] = 3;
                         continue;
                     }
 
                     // Белый пиксель.
                     if (picture.GetPixel(i, j).R > byte.MaxValue / 2)
                     {
-                        result[i, j] = 1;
+                        matrix[i, j] = 1;
                         continue;
                     }
 
                     var mustBeEroded = GetNeighboursColors(picture, i, j).
                         Any(pixelColor => pixelColor.R > byte.MaxValue / 2 && pixelColor.G < byte.MaxValue / 2 && pixelColor.B < byte.MaxValue / 2);
 
-                    result[i, j] = mustBeEroded ? -2 : -1;
+                    matrix[i, j] = mustBeEroded ? -2 : -1;
                 }
             }
 
-            return result;
+            return matrix;
         }
 
-        public static IEnumerable<Color> GetNeighboursColors(Bitmap picture, int x, int y)
+        private static IEnumerable<Color> GetNeighboursColors(Bitmap picture, int x, int y)
         {
             for (var i = x - 1; i <= x + 1; ++i)
             {
@@ -121,13 +123,14 @@ namespace Chess
             }
         }
 
-        public static void ErodePixel(Bitmap picture, int x, int y, int erosionDegree)
+        private static void ErodePixel(Bitmap picture, int x, int y, int erosionDegree)
         {
             if (x < erosionDegree || x >= picture.Width - erosionDegree || y < erosionDegree || y >= picture.Height - erosionDegree)
             {
                 return;
             }
 
+            var alpha = 0.0;
             var redComponent = 0.0;
             var greenComponent = 0.0;
             var blueComponent = 0.0;
@@ -138,51 +141,14 @@ namespace Chess
             {
                 for (var j = y - erosionDegree; j <= y + erosionDegree; ++j)
                 {
+                    alpha += picture.GetPixel(i, j).A * coefficient;
                     redComponent += picture.GetPixel(i, j).R * coefficient;
                     greenComponent += picture.GetPixel(i, j).G * coefficient;
                     blueComponent += picture.GetPixel(i, j).B * coefficient;
                 }
             }
 
-            var newColor = Color.FromArgb((int)Math.Round(redComponent), (int)Math.Round(greenComponent), (int)Math.Round(blueComponent));
-            picture.SetPixel(x, y, newColor);
-        }
-
-        public static void FocusPixel(Bitmap picture, int x, int y)
-        {
-            if (x == 0 || x >= picture.Width - 1 || y == 0 || y >= picture.Height - 1)
-            {
-                return;
-            }
-
-            var coefficients = new int[3][]
-            {
-              new int[3]  { 0, -1, 0 },
-              new int[3] { -1, 5, -1 },
-              new int[3] { 0, -1, 0 }
-            };
-
-            var redComponent = 0;
-            var greenComponent = 0;
-            var blueComponent = 0;
-
-            for (var i = x - 1; i <= x + 1; ++i)
-            {
-                for (var j = y - 1; j <= y + 1; ++j)
-                {
-                    var coefficient = coefficients[i - x + 1][j - y + 1];
-
-                    redComponent += coefficient * picture.GetPixel(i, j).R;
-                    greenComponent += coefficient * picture.GetPixel(i, j).G;
-                    blueComponent += coefficient * picture.GetPixel(i, j).B;
-                }
-            }
-
-            redComponent = redComponent > byte.MaxValue ? byte.MaxValue : redComponent >= 0 ? redComponent : 0;
-            greenComponent = greenComponent > byte.MaxValue ? byte.MaxValue : greenComponent >= 0 ? greenComponent : 0;
-            blueComponent = blueComponent > byte.MaxValue ? byte.MaxValue : blueComponent >= 0 ? blueComponent : 0;
-
-            var newColor = Color.FromArgb(redComponent, greenComponent, blueComponent);
+            var newColor = Color.FromArgb((int)Math.Round(alpha), (int)Math.Round(redComponent), (int)Math.Round(greenComponent), (int)Math.Round(blueComponent));
             picture.SetPixel(x, y, newColor);
         }
     }

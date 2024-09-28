@@ -8,15 +8,15 @@ namespace Chess.StrategicPart
         {
             var result = piece.Name switch
             {
-                ChessPieceName.Pawn => 100,
-                ChessPieceName.Knight => 300,
-                ChessPieceName.Bishop => 300,
-                ChessPieceName.Rook => 500,
-                ChessPieceName.Queen => 900,
+                PieceName.Pawn => 100,
+                PieceName.Knight => 300,
+                PieceName.Bishop => 300,
+                PieceName.Rook => 500,
+                PieceName.Queen => 900,
                 _ => throw new InvalidOperationException("Короля невозможно оценить в баллах."),
             };
 
-            if (piece.Color == ChessPieceColor.Black)
+            if (piece.Color == PieceColor.Black)
             {
                 result = -result;
             }

@@ -15,6 +15,8 @@ namespace Chess.VirtualPlayer
         private readonly string[] _boardPropNames;
         private readonly Delegate[] _boardFuncs;
 
+        private readonly object _locker = new();
+
         public Func<IChessTree, IEnumerable<Node>> Traverse { get; }
 
         public Func<Node, IChessTree, int> Evaluate { get; }
@@ -22,8 +24,6 @@ namespace Chess.VirtualPlayer
         public Func<Node, bool> CorrectParentEvaluation { get; }
 
         public Func<IChessTree, Node> GetBestMoveNode { get; }
-
-        public bool ThinkingDisabled { get; set; }
 
         public ChessRobot(Func<IChessTree, IEnumerable<Node>> traverse, Func<Node, IChessTree, int> evaluate,
         Func<Node, bool> correctParentEvaluation, Func<IChessTree, Node> getBestMoveNode)
@@ -112,21 +112,14 @@ namespace Chess.VirtualPlayer
             }
         }
 
-        public IChessRobot Copy() => new ChessRobot<TBoard>(this);
-
-        public Move SelectMove(ChessBoard board)
+        public Move GetMove(ChessBoard board)
         {
-            lock (this)
+            lock (_locker)
             {
-                lock (board)
-                {
-                    _gameBoard = board;
-                    _gameBoardModCount = _gameBoard.ModCount;
-                    _gameBoardGameStartsCount = _gameBoard.GameStartsCount;
-
-                    _tree = _boardPropNames == null || _boardPropNames.Length == 0 ? new Tree<TBoard>(_gameBoard) :
-                    new Tree<TBoard>(_gameBoard, _boardPropNames, _boardFuncs);
-                }
+                _gameBoardGameStartsCount = board.GamesCount;
+                _gameBoardModCount = board.ModCount;
+                _gameBoard = board;
+                _tree = GetTree();
 
                 Node resultNode;
 
@@ -136,7 +129,7 @@ namespace Chess.VirtualPlayer
                 }
                 else
                 {
-                    Analyze();
+                    AnalyzeTree();
                     resultNode = GetBestMoveNode(_tree);
 
                     if (resultNode == null || resultNode.Parent != _tree.Root)
@@ -146,52 +139,39 @@ namespace Chess.VirtualPlayer
                     }
                 }
 
-                lock (_gameBoard)
+                var piece = _gameBoard.GetPiece(resultNode.StartX, resultNode.StartY);
+                var square = _gameBoard[resultNode.DestinationX, resultNode.DestinationY];
+                Move resultMove;
+
+                try
                 {
-                    if (ThinkingDisabled)
-                    {
-                        _gameBoard = null;
-                        _tree = null;
-                        throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
-                    }
-
-                    if (_gameBoard.ModCount != _gameBoardModCount || _gameBoardGameStartsCount != _gameBoard.GameStartsCount)
-                    {
-                        throw new InvalidOperationException("На доске изменилась позиция во время анализа.");
-                    }
-
-                    var piece = _gameBoard[resultNode.StartVertical, resultNode.StartHorizontal].ContainedPiece;
-                    var square = _gameBoard[resultNode.MoveSquareVertical, resultNode.MoveSquareHorizontal];
-                    return resultNode.IsPawnPromotion ? new Move(piece, square, resultNode.NewPieceName) : new Move(piece, square);
+                    resultMove = resultNode.IsPawnPromotion ? new Move(piece, square, resultNode.NewPieceName) : new Move(piece, square);
                 }
+
+                catch
+                {
+                    throw new ThinkingInterruptedException();
+                }
+
+                CheckGameBoardPosition();
+                return resultMove;
             }
         }
 
-        private void Analyze()
+        private protected virtual IChessTree GetTree() => _boardPropNames == null || _boardPropNames.Length == 0 ?
+        new Tree<TBoard>(_gameBoard) : new Tree<TBoard>(_gameBoard, _boardPropNames, _boardFuncs);
+
+        private void AnalyzeTree()
         {
             foreach (var node in Traverse(_tree))
             {
-                lock (_gameBoard)
-                {
-                    if (ThinkingDisabled)
-                    {
-                        _gameBoard = null;
-                        _tree = null;
-                        throw new GameInterruptedException("Виртуальному игроку запрещен анализ позиций.");
-                    }
-
-                    if (_gameBoard.ModCount != _gameBoardModCount || _gameBoardGameStartsCount != _gameBoard.GameStartsCount)
-                    {
-                        throw new InvalidOperationException("На доске изменилась позиция во время анализа.");
-                    }
-                }
-
+                CheckGameBoardPosition();
                 node.Evaluation = Evaluate(node, _tree);
-                CorrectEvaluations(node);
+                CorrectAncestorsEvaluations(node);
             }
         }
 
-        private void CorrectEvaluations(Node node)
+        private void CorrectAncestorsEvaluations(Node node)
         {
             if (!CorrectParentEvaluation(node))
             {
@@ -200,10 +180,20 @@ namespace Chess.VirtualPlayer
 
             foreach (var precedent in node.GetPrecedents())
             {
+                CheckGameBoardPosition();
+
                 if (!CorrectParentEvaluation(precedent))
                 {
                     return;
                 }
+            }
+        }        
+
+        private void CheckGameBoardPosition()
+        {
+            if (_gameBoard.ModCount != _gameBoardModCount || _gameBoardGameStartsCount != _gameBoard.GamesCount)
+            {
+                throw new ThinkingInterruptedException();
             }
         }
     }

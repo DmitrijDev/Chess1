@@ -4,13 +4,12 @@ namespace Chess.ChessTree
 {
     public class Node
     {
-        private readonly sbyte _startVertical = -1;
-        private readonly sbyte _startHorizontal = -1;
-        private readonly sbyte _moveSquareVertical = -1;
-        private readonly sbyte _moveSquareHorizontal = -1;
-        private readonly ChessPieceName _newPieceName;
-
-        private readonly ChessPieceColor _movingPieceColor;
+        private readonly PieceColor _movingPieceColor;
+        private readonly sbyte _startX = -1;
+        private readonly sbyte _startY = -1;
+        private readonly sbyte _destinationX = -1;
+        private readonly sbyte _destinationY = -1;
+        private readonly PieceName _newPieceName;
         private int _evaluation = int.MinValue;
 
         public Node Parent { get; }
@@ -21,21 +20,21 @@ namespace Chess.ChessTree
 
         public long DescendantsCount { get; internal set; }
 
-        internal Node() { }
+        internal Node() { }        
 
         internal Node(Move move)
         {
-            _startVertical = (sbyte)move.StartSquare.Vertical;
-            _startHorizontal = (sbyte)move.StartSquare.Horizontal;
-            _moveSquareVertical = (sbyte)move.MoveSquare.Vertical;
-            _moveSquareHorizontal = (sbyte)move.MoveSquare.Horizontal;
+            _movingPieceColor = move.MovingPieceColor;
+            _startX = (sbyte)move.Start.X;
+            _startY = (sbyte)move.Start.Y;
+            _destinationX = (sbyte)move.Destination.X;
+            _destinationY = (sbyte)move.Destination.Y;
 
-            if (move.NewPieceSelected)
+            if (move.IsPawnPromotion)
             {
-                _newPieceName = move.NewPiece.Name;
+                _newPieceName = (PieceName)move.NewPieceName;
             }
 
-            _movingPieceColor = move.MovingPiece.Color;
             Depth = (ushort)move.Depth;
         }
 
@@ -44,8 +43,7 @@ namespace Chess.ChessTree
             Parent = parent;
         }
 
-        public Node GetChild(int startVertical, int startHorizontal,
-            int moveSquareVertical, int moveSquareHorizontal, ChessPieceName newPieceName)
+        public Node GetChild(int startX, int startY, int destinationX, int destinationY, PieceName newPieceName)
         {
             var children = Children;
 
@@ -54,18 +52,17 @@ namespace Chess.ChessTree
                 return null;
             }
 
-            return children.Where(child => child._startVertical == startVertical &&
-            child._startHorizontal == startHorizontal &&
-            child._moveSquareVertical == moveSquareVertical &&
-            child._moveSquareHorizontal == moveSquareHorizontal &&
+            return children.Where(child =>
+            child._startX == startX &&
+            child._startY == startY &&
+            child._destinationX == destinationX &&
+            child._destinationY == destinationY &&
             child._newPieceName == newPieceName).
             SingleOrDefault();
         }
 
-        public Node GetChild(int startVertical, int startHorizontal,
-            int moveSquareVertical, int moveSquareHorizontal) =>
-        GetChild(startVertical, startHorizontal,
-            moveSquareVertical, moveSquareHorizontal, default);
+        public Node GetChild(int startX, int startY, int destinationX, int destinationY) =>
+        GetChild(startX, startY, destinationX, destinationY, default);
 
         public IEnumerable<Node> GetPrecedents()
         {
@@ -76,58 +73,8 @@ namespace Chess.ChessTree
                 yield return node;
                 node = node.Parent;
             }
-        }
-
-        internal bool Coincides(Node other)
-        {
-            if (_startVertical != other._startVertical)
-            {
-                return false;
-            }
-
-            if (_startHorizontal != other._startHorizontal)
-            {
-                return false;
-            }
-
-            if (_moveSquareVertical != other._moveSquareVertical)
-            {
-                return false;
-            }
-
-            if (_moveSquareHorizontal != other._moveSquareHorizontal)
-            {
-                return false;
-            }
-
-            return _newPieceName == other._newPieceName;
-        }
-
-        internal bool Corresponds(Move move)
-        {
-            if (_startVertical != move.StartSquare.Vertical)
-            {
-                return false;
-            }
-
-            if (_startHorizontal != move.StartSquare.Horizontal)
-            {
-                return false;
-            }
-
-            if (_moveSquareVertical != move.MoveSquare.Vertical)
-            {
-                return false;
-            }
-
-            if (_moveSquareHorizontal != move.MoveSquare.Horizontal)
-            {
-                return false;
-            }
-
-            return !move.NewPieceSelected || _newPieceName == move.NewPiece.Name;
-        }
-
+        }       
+               
         public IEnumerable<Node> GetChildren()
         {
             if (Children == null)
@@ -166,20 +113,20 @@ namespace Chess.ChessTree
             }
         }
 
-        public int StartVertical => _startVertical >= 0 ? _startVertical : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
+        public int StartX => _startX >= 0 ? _startX : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
 
-        public int StartHorizontal => _startHorizontal >= 0 ? _startHorizontal : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
+        public int StartY => _startY >= 0 ? _startY : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
 
-        public int MoveSquareVertical => _moveSquareVertical >= 0 ? _moveSquareVertical : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
+        public int DestinationX => _destinationX >= 0 ? _destinationX : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
 
-        public int MoveSquareHorizontal => _moveSquareHorizontal >= 0 ? _moveSquareHorizontal : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
+        public int DestinationY => _destinationY >= 0 ? _destinationY : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
 
         public bool IsPawnPromotion => _newPieceName != default;
 
-        public ChessPieceName NewPieceName => IsPawnPromotion ? _newPieceName :
+        public PieceName NewPieceName => IsPawnPromotion ? _newPieceName :
         throw new InvalidOperationException("Это свойство может быть вычислено только для узла, соотв. превращению пешки.");
 
-        public ChessPieceColor MovingPieceColor => _startVertical >= 0 ? _movingPieceColor : throw new InvalidOperationException("Этот корневой узел не хранит цвета фигуры.");
+        public PieceColor MovingPieceColor => _startX >= 0 ? _movingPieceColor : throw new InvalidOperationException("Этот корневой узел не хранит цвета фигуры.");
 
         public int ChildrenCount
         {

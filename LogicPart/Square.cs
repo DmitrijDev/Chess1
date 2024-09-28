@@ -5,98 +5,58 @@ namespace Chess.LogicPart
     {
         public ChessBoard Board { get; }
 
-        public int Vertical { get; }
+        public SquareLocation Location { get; }
 
-        public int Horizontal { get; }
+        public ChessPiece Contained { get; internal set; }
 
-        public ChessPiece ContainedPiece { get; private set; }
+        internal List<ChessPiece> WhiteMenaces { get; } = new List<ChessPiece>();
 
-        internal List<ChessPiece> WhiteMenaces { get; set; }
+        internal List<ChessPiece> BlackMenaces { get; } = new List<ChessPiece>();
 
-        internal List<ChessPiece> BlackMenaces { get; set; }
-
-        internal Square(ChessBoard board, int vertical, int horizontal)
+        internal Square(ChessBoard board, int x, int y)
         {
             Board = board;
-            Vertical = vertical;
-            Horizontal = horizontal;
-        }
+            Location = new(x, y);
+        }       
+                
+        public bool IsOnSameDiagonal(Square other) => other?.Board == Board &&
+        Math.Abs(X - other.X) == Math.Abs(Y - other.Y);
 
-        internal void Put(ChessPiece newPiece)
-        {
-            var oldPiece = ContainedPiece;
-            ContainedPiece = newPiece;
+        public bool IsOnSameDiagonal(ChessPiece piece) => IsOnSameDiagonal(piece?.Square);
 
-            if (oldPiece != null && oldPiece.Position == this)
-            {
-                oldPiece.Remove();
-            }
-
-            if (!IsEmpty && ContainedPiece.Position != this)
-            {
-                ContainedPiece.PutTo(this);
-            }
-        }
+        public bool IsMenacedBy(PieceColor color) => color == PieceColor.White ?
+        WhiteMenaces.Count > 0 : BlackMenaces.Count > 0;
 
         internal void Clear()
         {
-            if (!IsEmpty)
-            {
-                Put(null);
-            }
+            Contained.RemoveMenaces();
+            OpenLines(null);
+            Contained.Square = null;
+            Contained = null;
         }
 
-        public bool IsMenacedBy(ChessPieceColor color)
+        internal void OpenLines(Square newPiecePosition)
         {
-            Board.RenewMenaces(color);
-            var menaces = color == ChessPieceColor.White ? WhiteMenaces : BlackMenaces;
-            return menaces != null && menaces.Any(piece => piece.Color == color);
+            foreach (var menace in WhiteMenaces.Concat(BlackMenaces).Where(piece => piece.IsLongRanged))
+            {
+                menace.OpenLine(this, newPiecePosition);
+            }
         }
 
-        public IEnumerable<ChessPiece> GetMenaces(ChessPieceColor color)
+        internal void BlockLines()
         {
-            ulong modCount;
-            ulong gameStartsCount;
-
-            lock (Board)
+            foreach (var menace in WhiteMenaces.Concat(BlackMenaces).Where(piece => piece.IsLongRanged))
             {
-                modCount = Board.ModCount;
-                gameStartsCount = Board.GameStartsCount;
-            }
-
-            Board.RenewMenaces(color);
-            var menaces = color == ChessPieceColor.White ? WhiteMenaces : BlackMenaces;
-
-            if (Board.ModCount != modCount || Board.GameStartsCount != gameStartsCount)
-            {
-                throw new InvalidOperationException("Изменение позиции во время перечисления.");
-            }
-
-            if (menaces == null)
-            {
-                yield break;
-            }
-
-            foreach (var piece in menaces)
-            {
-                if (Board.ModCount != modCount || Board.GameStartsCount != gameStartsCount)
-                {
-                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
-                }
-
-                yield return piece;
+                menace.BlockLine(this);
             }
         }
 
-        public bool IsOnSameDiagonal(Square other) => other.Board == Board &&
-            Math.Abs(Vertical - other.Vertical) == Math.Abs(Horizontal - other.Horizontal);
+        public int X => Location.X;
 
-        public bool IsOnSameDiagonal(ChessPiece piece)
-        {
-            var position = piece.Position;
-            return position != null && IsOnSameDiagonal(position);
-        }
+        public int Y => Location.Y;
 
-        public bool IsEmpty => ContainedPiece == null;
+        public bool IsClear => Contained == null;
+
+        public bool IsPawnPassed => Board.PawnPassedSquare == this;
     }
 }

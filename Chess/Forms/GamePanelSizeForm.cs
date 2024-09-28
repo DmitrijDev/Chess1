@@ -3,91 +3,101 @@ namespace Chess
 {
     internal partial class GamePanelSizeForm : Form
     {
-        private readonly GamePanel _gamePanel;
+        private int _currentSquareSize;
+        private readonly int _minSquareSize;
+        private readonly int _maxSquareSize;
 
-        public GamePanelSizeForm(GamePanel gamePanel)
+        public GamePanelSizeForm(int currentSquareSize, int minSquareSize, int maxSquareSize)
         {
             InitializeComponent();
-            _gamePanel = gamePanel;
+
+            _currentSquareSize = currentSquareSize;
+            _minSquareSize = minSquareSize;
+            _maxSquareSize = maxSquareSize;
 
             MinimumSize = Size;
             MaximumSize = MinimumSize;
 
-            TextBox.Text = _gamePanel.ButtonSize.ToString();
-        }        
+            TextBox.Text = _currentSquareSize.ToString();
+        }
 
         private void PlusButton_Click(object sender, EventArgs e)
         {
-            if (!int.TryParse(TextBox.Text, out var buttonSize))
+            if (!int.TryParse(TextBox.Text, out var squareSize))
             {
-                TextBox.Text = _gamePanel.ButtonSize < _gamePanel.MaximumButtonSize ? (_gamePanel.ButtonSize + 1).ToString() : _gamePanel.ButtonSize.ToString();
+                TextBox.Text = _currentSquareSize < _maxSquareSize ? (_currentSquareSize + 1).ToString() :
+                _currentSquareSize.ToString();
+
                 return;
             }
 
-            if (buttonSize < _gamePanel.MinimumButtonSize)
+            if (squareSize < _minSquareSize)
             {
-                TextBox.Text = _gamePanel.MinimumButtonSize.ToString();
+                TextBox.Text = _minSquareSize.ToString();
                 return;
             }
 
-            if (buttonSize >= _gamePanel.MaximumButtonSize)
+            if (squareSize >= _maxSquareSize)
             {
-                TextBox.Text = _gamePanel.MaximumButtonSize.ToString();
+                TextBox.Text = _maxSquareSize.ToString();
                 return;
             }
 
-            TextBox.Text = (buttonSize + 1).ToString();
+            TextBox.Text = (squareSize + 1).ToString();
         }
 
         private void MinusButton_Click(object sender, EventArgs e)
         {
-            if (!int.TryParse(TextBox.Text, out var buttonSize))
+            if (!int.TryParse(TextBox.Text, out var squareSize))
             {
-                TextBox.Text = _gamePanel.ButtonSize > _gamePanel.MinimumButtonSize ? (_gamePanel.ButtonSize - 1).ToString() : _gamePanel.ButtonSize.ToString();
+                TextBox.Text = _currentSquareSize > _minSquareSize ? (_currentSquareSize - 1).ToString() :
+                _currentSquareSize.ToString();
+
                 return;
             }
 
-            if (buttonSize <= _gamePanel.MinimumButtonSize)
+            if (squareSize <= _minSquareSize)
             {
-                TextBox.Text = _gamePanel.MinimumButtonSize.ToString();
+                TextBox.Text = _minSquareSize.ToString();
                 return;
             }
 
-            if (buttonSize > _gamePanel.MaximumButtonSize)
+            if (squareSize > _maxSquareSize)
             {
-                TextBox.Text = _gamePanel.MaximumButtonSize.ToString();
+                TextBox.Text = _maxSquareSize.ToString();
                 return;
             }
 
-            TextBox.Text = (buttonSize - 1).ToString();
+            TextBox.Text = (squareSize - 1).ToString();
         }
 
         private void SelectButton_Click(object sender, EventArgs e)
         {
-            if (!int.TryParse(TextBox.Text, out var buttonSize))
+            if (!int.TryParse(TextBox.Text, out var squareSize))
             {
                 MessageBox.Show("Необходимо ввести новый размер поля.", "", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            if (buttonSize < _gamePanel.MinimumButtonSize)
+            if (squareSize < _minSquareSize)
             {
-                buttonSize = _gamePanel.MinimumButtonSize;
-                TextBox.Text = buttonSize.ToString();
+                squareSize = _minSquareSize;
+                TextBox.Text = squareSize.ToString();
             }
 
-            if (buttonSize > _gamePanel.MaximumButtonSize)
+            if (squareSize > _maxSquareSize)
             {
-                buttonSize = _gamePanel.MaximumButtonSize;
-                TextBox.Text = buttonSize.ToString();
+                squareSize = _maxSquareSize;
+                TextBox.Text = squareSize.ToString();
             }
 
-            _gamePanel.SetButtonSize(buttonSize);
+            _currentSquareSize = squareSize;
+            SizeSelected?.Invoke(_currentSquareSize);
         }
 
         private void GamePanelSizeForm_Load(object sender, EventArgs e)
-        {
+        { }
 
-        }
+        public event Action<int> SizeSelected;
     }
 }

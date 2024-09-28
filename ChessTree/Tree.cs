@@ -7,32 +7,21 @@ namespace Chess.ChessTree
         where TBoard : AnalysisBoard, new()
     {
         private readonly TBoard _board = new();
-        private GamePosition _boardInitialPosition;
-        private Move _rootMove;
-
         private Node _activeNode;
-        private bool _workWithBoardIncomplete;
-        private Node _lastActiveNode;
-        private Move _lastActiveNodeMove;
-
-        private readonly Node[] _nodes = new Node[35200]; // Больше ходов в партии не может быть даже теоретически.
-        private readonly Move[] _moves = new Move[35200];
+        private readonly object _locker = new();
 
         public Node Root { get; }
 
         public Tree(ChessBoard board)
         {
-            _board.CopyGameState(board);
+            _board.CopyGame(board);
 
-            if (_board.Status != BoardStatus.GameIsIncomplete)
+            if (_board.Status != BoardStatus.GameIncomplete)
             {
                 throw new ArgumentException("На доске невозможно сделать ход.");
             }
 
-            _boardInitialPosition = _board.InitialPosition;
-            _rootMove = _board.GetLastMove();
-
-            Root = _board.MovesCount > 0 ? new(_rootMove) : new();
+            Root = _board.MovesCount > 0 ? new(_board.LastMove) : new();
             _activeNode = Root;
 
             Root.Children = _board.GetLegalMoves().Select(move => new Node(move, Root)).ToArray();
@@ -82,110 +71,31 @@ namespace Chess.ChessTree
             }
         }
 
-        private void RestoreCorrectWork()
+        private void MakeMove(Node node)
         {
-            if (!_workWithBoardIncomplete)
+            if (node.IsPawnPromotion)
             {
+                _board.MakeMove(node.StartX, node.StartY, node.DestinationX, node.DestinationY, node.NewPieceName);
                 return;
             }
 
-            if (_board.GetLastMove() == _lastActiveNodeMove && _activeNode == _lastActiveNode)
-            {
-                _workWithBoardIncomplete = false;
-                return;
-            }
-
-            if (_board.InitialPosition != _boardInitialPosition)
-            {
-                _board.SetPosition(_boardInitialPosition);
-                _boardInitialPosition = _board.InitialPosition;
-
-                if (_rootMove != null)
-                {
-                    foreach (var move in _rootMove.GetPrecedingMoves().Reverse().Append(_rootMove))
-                    {
-                        var piece = _board[move.StartSquare.Vertical, move.StartSquare.Horizontal].ContainedPiece;
-                        var square = _board[move.MoveSquare.Vertical, move.MoveSquare.Horizontal];
-                        var newMove = move.IsPawnPromotion ? new Move(piece, square, move.NewPiece.Name) : new Move(piece, square);
-                        _board.MakeMove(newMove);
-                    }
-
-                    _rootMove = _board.GetLastMove();
-                }
-
-                _activeNode = Root;
-                _workWithBoardIncomplete = false;
-                return;
-            }
-
-            var move1 = _lastActiveNodeMove;
-            var node = _lastActiveNode;
-            var move2 = _board.GetLastMove();
-
-            var movesCount = 0;
-            var nodesCount = 0;
-
-            while (move1 != move2)
-            {
-                var depth1 = move1 != null ? move1.Depth : 0;
-                var depth2 = move2 != null ? move2.Depth : 0;
-
-                if (depth1 >= depth2)
-                {
-                    _moves[movesCount] = move1;
-                    ++movesCount;
-                    move1 = move1.PrecedingMove;
-
-                    if (node != null)
-                    {
-                        _nodes[nodesCount] = node;
-                        ++nodesCount;
-                        node = node.Parent;
-                    }
-                }
-
-                if (depth2 >= depth1)
-                {
-                    _board.TakebackMove();
-                    move2 = move2.PrecedingMove;
-                }
-            }
-
-            if (movesCount == 0 || (nodesCount == movesCount && _nodes[nodesCount - 1] != Root))
-            {
-                _activeNode = nodesCount > 0 ? _nodes[nodesCount - 1] : _lastActiveNode;
-                _workWithBoardIncomplete = false;
-                return;
-            }
-
-            for (var i = movesCount - 1; ; --i)
-            {
-                _board.MakeMove(_moves[i]);
-
-                if (i < nodesCount)
-                {
-                    _activeNode = _nodes[i];
-                    _workWithBoardIncomplete = false;
-                    return;
-                }
-            }
-        }
+            _board.MakeMove(node.StartX, node.StartY, node.DestinationX, node.DestinationY);
+        }        
 
         private void SetBoardTo(Node targetNode)
         {
-            RestoreCorrectWork();
+            if (targetNode == null)
+            {
+                throw new ArgumentNullException();
+            }
 
             if (targetNode == _activeNode)
             {
                 return;
             }
 
-            _lastActiveNode = _activeNode;
-            _lastActiveNodeMove = _board.GetLastMove();
-            _workWithBoardIncomplete = true;
-
             var node = targetNode;
-            var count = 0;
+            var nodes = new Stack<Node>();
 
             while (node != _activeNode)
             {
@@ -195,15 +105,14 @@ namespace Chess.ChessTree
 
                 if (depth1 >= depth2 && node.Parent != null)
                 {
-                    _nodes[count] = node;
-                    ++count;
+                    nodes.Push(node);
                     node = node.Parent;
                     moved = true;
                 }
 
                 if (depth2 >= depth1 && _activeNode != Root)
                 {
-                    _board.TakebackMove();
+                    _board.CancelMove();
                     _activeNode = _activeNode.Parent;
                     moved = true;
                 }
@@ -214,39 +123,30 @@ namespace Chess.ChessTree
                 }
             }
 
-            for (var i = count - 1; i >= 0; --i)
+            while (nodes.Count > 0)
             {
-                MakeMove(_nodes[i]);
+                MakeMove(nodes.Pop());
             }
 
             _activeNode = targetNode;
-            _workWithBoardIncomplete = false;
-        }
-
-        private void MakeMove(Node node)
-        {
-            var piece = _board[node.StartVertical, node.StartHorizontal].ContainedPiece;
-            var square = _board[node.MoveSquareVertical, node.MoveSquareHorizontal];
-            var move = node.IsPawnPromotion ? new Move(piece, square, node.NewPieceName) : new Move(piece, square);
-            _board.MakeMove(move);
         }
 
         public int Evaluate(Node node)
         {
-            lock (this)
+            lock (_locker)
             {
                 SetBoardTo(node);
-                _lastActiveNode = node;
-                _lastActiveNodeMove = _board.GetLastMove();
-                _workWithBoardIncomplete = true;
                 return _board.Evaluate();
             }
         }
 
         public bool EndsGameWith(Node node)
         {
-            SetBoardTo(node);
-            return _board.Status != BoardStatus.GameIsIncomplete;
+            lock (_locker)
+            {
+                SetBoardTo(node);
+                return _board.Status != BoardStatus.GameIncomplete;
+            }
         }
 
         public void AddChildren(Node parent)
@@ -256,11 +156,11 @@ namespace Chess.ChessTree
                 return;
             }
 
-            lock (this)
+            lock (_locker)
             {
                 SetBoardTo(parent);
 
-                if (_board.Status != BoardStatus.GameIsIncomplete)
+                if (_board.Status != BoardStatus.GameIncomplete)
                 {
                     return;
                 }
@@ -275,7 +175,17 @@ namespace Chess.ChessTree
             }
         }
 
-        public IEnumerable<Node> Traverse(Node start, int depth, Func<Node, bool> nodePredicate)
+        public bool IsInThis(Node node)
+        {
+            if (node.Parent == null)
+            {
+                return node == Root;
+            }
+
+            return node.GetPrecedents().Last() == Root;
+        }
+
+        public IEnumerable<Node> Traverse(Node start, int depth, Func<Node, bool> predicate)
         {
             if (start == null)
             {
@@ -292,17 +202,12 @@ namespace Chess.ChessTree
                 throw new InvalidOperationException("Указанный стартовый узел отсутствует в дереве.");
             }
 
-            var nodes = new Stack<Node>();
-            nodes.Push(start);
+            AddChildren(start);
+            var nodes = predicate == null ? new Stack<Node>(start.Children) : new Stack<Node>(start.Children.Where(predicate));
 
             while (nodes.Count > 0)
             {
                 var currentNode = nodes.Pop();
-
-                if (nodePredicate != null && !nodePredicate(currentNode))
-                {
-                    continue;
-                }
 
                 if (currentNode.Depth == start.Depth + depth || EndsGameWith(currentNode))
                 {
@@ -311,14 +216,14 @@ namespace Chess.ChessTree
                 }
 
                 AddChildren(currentNode);
-                var children = nodePredicate == null ? currentNode.Children : currentNode.Children.Where(nodePredicate);
+                var children = predicate == null ? currentNode.Children : currentNode.Children.Where(predicate);
 
-                foreach (var node in children)
+                foreach (var child in children)
                 {
-                    nodes.Push(node);
+                    nodes.Push(child);
                 }
             }
-        }        
+        }
 
         public IEnumerable<Node> Traverse(int depth, Func<Node, bool> nodePredicate) =>
             Traverse(Root, depth, nodePredicate);
@@ -329,17 +234,5 @@ namespace Chess.ChessTree
         public IEnumerable<Node> Traverse(Node start, int depth) =>
             Traverse(start, depth, null);
 
-        public bool IsInThis(Node node)
-        {
-            lock (this)
-            {
-                if (node.Parent == null)
-                {
-                    return node == Root;
-                }
-
-                return node.GetPrecedents().Last() == Root;
-            }
-        }
     }
 }
