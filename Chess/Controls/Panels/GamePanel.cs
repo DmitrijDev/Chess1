@@ -469,8 +469,7 @@ namespace Chess
                         MessageBox.Show(message, "", MessageBoxButtons.OK);
                         break;
                     }
-            }
-            ;
+            };
         }
 
         private bool RobotPlaysFor(PieceColor color) => color == PieceColor.White ? _whiteRobot != null : _blackRobot != null;
