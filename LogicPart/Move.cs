@@ -242,5 +242,7 @@ namespace Chess.LogicPart
         public bool IsCapture => CapturedPieceName != null;
 
         public Move PrecedingMove => Precedent as Move;
+
+       private object obj { get; }
     }
 }
