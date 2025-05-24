@@ -4,30 +4,30 @@ namespace Chess.StrategicPart;
 
 public class AnalysisBoard_Type1 : AnalysisBoard
 {
-    private Func<ChessPiece, int> _evaluatePieceFunc = new(piece => 0);
-    private Func<AnalysisBoard_Type1, int> _evaluatePositionFunc = new(board => 0);
+    private Func<ChessPiece, int> _evaluatePiece = new(piece => 0);
+    private Func<AnalysisBoard_Type1, int> _evaluatePosition = new(board => 0);
 
     public int MaterialValue { get; private set; }
 
-    public AnalysisBoard_Type1() 
-    { 
+    public AnalysisBoard_Type1()
+    {
         PositionSet += () => MaterialValue = GetMaterial().Where(piece => piece.Name != PieceName.King).
-        Select(piece => _evaluatePieceFunc(piece)).Sum();
+        Select(piece => _evaluatePiece(piece)).Sum();
 
         MakingMove += (move) =>
         {
             if (move.IsCapture)
             {
-                var capturedPiece = !move.IsEnPassantCapture ? GetPiece(move.Destination) :
-                GetPiece(move.Destination.X, move.Start.Y);
+                var capturedPiece = move.IsEnPassantCapture ?
+                GetPiece(move.Destination.X, move.Start.Y) : GetPiece(move.Destination);
 
-                MaterialValue -= _evaluatePieceFunc(capturedPiece);
+                MaterialValue -= _evaluatePiece(capturedPiece);
             }
 
             if (move.IsPawnPromotion)
             {
                 var pawn = GetPiece(move.Start);
-                MaterialValue -= _evaluatePieceFunc(pawn);
+                MaterialValue -= _evaluatePiece(pawn);
             }
         };
 
@@ -36,7 +36,7 @@ public class AnalysisBoard_Type1 : AnalysisBoard
             if (LastMove.IsPawnPromotion)
             {
                 var newPiece = GetPiece(LastMove.Destination);
-                MaterialValue += _evaluatePieceFunc(newPiece);
+                MaterialValue += _evaluatePiece(newPiece);
             }
         };
 
@@ -45,7 +45,7 @@ public class AnalysisBoard_Type1 : AnalysisBoard
             if (LastMove.IsPawnPromotion)
             {
                 var newPiece = GetPiece(LastMove.Destination);
-                MaterialValue -= _evaluatePieceFunc(newPiece);
+                MaterialValue -= _evaluatePiece(newPiece);
             }
         };
 
@@ -53,25 +53,25 @@ public class AnalysisBoard_Type1 : AnalysisBoard
         {
             if (move.IsCapture)
             {
-                var capturedPiece = !move.IsEnPassantCapture ? GetPiece(move.Destination) :
-                GetPiece(move.Destination.X, move.Start.Y);
+                var capturedPiece = move.IsEnPassantCapture ? GetPiece(move.Destination.X, move.Start.Y) :
+                GetPiece(move.Destination);
 
-                MaterialValue += _evaluatePieceFunc(capturedPiece);
+                MaterialValue += _evaluatePiece(capturedPiece);
             }
 
             if (move.IsPawnPromotion)
             {
                 var pawn = GetPiece(move.Start);
-                MaterialValue += _evaluatePieceFunc(pawn);
+                MaterialValue += _evaluatePiece(pawn);
             }
         };
-    }  
-    
-    public override int Evaluate() => _evaluatePositionFunc(this);
+    }
+
+    public override int Evaluate() => _evaluatePosition(this);
 
     public Func<ChessPiece, int> EvaluatePieceFunc
     {
-        get => _evaluatePieceFunc;
+        get => _evaluatePiece;
 
         set
         {
@@ -80,13 +80,13 @@ public class AnalysisBoard_Type1 : AnalysisBoard
                 throw new ArgumentNullException();
             }
 
-            _evaluatePieceFunc = value;
+            _evaluatePiece = value;
         }
     }
 
     public Func<AnalysisBoard_Type1, int> EvaluatePositionFunc
     {
-        get => _evaluatePositionFunc;
+        get => _evaluatePosition;
 
         set
         {
@@ -95,7 +95,7 @@ public class AnalysisBoard_Type1 : AnalysisBoard
                 throw new ArgumentNullException();
             }
 
-            _evaluatePositionFunc = value;
+            _evaluatePosition = value;
         }
     }
 }

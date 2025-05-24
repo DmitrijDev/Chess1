@@ -3,166 +3,181 @@ namespace Chess.LogicPart
 {
     public sealed class Queen : ChessPiece
     {
-        public Queen(PieceColor color) : base(color) { }
+        internal Queen(PieceColor color) : base(color) { }
 
         public override IEnumerable<Square> GetAttackedSquares()
         {
-            var square = Square;
+            var board = Board;
 
-            if (square == null)
+            if (board == null)
             {
                 yield break;
             }
 
-            var board = square.Board;
-            var gamesCount = board.GamesCount;
-            var modCount = board.ModCount;
+            Square queenPosition;
+            ulong gamesCount;
+            ulong modCount;
 
-            if (Square != square)
+            lock (board.Locker)
             {
-                throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                if (Board != board)
+                {
+                    yield break;
+                }
+
+                queenPosition = Square;
+                gamesCount = board.GamesCount;
+                modCount = board.ModCount;
             }
 
-            for (var i = square.Y + 1; i < 8; ++i)
+            for (var i = queenPosition.Y + 1; i < 8; ++i)
             {
-                var piece = board.GetPiece(square.X, i);
+                var square = board[queenPosition.X, i];
+                var squareClear = square.IsClear;
 
                 if (board.ModCount != modCount || board.GamesCount != gamesCount)
                 {
                     throw new InvalidOperationException("Изменение позиции во время перечисления.");
                 }
 
-                yield return board[square.X, i];
+                yield return square;
 
-                if (piece != null)
+                if (!squareClear)
                 {
                     break;
                 }
             }
 
-            for (var i = square.Y - 1; i >= 0; --i)
+            for (var i = queenPosition.Y - 1; i >= 0; --i)
             {
-                var piece = board.GetPiece(square.X, i);
+                var square = board[queenPosition.X, i];
+                var squareClear = square.IsClear;
 
                 if (board.ModCount != modCount || board.GamesCount != gamesCount)
                 {
                     throw new InvalidOperationException("Изменение позиции во время перечисления.");
                 }
 
-                yield return board[square.X, i];
+                yield return square;
 
-                if (piece != null)
+                if (!squareClear)
                 {
                     break;
                 }
             }
 
-            for (var i = square.X + 1; i < 8; ++i)
+            for (var i = queenPosition.X + 1; i < 8; ++i)
             {
-                var piece = board.GetPiece(i, square.Y);
+                var square = board[i, queenPosition.Y];
+                var squareClear = square.IsClear;
 
                 if (board.ModCount != modCount || board.GamesCount != gamesCount)
                 {
                     throw new InvalidOperationException("Изменение позиции во время перечисления.");
                 }
 
-                yield return board[i, square.Y];
+                yield return square;
 
-                if (piece != null)
+                if (!squareClear)
                 {
                     break;
                 }
             }
 
-            for (var i = square.X - 1; i >= 0; --i)
+            for (var i = queenPosition.X - 1; i >= 0; --i)
             {
-                var piece = board.GetPiece(i, square.Y);
+                var square = board[i, queenPosition.Y];
+                var squareClear = square.IsClear;
 
                 if (board.ModCount != modCount || board.GamesCount != gamesCount)
                 {
                     throw new InvalidOperationException("Изменение позиции во время перечисления.");
                 }
 
-                yield return board[i, square.Y];
+                yield return square;
 
-                if (piece != null)
+                if (!squareClear)
                 {
                     break;
                 }
             }
 
-            for (int i = square.X + 1, j = square.Y + 1; i < 8 && j < 8; ++i, ++j)
+            for (int i = queenPosition.X + 1, j = queenPosition.Y + 1; i < 8 && j < 8; ++i, ++j)
             {
-                var piece = board.GetPiece(i, j);
+                var square = board[i, j];
+                var squareClear = square.IsClear;
 
                 if (board.ModCount != modCount || board.GamesCount != gamesCount)
                 {
                     throw new InvalidOperationException("Изменение позиции во время перечисления.");
                 }
 
-                yield return board[i, j];
+                yield return square;
 
-                if (piece != null)
+                if (!squareClear)
                 {
                     break;
                 }
             }
 
-            for (int i = square.X - 1, j = square.Y - 1; i >= 0 && j >= 0; --i, --j)
+            for (int i = queenPosition.X - 1, j = queenPosition.Y - 1; i >= 0 && j >= 0; --i, --j)
             {
-                var piece = board.GetPiece(i, j);
+                var square = board[i, j];
+                var squareClear = square.IsClear;
 
                 if (board.ModCount != modCount || board.GamesCount != gamesCount)
                 {
                     throw new InvalidOperationException("Изменение позиции во время перечисления.");
                 }
 
-                yield return board[i, j];
+                yield return square;
 
-                if (piece != null)
+                if (!squareClear)
                 {
                     break;
                 }
             }
 
-            for (int i = square.X + 1, j = square.Y - 1; i < 8 && j >= 0; ++i, --j)
+            for (int i = queenPosition.X + 1, j = queenPosition.Y - 1; i < 8 && j >= 0; ++i, --j)
             {
-                var piece = board.GetPiece(i, j);
+                var square = board[i, j];
+                var squareClear = square.IsClear;
 
                 if (board.ModCount != modCount || board.GamesCount != gamesCount)
                 {
                     throw new InvalidOperationException("Изменение позиции во время перечисления.");
                 }
 
-                yield return board[i, j];
+                yield return square;
 
-                if (piece != null)
+                if (!squareClear)
                 {
                     break;
                 }
             }
 
-            for (int i = square.X - 1, j = square.Y + 1; i >= 0 && j < 8; --i, ++j)
+            for (int i = queenPosition.X - 1, j = queenPosition.Y + 1; i >= 0 && j < 8; --i, ++j)
             {
-                var piece = board.GetPiece(i, j);
+                var square = board[i, j];
+                var squareClear = square.IsClear;
 
                 if (board.ModCount != modCount || board.GamesCount != gamesCount)
                 {
                     throw new InvalidOperationException("Изменение позиции во время перечисления.");
                 }
 
-                yield return board[i, j];
+                yield return square;
 
-                if (piece != null)
+                if (!squareClear)
                 {
                     break;
                 }
             }
         }
 
-        internal override void RemoveExcessMenaces(Square newSquare)
+        internal override void RemoveUnactualMenaces(Square newSquare)
         {
-            RemoveMenace(newSquare);
+            newSquare.RemoveMenace(this);
 
             if (newSquare.X == X)
             {
@@ -201,7 +216,7 @@ namespace Chess.LogicPart
                 return;
             }
 
-            AddMenace(oldSquare);
+            oldSquare.AddMenace(this);
 
             if (oldSquare.X == X)
             {
@@ -231,121 +246,6 @@ namespace Chess.LogicPart
             AddMenacesToUpperRight();
             AddMenacesToLowerLeft();
         }
-
-        internal override void OpenLine(Square oldPiecePosition, Square newPiecePosition)
-        {
-            if (oldPiecePosition.X == X)
-            {
-                if (newPiecePosition?.X == X && (Y < newPiecePosition.Y ^ oldPiecePosition.Y < newPiecePosition.Y))
-                {
-                    return;
-                }
-
-                for (var i = oldPiecePosition.Y > Y ? oldPiecePosition.Y + 1 : oldPiecePosition.Y - 1; i >= 0 && i < 8;
-                i = i > oldPiecePosition.Y ? i + 1 : i - 1)
-                {
-                    var square = Board[X, i];
-                    AddMenace(square);
-
-                    if (!square.IsClear || square == newPiecePosition)
-                    {
-                        return;
-                    }
-                }
-
-                return;
-            }
-
-            if (oldPiecePosition.Y == Y)
-            {
-                if (newPiecePosition?.Y == Y && (X < newPiecePosition.X ^ oldPiecePosition.X < newPiecePosition.X))
-                {
-                    return;
-                }
-
-                for (var i = oldPiecePosition.X > X ? oldPiecePosition.X + 1 : oldPiecePosition.X - 1; i >= 0 && i < 8;
-                i = i > oldPiecePosition.X ? i + 1 : i - 1)
-                {
-                    var square = Board[i, Y];
-                    AddMenace(square);
-
-                    if (!square.IsClear || square == newPiecePosition)
-                    {
-                        return;
-                    }
-                }
-
-                return;
-            }
-
-            if (IsOnSameDiagonal(newPiecePosition) && oldPiecePosition.IsOnSameDiagonal(newPiecePosition) &&
-            (X < newPiecePosition.X ^ oldPiecePosition.X < newPiecePosition.X))
-            {
-                return;
-            }
-
-            for (int i = oldPiecePosition.X > X ? oldPiecePosition.X + 1 : oldPiecePosition.X - 1,
-                 j = oldPiecePosition.Y > Y ? oldPiecePosition.Y + 1 : oldPiecePosition.Y - 1;
-                 i >= 0 && j >= 0 && i < 8 && j < 8;
-                 i = i > oldPiecePosition.X ? i + 1 : i - 1, j = j > oldPiecePosition.Y ? j + 1 : j - 1)
-            {
-                var square = Board[i, j];
-                AddMenace(square);
-
-                if (!square.IsClear || square == newPiecePosition)
-                {
-                    return;
-                }
-            }
-        }
-
-        internal override void BlockLine(Square blockSquare)
-        {
-            if (blockSquare.X == X)
-            {
-                for (var i = blockSquare.Y > Y ? blockSquare.Y + 1 : blockSquare.Y - 1; i >= 0 && i < 8;
-                i = i > blockSquare.Y ? i + 1 : i - 1)
-                {
-                    var square = Board[X, i];
-
-                    if (!RemoveMenace(square) || !square.IsClear)
-                    {
-                        return;
-                    }
-                }
-
-                return;
-            }
-
-            if (blockSquare.Y == Y)
-            {
-                for (var i = blockSquare.X > X ? blockSquare.X + 1 : blockSquare.X - 1; i >= 0 && i < 8;
-                i = i > blockSquare.X ? i + 1 : i - 1)
-                {
-                    var square = Board[i, Y];
-
-                    if (!RemoveMenace(square) || !square.IsClear)
-                    {
-                        return;
-                    }
-                }
-
-                return;
-            }
-
-            for (int i = blockSquare.X > X ? blockSquare.X + 1 : blockSquare.X - 1,
-                 j = blockSquare.Y > Y ? blockSquare.Y + 1 : blockSquare.Y - 1;
-                 i >= 0 && j >= 0 && i < 8 && j < 8;
-                 i = i > blockSquare.X ? i + 1 : i - 1, j = j > blockSquare.Y ? j + 1 : j - 1)
-            {
-                var square = Board[i, j];
-
-                if (!RemoveMenace(square) || !square.IsClear)
-                {
-                    return;
-                }
-            }
-        }        
 
         public override PieceName Name => PieceName.Queen;
 

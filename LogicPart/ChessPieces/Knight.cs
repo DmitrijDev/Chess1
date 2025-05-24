@@ -3,20 +3,32 @@ namespace Chess.LogicPart
 {
     public sealed class Knight : ChessPiece
     {
-        public Knight(PieceColor color) : base(color) { }
+        internal Knight(PieceColor color) : base(color) { }
 
         public override IEnumerable<Square> GetAttackedSquares()
         {
-            var square = Square;
+            var board = Board;
 
-            if (square == null)
+            if (board == null)
             {
                 yield break;
             }
 
-            var board = square.Board;
-            var gamesCount = board.GamesCount;
-            var modCount = board.ModCount;
+            Square square;
+            ulong gamesCount;
+            ulong modCount;
+
+            lock (board.Locker)
+            {
+                if (Board != board)
+                {
+                    yield break;
+                }
+
+                square = Square;
+                gamesCount = board.GamesCount;
+                modCount = board.ModCount;
+            }
 
             var verticalShifts = new int[] { 2, 2, -2, -2, 1, 1, -1, -1 };
             var horizontalShifts = new int[] { -1, 1, -1, 1, -2, 2, -2, 2 };
@@ -24,9 +36,15 @@ namespace Chess.LogicPart
             for (var i = 0; i < 8; ++i)
             {
                 var targetSquareX = square.X + horizontalShifts[i];
+
+                if (targetSquareX < 0 || targetSquareX > 7)
+                {
+                    continue;
+                }
+
                 var targetSquareY = square.Y + verticalShifts[i];
 
-                if (targetSquareX < 0 || targetSquareY < 0 || targetSquareX >= 8 || targetSquareY >= 8)
+                if (targetSquareY < 0 || targetSquareY > 7)
                 {
                     continue;
                 }
@@ -40,15 +58,9 @@ namespace Chess.LogicPart
             }
         }
 
-        internal override void RemoveExcessMenaces(Square newSquare) => RemoveMenaces();
+        internal override void RemoveUnactualMenaces(Square newSquare) => RemoveMenaces();
 
         internal override void AddMissingMenaces(Square oldSquare) => AddMenaces();
-
-        internal override void OpenLine(Square oldPiecePosition, Square newPiecePosition) =>
-        throw new NotImplementedException();
-
-        internal override void BlockLine(Square blockSquare) =>
-        throw new NotImplementedException();
 
         public override PieceName Name => PieceName.Knight;
 

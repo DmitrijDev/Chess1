@@ -4,27 +4,22 @@ namespace Chess.ChessTree
 {
     public class Node
     {
-        private readonly PieceColor _movingPieceColor;
-        private readonly sbyte _startX = -1;
-        private readonly sbyte _startY = -1;
-        private readonly sbyte _destinationX = -1;
-        private readonly sbyte _destinationY = -1;
-        private readonly PieceName _newPieceName;
+        private sbyte _startX = -1;
+        private sbyte _startY = -1;
+        private sbyte _destinationX = -1;
+        private sbyte _destinationY = -1;
+        private PieceName _newPieceName;
+
         private int _evaluation = int.MinValue;
 
-        public Node Parent { get; }
+        public Node Parent { get; private set; }
 
-        internal Node[] Children { get; set; }
+        internal Node[] Children { get; private set; }
 
-        public ushort Depth { get; internal set; }
+        public ushort Depth { get; private set; }        
 
-        public long DescendantsCount { get; internal set; }
-
-        internal Node() { }        
-
-        internal Node(Move move)
+        internal virtual void SetMoveParams(Move move)
         {
-            _movingPieceColor = move.MovingPieceColor;
             _startX = (sbyte)move.Start.X;
             _startY = (sbyte)move.Start.Y;
             _destinationX = (sbyte)move.Destination.X;
@@ -38,31 +33,39 @@ namespace Chess.ChessTree
             Depth = (ushort)move.Depth;
         }
 
-        internal Node(Move move, Node parent) : this(move)
+        internal virtual void SetToRootPosition(Tree tree)
         {
-            Parent = parent;
+            if (tree.Board.MovesCount > 0)
+            {
+                SetMoveParams(tree.Board.LastMove);
+            }
+
+            tree.Root = this;
         }
 
-        public Node GetChild(int startX, int startY, int destinationX, int destinationY, PieceName newPieceName)
+        internal virtual void Join(IEnumerable<Node> children)
+        {
+            Children = children.ToArray();
+            Array.ForEach(Children, child => child.Parent = this);
+        }
+
+        internal virtual void RemoveChildren()
+        {
+            Array.ForEach(Children, child => child.Parent = null);
+            Children = null;
+        }
+
+        public void SortChildren(Comparison<Node> comparison)
         {
             var children = Children;
 
             if (children == null)
             {
-                return null;
+                return;
             }
 
-            return children.Where(child =>
-            child._startX == startX &&
-            child._startY == startY &&
-            child._destinationX == destinationX &&
-            child._destinationY == destinationY &&
-            child._newPieceName == newPieceName).
-            SingleOrDefault();
+            Array.Sort(children, comparison);
         }
-
-        public Node GetChild(int startX, int startY, int destinationX, int destinationY) =>
-        GetChild(startX, startY, destinationX, destinationY, default);
 
         public IEnumerable<Node> GetPrecedents()
         {
@@ -73,21 +76,28 @@ namespace Chess.ChessTree
                 yield return node;
                 node = node.Parent;
             }
-        }       
-               
+        }
+
         public IEnumerable<Node> GetChildren()
         {
-            if (Children == null)
+            var children = Children;
+
+            if (children == null)
             {
                 yield break;
             }
 
-            foreach (var child in Children)
+            foreach (var child in children)
             {
+                if (Children != children)
+                {
+                    throw new InvalidOperationException("Коллекция изменена во время перечисления.");
+                }
+
                 yield return child;
             }
-        }
-
+        }           
+       
         public bool IsEvaluated => _evaluation != int.MinValue;
 
         public int Evaluation
@@ -113,28 +123,28 @@ namespace Chess.ChessTree
             }
         }
 
-        public int StartX => _startX >= 0 ? _startX : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
+        public int StartX => _startX >= 0 ? _startX : throw new InvalidOperationException("Этот узел не хранит координат полей.");
 
-        public int StartY => _startY >= 0 ? _startY : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
+        public int StartY => _startY >= 0 ? _startY : throw new InvalidOperationException("Этот узел не хранит координат полей.");
 
-        public int DestinationX => _destinationX >= 0 ? _destinationX : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
+        public int DestinationX => _destinationX >= 0 ? _destinationX : throw new InvalidOperationException("Этот узел не хранит координат полей.");
 
-        public int DestinationY => _destinationY >= 0 ? _destinationY : throw new InvalidOperationException("Этот корневой узел не хранит координат полей.");
+        public int DestinationY => _destinationY >= 0 ? _destinationY : throw new InvalidOperationException("Этот узел не хранит координат полей.");
 
         public bool IsPawnPromotion => _newPieceName != default;
 
         public PieceName NewPieceName => IsPawnPromotion ? _newPieceName :
         throw new InvalidOperationException("Это свойство может быть вычислено только для узла, соотв. превращению пешки.");
 
-        public PieceColor MovingPieceColor => _startX >= 0 ? _movingPieceColor : throw new InvalidOperationException("Этот корневой узел не хранит цвета фигуры.");
-
         public int ChildrenCount
         {
             get
             {
                 var children = Children;
-                return children != null ? Children.Length : 0;
+                return children == null ? 0 : children.Length;
             }
         }
+
+        public bool HasChildren => Children != null;
     }
 }

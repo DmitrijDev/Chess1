@@ -3,38 +3,28 @@ namespace Chess.LogicPart
 {
     public sealed class GamePosition
     {
-        internal PieceName?[,] PieceNames { get; } = new PieceName?[8, 8];
-
-        internal PieceColor?[,] PieceColors { get; } = new PieceColor?[8, 8];
+        private readonly PieceName?[,] _pieceNames = new PieceName?[8, 8];
+        private readonly PieceColor?[,] _pieceColors = new PieceColor?[8, 8];
 
         public PieceColor MoveTurn { get; private set; }
 
         public GamePosition(ChessBoard board)
         {
+            if (board == null)
+            {
+                throw new ArgumentNullException();
+            }
+
             lock (board.Locker)
             {
                 foreach (var piece in board.GetMaterial())
                 {
-                    PieceNames[piece.X, piece.Y] = piece.Name;
-                    PieceColors[piece.X, piece.Y] = piece.Color;
+                    _pieceNames[piece.X, piece.Y] = piece.Name;
+                    _pieceColors[piece.X, piece.Y] = piece.Color;
                 }
 
                 MoveTurn = board.MoveTurn;
             }
-        }
-
-        internal GamePosition(GamePosition other)
-        {
-            for (var i = 0; i < 8; ++i)
-            {
-                for (var j = 0; j < 8; ++j)
-                {
-                    PieceNames[i, j] = other.PieceNames[i, j];
-                    PieceColors[i, j] = other.PieceColors[i, j];
-                }
-            }
-
-            MoveTurn = other.MoveTurn;
         }
 
         public GamePosition(IEnumerable<PieceName> whiteMaterial, IEnumerable<string> whitePositions,
@@ -57,13 +47,13 @@ namespace Chess.LogicPart
             {
                 var location = new SquareLocation(positions[i]);
 
-                if (PieceNames[location.X, location.Y] != null)
+                if (HasPieceAt(location))
                 {
                     throw new ArgumentException("Для двух фигур указана одна и та же позиция.");
                 }
 
-                PieceNames[location.X, location.Y] = material[i];
-                PieceColors[location.X, location.Y] = PieceColor.White;
+                _pieceNames[location.X, location.Y] = material[i];
+                _pieceColors[location.X, location.Y] = PieceColor.White;
             }
 
             material = blackMaterial.ToArray();
@@ -78,13 +68,13 @@ namespace Chess.LogicPart
             {
                 var location = new SquareLocation(positions[i]);
 
-                if (PieceNames[location.X, location.Y] != null)
+                if (HasPieceAt(location))
                 {
                     throw new ArgumentException("Для двух фигур указана одна и та же позиция.");
                 }
 
-                PieceNames[location.X, location.Y] = material[i];
-                PieceColors[location.X, location.Y] = PieceColor.Black;
+                _pieceNames[location.X, location.Y] = material[i];
+                _pieceColors[location.X, location.Y] = PieceColor.Black;
             }
 
             MoveTurn = moveTurn;
@@ -107,11 +97,19 @@ namespace Chess.LogicPart
 
         public static bool operator !=(GamePosition first, GamePosition second) => !(first == second);
 
-        public PieceName? GetPieceName(int x, int y) => PieceNames[x, y];
+        public bool HasPieceAt(int x, int y) => _pieceNames[x, y] != null;
 
-        public PieceColor? GetPieceColor(int x, int y) => PieceColors[x, y];
+        public bool HasPieceAt(SquareLocation location) => _pieceNames[location.X, location.Y] != null;
 
-        internal bool EqualsInProperties(GamePosition other)
+        public PieceName? GetPieceName(int x, int y) => _pieceNames[x, y];
+
+        public PieceName? GetPieceName(SquareLocation location) => _pieceNames[location.X, location.Y];
+
+        public PieceColor? GetPieceColor(int x, int y) => _pieceColors[x, y];
+
+        public PieceColor? GetPieceColor(SquareLocation location) => _pieceColors[location.X, location.Y];
+
+        private bool EqualsInProperties(GamePosition other)
         {
             if (MoveTurn != other.MoveTurn)
             {
@@ -122,8 +120,8 @@ namespace Chess.LogicPart
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    if (PieceNames[i, j] != other.PieceNames[i, j] ||
-                        PieceColors[i, j] != other.PieceColors[i, j])
+                    if (_pieceNames[i, j] != other._pieceNames[i, j] ||
+                        _pieceColors[i, j] != other._pieceColors[i, j])
                     {
                         return false;
                     }
@@ -135,106 +133,109 @@ namespace Chess.LogicPart
 
         internal void ToPreceding(Move move)
         {
-            PieceNames[move.Destination.X, move.Destination.Y] = null;
-            PieceColors[move.Destination.X, move.Destination.Y] = null;
-
-            PieceNames[move.Start.X, move.Start.Y] = move.MovingPieceName;
-            PieceColors[move.Start.X, move.Start.Y] = move.MovingPieceColor;
-
+            _pieceNames[move.Destination.X, move.Destination.Y] = null;
+            _pieceColors[move.Destination.X, move.Destination.Y] = null;
+            _pieceNames[move.Start.X, move.Start.Y] = move.MovingPieceName;
+            _pieceColors[move.Start.X, move.Start.Y] = move.MovingPieceColor;
             MoveTurn = move.MovingPieceColor;
 
-            if (move.IsKingsideCastling)
+            if (move.IsCastling)
             {
-                PieceNames[5, move.Start.Y] = null;
-                PieceColors[5, move.Start.Y] = null;
+                if (move.Destination.X == 6)
+                {
+                    _pieceNames[5, move.Start.Y] = null;
+                    _pieceColors[5, move.Start.Y] = null;
+                    _pieceNames[7, move.Start.Y] = PieceName.Rook;
+                    _pieceColors[7, move.Start.Y] = move.MovingPieceColor;
+                    return;
+                }
 
-                PieceNames[7, move.Start.Y] = PieceName.Rook;
-                PieceColors[7, move.Start.Y] = move.MovingPieceColor;
-
-                return;
-            }
-
-            if (move.IsQueensideCastling)
-            {
-                PieceNames[3, move.Start.Y] = null;
-                PieceColors[3, move.Start.Y] = null;
-
-                PieceNames[0, move.Start.Y] = PieceName.Rook;
-                PieceColors[0, move.Start.Y] = move.MovingPieceColor;
+                _pieceNames[3, move.Start.Y] = null;
+                _pieceColors[3, move.Start.Y] = null;
+                _pieceNames[0, move.Start.Y] = PieceName.Rook;
+                _pieceColors[0, move.Start.Y] = move.MovingPieceColor;
             }
         }
 
         public bool IsLegal()
         {
-            SquareLocation whiteKingLocation = null;
-            SquareLocation blackKingLocation = null;
+            var whiteHaveKing = false;
+            var blackHaveKing = false;
 
             for (var i = 0; i < 8; ++i)
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    if (PieceNames[i, j] == PieceName.King)
+                    if (_pieceNames[i, j] == PieceName.Pawn)
                     {
-                        if (PieceColors[i, j] == PieceColor.White)
+                        if (j == 0 || j == 7)
                         {
-                            if (whiteKingLocation != null)
-                            {
-                                return false;
-                            }
-
-                            whiteKingLocation = new(i, j);
+                            return false;
                         }
-                        else
-                        {
-                            if (blackKingLocation != null)
-                            {
-                                return false;
-                            }
 
-                            blackKingLocation = new(i, j);
-                        }
+                        continue;
                     }
 
-                    if (PieceNames[i, j] == PieceName.Pawn && (j == 0 || j == 7))
+                    if (_pieceNames[i, j] != PieceName.King)
+                    {
+                        continue;
+                    }
+
+                    if (_pieceColors[i, j] == PieceColor.White)
+                    {
+                        if (whiteHaveKing)
+                        {
+                            return false;
+                        }
+
+                        if (MoveTurn == PieceColor.Black && HasMenacedPieceAt(i, j))
+                        {
+                            return false;
+                        }
+
+                        whiteHaveKing = true;
+                        continue;
+                    }
+
+                    if (blackHaveKing)
                     {
                         return false;
                     }
+
+                    if (MoveTurn == PieceColor.White && HasMenacedPieceAt(i, j))
+                    {
+                        return false;
+                    }
+
+                    blackHaveKing = true;
                 }
             }
 
-            if (whiteKingLocation == null || blackKingLocation == null)
-            {
-                return false;
-            }
-
-            if (MoveTurn == PieceColor.White)
-            {
-                return !HasMenacedPieceAt(blackKingLocation);
-            }
-
-            return !HasMenacedPieceAt(whiteKingLocation);
+            return whiteHaveKing && blackHaveKing;
         }
 
-        private bool HasMenacedPieceAt(SquareLocation location) => HasVerticallyMenacedPieceAt(location) ||
-        HasHorizontallyMenacedPieceAt(location) || HasDiagonallyMenacedPieceAt(location) || HasPieceMenacedByKnightAt(location);
+        private bool HasMenacedPieceAt(int x, int y) => HasVerticallyMenacedPieceAt(x, y) ||
+        HasHorizontallyMenacedPieceAt(x, y) || HasDiagonallyMenacedPieceAt(x, y) || HasPieceMenacedByKnightAt(x, y);
 
-        private bool HasVerticallyMenacedPieceAt(SquareLocation location)
+        private bool HasVerticallyMenacedPieceAt(int x, int y)
         {
-            for (var i = location.Y + 1; i < 8; ++i)
+            for (var i = y + 1; i < 8; ++i)
             {
-                if (PieceNames[location.X, i] == null)
+                var pieceName = _pieceNames[x, i];
+
+                if (pieceName == null)
                 {
                     continue;
                 }
 
-                if (PieceColors[location.X, i] == PieceColors[location.X, location.Y])
+                if (_pieceColors[x, i] == _pieceColors[x, y])
                 {
                     break;
                 }
 
-                if (PieceNames[location.X, i] == PieceName.King)
+                if (pieceName == PieceName.King)
                 {
-                    if (i == location.Y + 1)
+                    if (i == y + 1)
                     {
                         return true;
                     }
@@ -242,7 +243,7 @@ namespace Chess.LogicPart
                     break;
                 }
 
-                if (PieceNames[location.X, i] == PieceName.Queen || PieceNames[location.X, i] == PieceName.Rook)
+                if (pieceName == PieceName.Queen || pieceName == PieceName.Rook)
                 {
                     return true;
                 }
@@ -250,21 +251,23 @@ namespace Chess.LogicPart
                 break;
             }
 
-            for (var i = location.Y - 1; i >= 0; --i)
+            for (var i = y - 1; i >= 0; --i)
             {
-                if (PieceNames[location.X, i] == null)
+                var pieceName = _pieceNames[x, i];
+
+                if (pieceName == null)
                 {
                     continue;
                 }
 
-                if (PieceColors[location.X, i] == PieceColors[location.X, location.Y])
+                if (_pieceColors[x, i] == _pieceColors[x, y])
                 {
                     break;
                 }
 
-                if (PieceNames[location.X, i] == PieceName.King)
+                if (pieceName == PieceName.King)
                 {
-                    if (i == location.Y - 1)
+                    if (i == y - 1)
                     {
                         return true;
                     }
@@ -272,7 +275,7 @@ namespace Chess.LogicPart
                     break;
                 }
 
-                if (PieceNames[location.X, i] == PieceName.Queen || PieceNames[location.X, i] == PieceName.Rook)
+                if (pieceName == PieceName.Queen || pieceName == PieceName.Rook)
                 {
                     return true;
                 }
@@ -283,23 +286,25 @@ namespace Chess.LogicPart
             return false;
         }
 
-        private bool HasHorizontallyMenacedPieceAt(SquareLocation location)
+        private bool HasHorizontallyMenacedPieceAt(int x, int y)
         {
-            for (var i = location.X + 1; i < 8; ++i)
+            for (var i = x + 1; i < 8; ++i)
             {
-                if (PieceNames[i, location.Y] == null)
+                var pieceName = _pieceNames[i, y];
+
+                if (pieceName == null)
                 {
                     continue;
                 }
 
-                if (PieceColors[i, location.Y] == PieceColors[location.X, location.Y])
+                if (_pieceColors[i, y] == _pieceColors[x, y])
                 {
                     break;
                 }
 
-                if (PieceNames[i, location.Y] == PieceName.King)
+                if (pieceName == PieceName.King)
                 {
-                    if (i == location.X + 1)
+                    if (i == x + 1)
                     {
                         return true;
                     }
@@ -307,7 +312,7 @@ namespace Chess.LogicPart
                     break;
                 }
 
-                if (PieceNames[i, location.Y] == PieceName.Queen || PieceNames[i, location.Y] == PieceName.Rook)
+                if (pieceName == PieceName.Queen || pieceName == PieceName.Rook)
                 {
                     return true;
                 }
@@ -315,21 +320,23 @@ namespace Chess.LogicPart
                 break;
             }
 
-            for (var i = location.X - 1; i >= 0; --i)
+            for (var i = x - 1; i >= 0; --i)
             {
-                if (PieceNames[i, location.Y] == null)
+                var pieceName = _pieceNames[i, y];
+
+                if (pieceName == null)
                 {
                     continue;
                 }
 
-                if (PieceColors[i, location.Y] == PieceColors[location.X, location.Y])
+                if (_pieceColors[i, y] == _pieceColors[x, y])
                 {
                     break;
                 }
 
-                if (PieceNames[i, location.Y] == PieceName.King)
+                if (pieceName == PieceName.King)
                 {
-                    if (i == location.X - 1)
+                    if (i == x - 1)
                     {
                         return true;
                     }
@@ -337,7 +344,7 @@ namespace Chess.LogicPart
                     break;
                 }
 
-                if (PieceNames[i, location.Y] == PieceName.Queen || PieceNames[i, location.Y] == PieceName.Rook)
+                if (pieceName == PieceName.Queen || pieceName == PieceName.Rook)
                 {
                     return true;
                 }
@@ -348,23 +355,25 @@ namespace Chess.LogicPart
             return false;
         }
 
-        private bool HasDiagonallyMenacedPieceAt(SquareLocation location)
+        private bool HasDiagonallyMenacedPieceAt(int x, int y)
         {
-            for (int i = location.X + 1, j = location.Y + 1; i < 8 && j < 8; ++i, ++j)
+            for (int i = x + 1, j = y + 1; i < 8 && j < 8; ++i, ++j)
             {
-                if (PieceNames[i, j] == null)
+                var pieceName = _pieceNames[i, j];
+
+                if (pieceName == null)
                 {
                     continue;
                 }
 
-                if (PieceColors[i, j] == PieceColors[location.X, location.Y])
+                if (_pieceColors[i, j] == _pieceColors[x, y])
                 {
                     break;
                 }
 
-                if (PieceNames[i, j] == PieceName.King)
+                if (pieceName == PieceName.King)
                 {
-                    if (i == location.X + 1)
+                    if (i == x + 1)
                     {
                         return true;
                     }
@@ -372,39 +381,39 @@ namespace Chess.LogicPart
                     break;
                 }
 
-                if (PieceNames[i, j] == PieceName.Queen || PieceNames[i, j] == PieceName.Bishop)
+                if (pieceName == PieceName.Queen || pieceName == PieceName.Bishop)
                 {
                     return true;
                 }
 
-                if (PieceNames[i, j] == PieceName.Pawn)
+                if (pieceName == PieceName.Pawn)
                 {
-                    if (i == location.X + 1 && PieceColors[i, j] == PieceColor.Black)
+                    if (i == x + 1 && _pieceColors[i, j] == PieceColor.Black)
                     {
                         return true;
                     }
-
-                    break;
                 }
 
                 break;
             }
 
-            for (int i = location.X - 1, j = location.Y - 1; i >= 0 && j >= 0; --i, --j)
+            for (int i = x - 1, j = y - 1; i >= 0 && j >= 0; --i, --j)
             {
-                if (PieceNames[i, j] == null)
+                var pieceName = _pieceNames[i, j];
+
+                if (pieceName == null)
                 {
                     continue;
                 }
 
-                if (PieceColors[i, j] == PieceColors[location.X, location.Y])
+                if (_pieceColors[i, j] == _pieceColors[x, y])
                 {
                     break;
                 }
 
-                if (PieceNames[i, j] == PieceName.King)
+                if (pieceName == PieceName.King)
                 {
-                    if (i == location.X - 1)
+                    if (i == x - 1)
                     {
                         return true;
                     }
@@ -412,39 +421,39 @@ namespace Chess.LogicPart
                     break;
                 }
 
-                if (PieceNames[i, j] == PieceName.Queen || PieceNames[i, j] == PieceName.Bishop)
+                if (pieceName == PieceName.Queen || pieceName == PieceName.Bishop)
                 {
                     return true;
                 }
 
-                if (PieceNames[i, j] == PieceName.Pawn)
+                if (pieceName == PieceName.Pawn)
                 {
-                    if (i == location.X - 1 && PieceColors[i, j] == PieceColor.White)
+                    if (i == x - 1 && _pieceColors[i, j] == PieceColor.White)
                     {
                         return true;
                     }
-
-                    break;
                 }
 
                 break;
             }
 
-            for (int i = location.X + 1, j = location.Y - 1; i < 8 && j >= 0; ++i, --j)
+            for (int i = x + 1, j = y - 1; i < 8 && j >= 0; ++i, --j)
             {
-                if (PieceNames[i, j] == null)
+                var pieceName = _pieceNames[i, j];
+
+                if (pieceName == null)
                 {
                     continue;
                 }
 
-                if (PieceColors[i, j] == PieceColors[location.X, location.Y])
+                if (_pieceColors[i, j] == _pieceColors[x, y])
                 {
                     break;
                 }
 
-                if (PieceNames[i, j] == PieceName.King)
+                if (pieceName == PieceName.King)
                 {
-                    if (i == location.X + 1)
+                    if (i == x + 1)
                     {
                         return true;
                     }
@@ -452,39 +461,39 @@ namespace Chess.LogicPart
                     break;
                 }
 
-                if (PieceNames[i, j] == PieceName.Queen || PieceNames[i, j] == PieceName.Bishop)
+                if (pieceName == PieceName.Queen || pieceName == PieceName.Bishop)
                 {
                     return true;
                 }
 
-                if (PieceNames[i, j] == PieceName.Pawn)
+                if (pieceName == PieceName.Pawn)
                 {
-                    if (i == location.X + 1 && PieceColors[i, j] == PieceColor.White)
+                    if (i == x + 1 && _pieceColors[i, j] == PieceColor.White)
                     {
                         return true;
                     }
-
-                    break;
                 }
 
                 break;
             }
 
-            for (int i = location.X - 1, j = location.Y + 1; i >= 0 && j < 8; --i, ++j)
+            for (int i = x - 1, j = y + 1; i >= 0 && j < 8; --i, ++j)
             {
-                if (PieceNames[i, j] == null)
+                var pieceName = _pieceNames[i, j];
+
+                if (pieceName == null)
                 {
                     continue;
                 }
 
-                if (PieceColors[i, j] == PieceColors[location.X, location.Y])
+                if (_pieceColors[i, j] == _pieceColors[x, y])
                 {
                     break;
                 }
 
-                if (PieceNames[i, j] == PieceName.King)
+                if (pieceName == PieceName.King)
                 {
-                    if (i == location.X - 1)
+                    if (i == x - 1)
                     {
                         return true;
                     }
@@ -492,19 +501,17 @@ namespace Chess.LogicPart
                     break;
                 }
 
-                if (PieceNames[i, j] == PieceName.Queen || PieceNames[i, j] == PieceName.Bishop)
+                if (pieceName == PieceName.Queen || pieceName == PieceName.Bishop)
                 {
                     return true;
                 }
 
-                if (PieceNames[i, j] == PieceName.Pawn)
+                if (pieceName == PieceName.Pawn)
                 {
-                    if (i == location.X - 1 && PieceColors[i, j] == PieceColor.Black)
+                    if (i == x - 1 && _pieceColors[i, j] == PieceColor.Black)
                     {
                         return true;
                     }
-
-                    break;
                 }
 
                 break;
@@ -513,23 +520,29 @@ namespace Chess.LogicPart
             return false;
         }
 
-        private bool HasPieceMenacedByKnightAt(SquareLocation location)
+        private bool HasPieceMenacedByKnightAt(int x, int y)
         {
             var verticalShifts = new int[] { 2, 2, -2, -2, 1, 1, -1, -1 };
             var horizontalShifts = new int[] { -1, 1, -1, 1, -2, 2, -2, 2 };
 
             for (var i = 0; i < 8; ++i)
             {
-                var targetVertical = location.X + horizontalShifts[i];
-                var targetHorizontal = location.Y + verticalShifts[i];
+                var targetX = x + horizontalShifts[i];
 
-                if (targetVertical < 0 || targetHorizontal < 0 || targetVertical >= 8 || targetHorizontal >= 8)
+                if (targetX < 0 || targetX > 7)
                 {
                     continue;
                 }
 
-                if (PieceNames[targetVertical, targetHorizontal] == PieceName.Knight &&
-                    PieceColors[targetVertical, targetHorizontal] != PieceColors[location.X, location.Y])
+                var targetY = y + verticalShifts[i];
+
+                if (targetY < 0 || targetY > 7)
+                {
+                    continue;
+                }
+
+                if (_pieceNames[targetX, targetY] == PieceName.Knight &&
+                    _pieceColors[targetX, targetY] != _pieceColors[x, y])
                 {
                     return true;
                 }
@@ -544,7 +557,7 @@ namespace Chess.LogicPart
             {
                 for (var j = 0; j < 8; ++j)
                 {
-                    if (PieceNames[i, j] != null)
+                    if (HasPieceAt(i, j))
                     {
                         return false;
                     }
@@ -554,7 +567,7 @@ namespace Chess.LogicPart
             return true;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(this, obj))
             {

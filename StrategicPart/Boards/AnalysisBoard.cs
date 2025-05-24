@@ -4,15 +4,15 @@ namespace Chess.StrategicPart
 {
     public class AnalysisBoard : ChessBoard
     {
-        private Func<AnalysisBoard, int> _evaluateFunc = new(board => 0);
+        private Func<AnalysisBoard, int> _evaluate = new(board => 0);
 
         public AnalysisBoard() { }
 
-        public virtual int Evaluate() => _evaluateFunc(this);
+        public virtual int Evaluate() => _evaluate(this);
 
         public Func<AnalysisBoard, int> EvaluateFunc
         {
-            get => _evaluateFunc;
+            get => _evaluate;
 
             set
             {
@@ -21,7 +21,7 @@ namespace Chess.StrategicPart
                     throw new ArgumentNullException();
                 }
 
-                _evaluateFunc = value;
+                _evaluate = value;
             }
         }
     }

@@ -3,84 +3,58 @@ using Chess.StrategicPart;
 
 namespace Chess.ChessTree
 {
-    public class Tree<TBoard> : IChessTree
-        where TBoard : AnalysisBoard, new()
+    public class Tree
     {
-        private readonly TBoard _board = new();
         private Node _activeNode;
         private readonly object _locker = new();
 
-        public Node Root { get; }
+        internal AnalysisBoard Board { get; private protected set; }
+
+        public Node Root { get; internal set; }
 
         public Tree(ChessBoard board)
         {
-            _board.CopyGame(board);
+            Board = GetBoard();
+            Board.CopyGame(board);
 
-            if (_board.Status != BoardStatus.GameIncomplete)
+            if (Board.Status != BoardStatus.GameIncomplete)
             {
                 throw new ArgumentException("На доске невозможно сделать ход.");
             }
 
-            Root = _board.MovesCount > 0 ? new(_board.LastMove) : new();
+            var root = GetNode();
+            root.SetToRootPosition(this);
             _activeNode = Root;
+            
+            var rootChildren = Board.GetLegalMoves().Select(move =>
+            {
+                var node = GetNode();
+                node.SetMoveParams(move);
+                return node;
+            });
 
-            Root.Children = _board.GetLegalMoves().Select(move => new Node(move, Root)).ToArray();
-            Root.DescendantsCount = Root.Children.Length;
+            Root.Join(rootChildren);
         }
 
-        public Tree(ChessBoard board, IEnumerable<string> boardPropNames, IEnumerable<Delegate> boardFuncs) : this(board)
+        public Tree(ChessBoard board, Func<AnalysisBoard, int> evaluateFunc) : this(board)
         {
-            var propNames = boardPropNames.ToArray();
-            var delegates = boardFuncs.ToArray();
-
-            if (propNames.Length != delegates.Length)
-            {
-                throw new ArgumentException("Число указ. свойств должно быть равно числу указ. значений.");
-            }
-
-            var boardType = typeof(TBoard);
-
-            for (var i = 0; i < propNames.Length; ++i)
-            {
-                if (delegates[i] == null)
-                {
-                    throw new ArgumentNullException("Среди указ. значений свойств не может быть == null.");
-                }
-
-                var property = boardType.GetProperty(propNames[i]);
-
-                if (property == null)
-                {
-                    throw new ArgumentException($"Не найдено подходящего открытого свойства {propNames[i]}.");
-                }
-
-                if (!property.CanWrite)
-                {
-                    throw new ArgumentException($"Свойству {propNames[i]} невозможно присвоить значение.");
-                }
-
-                var propType = property.PropertyType;
-                var valueType = delegates[i].GetType();
-
-                if (!propType.IsAssignableFrom(valueType))
-                {
-                    throw new ArgumentException($"Свойству {propNames[i]} указано неподходящее значение.");
-                }
-
-                property.SetValue(_board, delegates[i]);
-            }
+            Board.EvaluateFunc = evaluateFunc;
         }
+
+        private protected virtual AnalysisBoard GetBoard() => new();
+
+        private protected virtual Node GetNode() => new();
 
         private void MakeMove(Node node)
         {
             if (node.IsPawnPromotion)
             {
-                _board.MakeMove(node.StartX, node.StartY, node.DestinationX, node.DestinationY, node.NewPieceName);
+                Board.MakeMove(node.StartX, node.StartY, node.DestinationX, node.DestinationY, node.NewPieceName);
                 return;
             }
 
-            _board.MakeMove(node.StartX, node.StartY, node.DestinationX, node.DestinationY);
-        }        
+            Board.MakeMove(node.StartX, node.StartY, node.DestinationX, node.DestinationY);
+        }
 
         private void SetBoardTo(Node targetNode)
         {
@@ -112,7 +86,7 @@ namespace Chess.ChessTree
 
                 if (depth2 >= depth1 && _activeNode != Root)
                 {
-                    _board.CancelMove();
+                    Board.CancelMove();
                     _activeNode = _activeNode.Parent;
                     moved = true;
                 }
@@ -136,18 +110,21 @@ namespace Chess.ChessTree
             lock (_locker)
             {
                 SetBoardTo(node);
-                return _board.Evaluate();
+                return Board.Evaluate();
             }
         }
 
-        public bool EndsGameWith(Node node)
+        public bool EndsGameWith(Node node, out BoardStatus gameResult)
         {
             lock (_locker)
             {
                 SetBoardTo(node);
-                return _board.Status != BoardStatus.GameIncomplete;
+                gameResult = Board.Status;
+                return Board.Status != BoardStatus.GameIncomplete;
             }
         }
+
+        public bool CheckmatesWith(Node node) => EndsGameWith(node, out var gameResult) && gameResult != BoardStatus.Draw;        
 
         public void AddChildren(Node parent)
         {
@@ -160,22 +137,23 @@ namespace Chess.ChessTree
             {
                 SetBoardTo(parent);
 
-                if (_board.Status != BoardStatus.GameIncomplete)
+                if (Board.Status != BoardStatus.GameIncomplete)
                 {
                     return;
                 }
 
-                parent.Children = _board.GetLegalMoves().Select(move => new Node(move, parent)).ToArray();
-                parent.DescendantsCount = parent.Children.Length;
-
-                foreach (var precedent in parent.GetPrecedents())
+                var children = Board.GetLegalMoves().Select(move =>
                 {
-                    precedent.DescendantsCount += parent.Children.Length;
-                }
+                    var node = GetNode();
+                    node.SetMoveParams(move);
+                    return node;
+                });
+
+                parent.Join(children);
             }
         }
 
-        public bool IsInThis(Node node)
+        public bool Contains(Node node)
         {
             if (node.Parent == null)
             {
@@ -185,54 +163,117 @@ namespace Chess.ChessTree
             return node.GetPrecedents().Last() == Root;
         }
 
-        public IEnumerable<Node> Traverse(Node start, int depth, Func<Node, bool> predicate)
+        public void RemoveChildren(Node parent)
         {
-            if (start == null)
+            lock (_locker)
             {
-                throw new ArgumentNullException(nameof(start));
-            }
-
-            if (depth < 1)
-            {
-                throw new ArgumentException("Глубина перебора должна быть положительным числом.");
-            }
-
-            if (!IsInThis(start))
-            {
-                throw new InvalidOperationException("Указанный стартовый узел отсутствует в дереве.");
-            }
-
-            AddChildren(start);
-            var nodes = predicate == null ? new Stack<Node>(start.Children) : new Stack<Node>(start.Children.Where(predicate));
-
-            while (nodes.Count > 0)
-            {
-                var currentNode = nodes.Pop();
-
-                if (currentNode.Depth == start.Depth + depth || EndsGameWith(currentNode))
+                if (!Contains(parent))
                 {
-                    yield return currentNode;
-                    continue;
+                    throw new ArgumentException();
                 }
 
-                AddChildren(currentNode);
-                var children = predicate == null ? currentNode.Children : currentNode.Children.Where(predicate);
-
-                foreach (var child in children)
+                if (_activeNode.GetPrecedents().Contains(parent))
                 {
-                    nodes.Push(child);
+                    while(_activeNode != parent)
+                    {
+                        Board.CancelMove();
+                        _activeNode = _activeNode.Parent;
+                    }
                 }
+
+                parent.RemoveChildren();
+            }            
+        }
+
+        public Move GetMove(Node node)
+        {
+            if (node == null)
+            {
+                return null;
+            }
+
+            lock(_locker)
+            {
+                SetBoardTo(node);
+                return Board.LastMove;
             }
         }
 
-        public IEnumerable<Node> Traverse(int depth, Func<Node, bool> nodePredicate) =>
-            Traverse(Root, depth, nodePredicate);
+    }
 
-        public IEnumerable<Node> Traverse(int depth) =>
-            Traverse(Root, depth, null);
+    public class Tree<TBoard, TNode> : Tree
+        where TBoard : AnalysisBoard, new()
+        where TNode : Node, new()
+    {
+        public Tree(ChessBoard board) : base(board) { }
 
-        public IEnumerable<Node> Traverse(Node start, int depth) =>
-            Traverse(start, depth, null);
+        public Tree(ChessBoard board, IEnumerable<string> boardPropNames, IEnumerable<object> boardPropValues) : base(board)
+        {
+            var newBoard = new TBoard();
 
+            if (boardPropNames == null || boardPropValues == null)
+            {
+                throw new ArgumentNullException();
+            }
+
+            var propNames = boardPropNames.ToArray();
+            var propValues = boardPropValues.ToArray();
+
+            if (propNames.Length != propValues.Length)
+            {
+                throw new ArgumentException("Число указ. свойств должно быть равно числу указ. значений.");
+            }
+
+            if (propNames.Length == 0)
+            {
+                return;
+            }
+
+            var boardType = typeof(TBoard);
+
+            for (var i = 0; i < propNames.Length; ++i)
+            {                
+                var property = boardType.GetProperty(propNames[i]);
+
+                if (property == null)
+                {
+                    throw new ArgumentException($"Не найдено подходящего открытого свойства {propNames[i]}.");
+                }
+
+                if (!property.GetAccessors().Any(acs => acs.ReturnType == typeof(void)))
+                {
+                    throw new ArgumentException($"Свойству {propNames[i]} невозможно присвоить значение.");
+                }
+
+                if (propValues[i] is null)
+                {
+                    property.SetValue(newBoard, propValues[i]);
+
+                    if (property.GetValue(newBoard) is not null)
+                    {
+                        throw new ArgumentException($"Свойству {propNames[i]} не удалось присвоить значение.");
+                    }
+
+                    continue;
+                }
+
+                var propType = property.PropertyType;
+                var valueType = propValues[i].GetType();
+
+                if (!valueType.IsAssignableTo(propType))
+                {
+                    throw new ArgumentException($"Свойству {propNames[i]} указано неподходящее по типу значение.");
+                }
+
+                property.SetValue(newBoard, propValues[i]);
+            }
+
+            newBoard.CopyGame(Board);
+            Board = newBoard;
+        }
+
+        private protected override AnalysisBoard GetBoard() => new TBoard();
+
+        private protected override Node GetNode() => new TNode();
     }
 }

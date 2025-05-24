@@ -4,174 +4,103 @@ using Chess.StrategicPart;
 
 namespace Chess.VirtualPlayer
 {
-    public class ChessRobot<TBoard> : IChessRobot
-       where TBoard : AnalysisBoard, new()
-    {
-        private ChessBoard _gameBoard;
-        private ulong _gameBoardModCount;
-        private ulong _gameBoardGameStartsCount;
-        private IChessTree _tree;
+    public class ChessRobot
+    {        
+        private readonly Func<AnalysisBoard, int> _staticEvaluation;
+        private Delegate _nodesCompareFunc;
+        
+        public Func<Tree, IEnumerable<Node>> Traverse { get; private protected set; }
 
-        private readonly string[] _boardPropNames;
-        private readonly Delegate[] _boardFuncs;
+        public Func<Tree, Node, int> DynamicEvaluation { get; private protected set; }
 
-        private readonly object _locker = new();
+        public Func<Node, bool> CorrectParentEvaluation { get; private protected set; }
 
-        public Func<IChessTree, IEnumerable<Node>> Traverse { get; }
+        public Func<Tree, Func<Node, Node, bool>, Node> GetBestMoveNode { get; private protected set; }
 
-        public Func<Node, IChessTree, int> Evaluate { get; }
+        internal ChessRobot() { }
 
-        public Func<Node, bool> CorrectParentEvaluation { get; }
-
-        public Func<IChessTree, Node> GetBestMoveNode { get; }
-
-        public ChessRobot(Func<IChessTree, IEnumerable<Node>> traverse, Func<Node, IChessTree, int> evaluate,
-        Func<Node, bool> correctParentEvaluation, Func<IChessTree, Node> getBestMoveNode)
+        public ChessRobot(Func<Tree, IEnumerable<Node>> traverse, Func<Tree, Node, int> dynamicEvaluation,
+        Func<Node, bool> correctParentEvaluation, Func<Tree, Func<Node, Node, bool>, Node> getBestMoveNode,
+        Func<Node, Node, bool> isBetter)
         {
-            if (traverse == null || evaluate == null || correctParentEvaluation == null ||
-            getBestMoveNode == null)
+            if (traverse == null || dynamicEvaluation == null || correctParentEvaluation == null ||
+                getBestMoveNode == null || isBetter == null)
             {
                 throw new ArgumentNullException();
             }
 
             Traverse = traverse;
-            Evaluate = evaluate;
+            DynamicEvaluation = dynamicEvaluation;
             CorrectParentEvaluation = correctParentEvaluation;
             GetBestMoveNode = getBestMoveNode;
+            _nodesCompareFunc = isBetter;
         }
 
-        public ChessRobot(Func<IChessTree, IEnumerable<Node>> traverse, Func<Node, IChessTree, int> evaluate,
-        Func<Node, bool> correctParentEvaluation, Func<IChessTree, Node> getBestMoveNode,
-        IEnumerable<string> boardPropNames, IEnumerable<Delegate> boardFuncs) :
-        this(traverse, evaluate, correctParentEvaluation, getBestMoveNode)
+        public ChessRobot(Func<Tree, IEnumerable<Node>> traverse, Func<Tree, Node, int> dynamicEvaluation,
+        Func<Node, bool> correctParentEvaluation, Func<Tree, Func<Node, Node, bool>, Node> getBestMoveNode,
+        Func<Node, Node, bool> isBetter, Func<AnalysisBoard, int> staticEvaluation) :
+        this(traverse, dynamicEvaluation, correctParentEvaluation, getBestMoveNode, isBetter)
         {
-            if (boardPropNames == null || boardFuncs == null)
-            {
-                throw new ArgumentNullException();
-            }
-
-            _boardPropNames = boardPropNames.ToArray();
-            _boardFuncs = boardFuncs.ToArray();
-            CheckBoardProps();
+            _staticEvaluation = staticEvaluation;
         }
 
-        public ChessRobot(ChessRobot<TBoard> other)
+        private protected void SetNodesCompareFunc(Delegate func) => _nodesCompareFunc = func;
+
+        public Delegate GetNodesCompareFunc() => _nodesCompareFunc;
+
+        private protected virtual bool IsBetter(Node node1, Node node2)
         {
-            Traverse = other.Traverse;
-            Evaluate = other.Evaluate;
-            CorrectParentEvaluation = other.CorrectParentEvaluation;
-            GetBestMoveNode = other.GetBestMoveNode;
-
-            if (other._boardPropNames.Length == 0)
-            {
-                return;
-            }
-
-            _boardPropNames = new string[other._boardPropNames.Length];
-            Array.Copy(other._boardPropNames, _boardPropNames, _boardPropNames.Length);
-
-            _boardFuncs = new Delegate[other._boardFuncs.Length];
-            Array.Copy(other._boardFuncs, _boardFuncs, _boardFuncs.Length);
+            var compareFunc = (Func<Node, Node, bool>)_nodesCompareFunc;
+            return compareFunc(node1, node2);
         }
 
-        private void CheckBoardProps()
+        private protected virtual Tree GetTree(ChessBoard board) => _staticEvaluation == null ?
+        new Tree(board) : new Tree(board, _staticEvaluation);
+
+        public Task<Move> GetMove(ChessBoard board, Func<bool> breakCondition)
         {
-            if (_boardPropNames.Length != _boardFuncs.Length)
+            var tree = GetTree(board);
+            Node resultNode;
+
+            var task = Task.Run(() =>
             {
-                throw new ArgumentException("Число указ. свойств доски должно быть равно числу указ. значений.");
-            }
-
-            var boardType = typeof(TBoard);
-
-            for (var i = 0; i < _boardPropNames.Length; ++i)
-            {
-                if (_boardFuncs[i] == null)
+                if (tree.Root.ChildrenCount == 1)
                 {
-                    throw new ArgumentNullException("Среди указ. значений свойств не может быть == null.");
-                }
-
-                var property = boardType.GetProperty(_boardPropNames[i]);
-
-                if (property == null)
-                {
-                    throw new ArgumentException($"Не найдено подходящего открытого свойства {_boardPropNames[i]}.");
-                }
-
-                if (!property.CanWrite)
-                {
-                    throw new ArgumentException($"Свойству {_boardPropNames[i]} невозможно присвоить значение.");
-                }
-
-                var propType = property.PropertyType;
-                var valueType = _boardFuncs[i].GetType();
-
-                if (!propType.IsAssignableFrom(valueType))
-                {
-                    throw new ArgumentException($"Свойству {_boardPropNames[i]} указано неподходящее значение.");
-                }
-            }
-        }
-
-        public Move GetMove(ChessBoard board)
-        {
-            lock (_locker)
-            {
-                _gameBoardGameStartsCount = board.GamesCount;
-                _gameBoardModCount = board.ModCount;
-                _gameBoard = board;
-                _tree = GetTree();
-
-                Node resultNode;
-
-                if (_tree.Root.ChildrenCount == 1)
-                {
-                    resultNode = _tree.Root.GetChildren().Single();
+                    resultNode = tree.Root.GetChildren().Single();
                 }
                 else
                 {
-                    AnalyzeTree();
-                    resultNode = GetBestMoveNode(_tree);
-
-                    if (resultNode == null || resultNode.Parent != _tree.Root)
-                    {
-                        throw new InvalidOperationException("Некорректный результат ф-ии Player.GetBestMoveNode: " +
-                            "узел-результат должен быть из детей корня дерева-аргумента и != null.");
-                    }
+                    Analyze(tree, breakCondition);
+                    resultNode = GetBestMoveNode(tree, IsBetter);
                 }
 
-                var piece = _gameBoard.GetPiece(resultNode.StartX, resultNode.StartY);
-                var square = _gameBoard[resultNode.DestinationX, resultNode.DestinationY];
-                Move resultMove;
-
-                try
+                if (resultNode != null && resultNode.Parent != tree.Root)
                 {
-                    resultMove = resultNode.IsPawnPromotion ? new Move(piece, square, resultNode.NewPieceName) : new Move(piece, square);
+                    throw new InvalidOperationException("Некорректный результат ф-ии GetBestMoveNode: " +
+                        "узел-результат должен быть из детей корня дерева.");
                 }
 
-                catch
-                {
-                    throw new ThinkingInterruptedException();
-                }
+                return tree.GetMove(resultNode);
+            });
 
-                CheckGameBoardPosition();
-                return resultMove;
-            }
+            return task;
         }
 
-        private protected virtual IChessTree GetTree() => _boardPropNames == null || _boardPropNames.Length == 0 ?
-        new Tree<TBoard>(_gameBoard) : new Tree<TBoard>(_gameBoard, _boardPropNames, _boardFuncs);
-
-        private void AnalyzeTree()
+        private void Analyze(Tree tree, Func<bool> breakCondition)
         {
-            foreach (var node in Traverse(_tree))
+            foreach (var node in Traverse(tree))
             {
-                CheckGameBoardPosition();
-                node.Evaluation = Evaluate(node, _tree);
-                CorrectAncestorsEvaluations(node);
+                if (breakCondition())
+                {
+                    return;
+                }
+
+                node.Evaluation = DynamicEvaluation(tree, node);
+                CorrectPrecedingEvaluations(node);
             }
         }
 
-        private void CorrectAncestorsEvaluations(Node node)
+        private void CorrectPrecedingEvaluations(Node node)
         {
             if (!CorrectParentEvaluation(node))
             {
@@ -180,21 +109,103 @@ namespace Chess.VirtualPlayer
 
             foreach (var precedent in node.GetPrecedents())
             {
-                CheckGameBoardPosition();
-
                 if (!CorrectParentEvaluation(precedent))
                 {
                     return;
                 }
             }
-        }        
+        }
+    }
 
-        private void CheckGameBoardPosition()
+    public class ChessRobot<TBoard, TNode> : ChessRobot
+       where TBoard : AnalysisBoard, new()
+       where TNode : Node, new()
+    {        
+        private readonly string[] _boardPropNames;
+        private readonly object[] _boardPropValues;
+                
+        public ChessRobot(Func<Tree, IEnumerable<Node>> traverse, Func<Tree, Node, int> dynamicEvaluation,
+        Func<Node, bool> correctParentEvaluation, Func<Tree, Func<Node, Node, bool>, Node> getBestMoveNode,
+        Func<TNode, TNode, bool> isBetter)
         {
-            if (_gameBoard.ModCount != _gameBoardModCount || _gameBoardGameStartsCount != _gameBoard.GamesCount)
+            if (traverse == null || dynamicEvaluation == null || correctParentEvaluation == null ||
+                getBestMoveNode == null || isBetter == null)
             {
-                throw new ThinkingInterruptedException();
+                throw new ArgumentNullException();
+            }
+
+            Traverse = traverse;
+            DynamicEvaluation = dynamicEvaluation;
+            CorrectParentEvaluation = correctParentEvaluation;
+            GetBestMoveNode = getBestMoveNode;
+            SetNodesCompareFunc(isBetter);
+        }
+
+        public ChessRobot(Func<Tree, IEnumerable<Node>> traverse, Func<Tree, Node, int> dynamicEvaluation,
+        Func<Node, bool> correctParentEvaluation, Func<Tree, Func<Node, Node, bool>, Node> getBestMoveNode,
+        Func<TNode, TNode, bool> isBetter, IEnumerable<string> boardPropNames, IEnumerable<object> boardPropValues) :
+        this(traverse, dynamicEvaluation, correctParentEvaluation, getBestMoveNode, isBetter)
+        {
+            if (boardPropNames == null || boardPropValues == null)
+            {
+                throw new ArgumentNullException();
+            }
+
+            _boardPropNames = boardPropNames.ToArray();
+            _boardPropValues = boardPropValues.ToArray();
+            CheckBoardProps();
+        }
+
+        private void CheckBoardProps()
+        {
+            if (_boardPropNames.Length != _boardPropValues.Length)
+            {
+                throw new ArgumentException("Число указ. свойств доски должно быть равно числу указ. значений.");
+            }
+
+            if (_boardPropNames.Length == 0)
+            {
+                return;
+            }
+
+            var boardType = typeof(TBoard);
+
+            for (var i = 0; i < _boardPropNames.Length; ++i)
+            {               
+                var property = boardType.GetProperty(_boardPropNames[i]);
+
+                if (property == null)
+                {
+                    throw new ArgumentException($"Не найдено подходящего открытого свойства {_boardPropNames[i]}.");
+                }
+
+                if (!property.GetAccessors().Any(acs => acs.ReturnType == typeof(void)))
+                {
+                    throw new ArgumentException($"Свойству {_boardPropNames[i]} невозможно присвоить значение.");
+                }
+
+                if (_boardPropValues[i] is null)
+                {
+                    continue;
+                }
+
+                var propType = property.PropertyType;
+                var valueType = _boardPropValues[i].GetType();
+
+                if (!propType.IsAssignableFrom(valueType))
+                {
+                    throw new ArgumentException($"Свойству {_boardPropNames[i]} указано неподходящее по типу значение.");
+                }
             }
         }
+
+        private protected override bool IsBetter(Node node1, Node node2)
+        {
+            var compareFunc = (Func<TNode, TNode, bool>)GetNodesCompareFunc();
+            return compareFunc((TNode)node1, (TNode)node2);
+        }        
+
+        private protected override Tree GetTree(ChessBoard board) => _boardPropNames == null || _boardPropNames.Length == 0 ?
+        new Tree<TBoard, TNode>(board) : new Tree<TBoard, TNode>(board, _boardPropNames, _boardPropValues);
     }
 }

@@ -27,8 +27,8 @@ namespace Chess
         private SquareLocation? _highlightLocation;
 
         private readonly ChessBoard _gameBoard = new();
-        private IChessRobot _whiteRobot; // == null, если за эту сторону играет пользователь.
-        private IChessRobot _blackRobot; //Аналогично.
+        private ChessRobot _whiteRobot; // == null, если за эту сторону играет пользователь.
+        private ChessRobot _blackRobot; //Аналогично.
         private Task<Move> _thinkingTask;
         private bool _isExpectingMove;
         private bool _isExpectingRobotMove;
@@ -80,8 +80,8 @@ namespace Chess
 
             CreateSquares();
             LocateSquares();
-            _whiteRobot = gameForm.WhitePlayerMenu.GetSelectedSwitchItemIndex() == 1 ? RobotsConstructor.GetRobot(0) : null;
-            _blackRobot = gameForm.BlackPlayerMenu.GetSelectedSwitchItemIndex() == 1 ? RobotsConstructor.GetRobot(0) : null;
+            _whiteRobot = gameForm.WhitePlayerMenu.GetSelectedSwitchItemIndex() == 1 ? RobotsCreator.GetRobot(0) : null;
+            _blackRobot = gameForm.BlackPlayerMenu.GetSelectedSwitchItemIndex() == 1 ? RobotsCreator.GetRobot(0) : null;
         }
 
         private void CreateSquares()
@@ -218,8 +218,8 @@ namespace Chess
 
         private void ShowContextMenu()
         {
+            var menuPosition = Cursor.Position;
             var menu = new ContextMenuStrip();
-
             var itemTexts = new string[] { "Новая партия", "Развернуть", "Изменить размер" };
             var clickActions = new Action[] { StartNewGame, Rotate, ShowChangeSizeForm };
 
@@ -231,7 +231,7 @@ namespace Chess
                 item.Click += (sender, e) => action.Invoke();
             }
 
-            menu.Show(Cursor.Position.X, Cursor.Position.Y);
+            menu.Show(menuPosition.X, menuPosition.Y);
         }
 
         public void StartNewGame()
@@ -285,22 +285,13 @@ namespace Chess
                 return;
             }
 
-            _thinkingTask ??= Task.Run(() =>
-            {
-                try
-                {
-                    return robot.GetMove(_gameBoard);
-                }
+            var boardGamesCount = _gameBoard.GamesCount;
+            var boardModCount = _gameBoard.ModCount;
 
-                catch (ThinkingInterruptedException)
-                {
-                    return null;
-                }
-            });
+            _thinkingTask ??= robot.GetMove(_gameBoard, () => _gameBoard.ModCount != boardModCount ||
+            _gameBoard.GamesCount != boardGamesCount);
 
             var task = _thinkingTask;
-            var boardModCount = _gameBoard.ModCount;
-            var gameStartsCount = _gameBoard.GamesCount;
 
             _isExpectingMove = true;
             _isExpectingRobotMove = true;
@@ -308,8 +299,7 @@ namespace Chess
 
             await task;
 
-            if (_gameBoard.ModCount == boardModCount &&
-                _gameBoard.GamesCount == gameStartsCount && _isExpectingRobotMove)
+            if (_gameBoard.ModCount == boardModCount && _gameBoard.GamesCount == boardGamesCount && _isExpectingRobotMove)
             {
                 _gameBoard.MakeMove(task.Result);
             }
@@ -375,11 +365,11 @@ namespace Chess
 
             if (pieceColor == PieceColor.White)
             {
-                _whiteRobot = _whiteRobot == null ? RobotsConstructor.GetRobot(0) : null;
+                _whiteRobot = _whiteRobot == null ? RobotsCreator.GetRobot(0) : null;
             }
             else
             {
-                _blackRobot = _blackRobot == null ? RobotsConstructor.GetRobot(0) : null;
+                _blackRobot = _blackRobot == null ? RobotsCreator.GetRobot(0) : null;
             }
 
             ExpectMoveAsync();
@@ -425,6 +415,7 @@ namespace Chess
 
         private void ShowNewPieceMenu(int startX, int startY, int destinationX, int destinationY)
         {
+            var menuPosition = Cursor.Position;
             var menu = new ContextMenuStrip();
             var itemTexts = new string[] { "Ферзь", "Ладья", "Конь", "Слон" };
             var pieceNames = new PieceName[] { PieceName.Queen, PieceName.Rook, PieceName.Knight, PieceName.Bishop };
@@ -439,7 +430,7 @@ namespace Chess
 
             menu.Closed += (sender, e) => _newPieceMenu = null;
             _newPieceMenu = menu;
-            _newPieceMenu.Show(Cursor.Position.X, Cursor.Position.Y);
+            _newPieceMenu.Show(menuPosition.X, menuPosition.Y);
         }
 
         public void BreakGame(BoardStatus gameResult, string message)
@@ -455,13 +446,13 @@ namespace Chess
             {
                 case BoardStatus.WhiteWon:
                     {
-                        MessageBox.Show("Мат черным.", "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        MessageBox.Show("Мат! Победа белых.", "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                         break;
                     }
 
                 case BoardStatus.BlackWon:
                     {
-                        MessageBox.Show("Мат белым.", "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                        MessageBox.Show("Мат! Победа черных.", "", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                         break;
                     }
 
@@ -470,7 +461,7 @@ namespace Chess
                         var message = _gameBoard.DrawReason switch
                         {
                             DrawReason.Stalemate => "Пат.",
-                            DrawReason.InsufficientMaterial => "Ничья. Недостаточно материала для мата.",
+                            DrawReason.MaterialLack => "Ничья. Недостаточно материала для мата.",
                             DrawReason.ThreeRepeatsRule => "Ничья. Трехкратное повторение позиции.",
                             _ => "Ничья по правилу 50 ходов."
                         };
@@ -478,7 +469,8 @@ namespace Chess
                         MessageBox.Show(message, "", MessageBoxButtons.OK);
                         break;
                     }
-            };
+            }
+            ;
         }
 
         private bool RobotPlaysFor(PieceColor color) => color == PieceColor.White ? _whiteRobot != null : _blackRobot != null;
@@ -506,8 +498,14 @@ namespace Chess
 
         private void ClickAt(int x, int y, MouseButtons mouseButton)
         {
-            if (!_isExpectingMove || _isExpectingRobotMove)
+            if (!_isExpectingMove)
             {
+                return;
+            }
+
+            if (_isExpectingRobotMove)
+            {
+                MessageBox.Show("Думаю! Не мешайте.", "", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -540,7 +538,7 @@ namespace Chess
                 return;
             }
 
-            if (_highlightLocation.Corresponds(x, y))
+            if (((SquareLocation)_highlightLocation).Corresponds(x, y))
             {
                 CancelUserMoveParams();
                 return;
@@ -582,8 +580,12 @@ namespace Chess
             {
                 if (piece.Name == PieceName.King)
                 {
-                    return ((King)piece).IsChecked ? "Король не может оставаться под шахом." :
-                    "Король не может становиться под шах.";
+                    if (piece.Square.IsMenacedBy(piece.EnemyColor))
+                    {
+                        return "Король не может оставаться под шахом.";
+                    }
+
+                    return "Король не может становиться под шах.";
                 }
 
                 if (exception is PawnPinnedException)
@@ -599,14 +601,14 @@ namespace Chess
                 return "Невозможный ход: ваш король под шахом.";
             }
 
-            if (exception is CastlingIllegalException)
+            if (exception is IllegalCastlingException)
             {
-                if (exception is CastlingKingHasMovedException)
+                if (exception is KingHasMovedException)
                 {
                     return "Рокирова невозможна: король уже сделал ход.";
                 }
 
-                if (exception is CastlingRookHasMovedException)
+                if (exception is RookHasMovedException)
                 {
                     return "Рокирова невозможна: ладья уже сделала ход.";
                 }

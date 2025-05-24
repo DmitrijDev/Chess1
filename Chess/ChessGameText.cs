@@ -25,15 +25,10 @@ namespace Chess
 
         public static string Write(this Move move)
         {
-            if (move.IsKingsideCastling)
+            if (move.IsCastling)
             {
-                return "0 - 0";
-            }
-
-            if (move.IsQueensideCastling)
-            {
-                return "0 - 0 - 0";
-            }
+                return move.Destination.X == 6 ? "0 - 0" : "0 - 0 - 0";
+            }            
 
             var builder = new StringBuilder(move.MovingPieceName.GetShortName()).Append(move.Start.GetSquareName()).
             Append(move.IsCapture ? " : " : " - ").Append(move.Destination.GetSquareName());

@@ -5,7 +5,7 @@ namespace Chess.TacticalPart
 {
     public static class Tactics
     {
-        public static bool CorrectParentEvaluation(this Node child)
+        public static bool CorrectParentEvaluation_1(this Node child)
         {
             var parent = child.Parent;
 
@@ -25,15 +25,17 @@ namespace Chess.TacticalPart
                 return false;
             }
 
-            if ((child.MovingPieceColor == PieceColor.White && child.Evaluation > parent.Evaluation) ||
-                (child.MovingPieceColor == PieceColor.Black && child.Evaluation < parent.Evaluation))
+            var movingPieceColor = ((Node_Type1)child).MovingPieceColor;
+
+            if ((movingPieceColor == PieceColor.White && child.Evaluation > parent.Evaluation) ||
+                (movingPieceColor == PieceColor.Black && child.Evaluation < parent.Evaluation))
             {
                 parent.Evaluation = child.Evaluation;
                 return true;
             }
 
             var evaluations = parent.GetChildren().Where(node => node.IsEvaluated).Select(node => node.Evaluation);
-            var newEvaluation = child.MovingPieceColor == PieceColor.White ? evaluations.Max() : evaluations.Min();
+            var newEvaluation = movingPieceColor == PieceColor.White ? evaluations.Max() : evaluations.Min();
 
             if (parent.Evaluation == newEvaluation)
             {
@@ -44,65 +46,72 @@ namespace Chess.TacticalPart
             return true;
         }
 
-        public static Node GetBestMoveNode(this IChessTree tree)
-        {
-            Node result = null;
-            var rand = new Random();
-
-            foreach (var node in tree.Root.GetChildren())
+        public static bool CompareResultNodes_1(Node_Type1 node1, Node_Type1 node2)
+        {           
+            if (node1.Evaluation == node2.Evaluation)
             {
-                if (result == null)
+                return new Random().Next(2) == 0;
+            }
+
+            if (node1.MovingPieceColor == PieceColor.White)
+            {
+                return node1.Evaluation > node2.Evaluation;
+            }
+            else
+            {
+                return node1.Evaluation < node2.Evaluation;
+            }
+        }
+
+        public static Node GetBestMoveNode_1(Tree tree, Func<Node, Node, bool> isBetter)
+        {
+            var evaluatedNodes = tree.Root.GetChildren().Where(node => node.IsEvaluated).ToList();
+
+            if (evaluatedNodes.Count == 0)
+            {
+                return null;
+            }
+
+            var node = evaluatedNodes[0];
+
+            for (; ; )
+            {
+                if (!node.HasChildren)
                 {
-                    result = node;
+                    break;
+                }
+
+                if (node.GetChildren().First().IsEvaluated)
+                {
+                    node = node.GetChildren().First();
                     continue;
                 }
 
-                if (!node.IsEvaluated)
+                if (!node.GetChildren().Any(child => tree.CheckmatesWith(child)))
                 {
-                    if (!result.IsEvaluated)
+                    evaluatedNodes.RemoveAt(0);
+
+                    if (evaluatedNodes.Count == 0)
                     {
-                        var r = rand.Next(2);
-
-                        if (r == 0)
-                        {
-                            result = node;
-                        }
-                    }
-
-                    continue;
-                }
-
-                if (!result.IsEvaluated)
-                {
-                    result = node;
-                    continue;
-                }
-
-                if (node.Evaluation == result.Evaluation)
-                {
-                    var r = rand.Next(2);
-
-                    if (r == 0)
-                    {
-                        result = node;
-                    }
-
-                    continue;
-                }
-
-                if (node.MovingPieceColor == PieceColor.White)
-                {
-                    if (node.Evaluation > result.Evaluation)
-                    {
-                        result = node;
+                        return null;
                     }
                 }
-                else
+
+                break;
+            }
+
+            if (evaluatedNodes.Count == 1)
+            {
+                return evaluatedNodes[0];
+            }
+
+            var result = evaluatedNodes[0];
+
+            foreach(var n in evaluatedNodes.Skip(1))
+            {                
+                if (isBetter(n, result))
                 {
-                    if (node.Evaluation < result.Evaluation)
-                    {
-                        result = node;
-                    }
+                    result = n;
                 }
             }
 

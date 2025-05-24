@@ -2,7 +2,7 @@
 
 namespace Chess.LogicPart
 {
-    public sealed class SquareLocation
+    public struct SquareLocation
     {
         public int X { get; }
 
@@ -10,7 +10,7 @@ namespace Chess.LogicPart
 
         public SquareLocation(int x, int y)
         {
-            if (x < 0 || y < 0 || x >= 8 || y >= 8)
+            if (x < 0 || y < 0 || x > 7 || y > 7)
             {
                 throw new ArgumentOutOfRangeException();
             }
@@ -26,11 +26,11 @@ namespace Chess.LogicPart
                 throw new ArgumentNullException();
             }
 
-            var trimmedName = TrimAndLower(squareName);
+            var trimmedName = TrimAndToLower(squareName);
 
             if (trimmedName.Length != 2)
             {
-                throw new ArgumentException();
+                throw new ArgumentException("Указана строка, не явл. именем поля доски.");
             }
 
             int? x = null;
@@ -47,7 +47,7 @@ namespace Chess.LogicPart
 
             if (x == null)
             {
-                throw new ArgumentException();
+                throw new ArgumentException("Указана строка, не явл. именем поля доски.");
             }
 
             int? y = null;
@@ -64,31 +64,18 @@ namespace Chess.LogicPart
 
             if (y == null)
             {
-                throw new ArgumentException();
+                throw new ArgumentException("Указана строка, не явл. именем поля доски.");
             }
 
             X = (int)x;
             Y = (int)y;
         }
 
-        public static bool operator ==(SquareLocation first, SquareLocation second)
-        {
-            if (ReferenceEquals(first, second))
-            {
-                return true;
-            }
+        public static bool operator ==(SquareLocation first, SquareLocation second) => first.X == second.X && first.Y == second.Y;        
 
-            if (first is null || second is null)
-            {
-                return false;
-            }
+        public static bool operator !=(SquareLocation first, SquareLocation second) => !(first == second);        
 
-            return first.X == second.X && first.Y == second.Y;
-        }
-
-        public static bool operator !=(SquareLocation first, SquareLocation second) => !(first == second);
-
-        private static string TrimAndLower(string str)
+        private static string TrimAndToLower(string str)
         {
             var result = new StringBuilder();
 
@@ -105,20 +92,6 @@ namespace Chess.LogicPart
 
         public bool Corresponds(int x, int y) => X == x && Y == y;
 
-        public override bool Equals(object obj)
-        {
-            if (ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
-            if (obj is null || obj is not SquareLocation)
-            {
-                return false;
-            }
-
-            var other = (SquareLocation)obj;
-            return other.X == X && other.Y == Y;
-        }
+        public bool IsOnSameDiagonal(SquareLocation other) => Math.Abs(X - other.X) == Math.Abs(Y - other.Y);        
     }
 }

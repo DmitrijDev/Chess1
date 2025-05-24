@@ -7,11 +7,11 @@ namespace Chess.LogicPart
 
         public Square Square { get; internal set; }
 
-        public int FirstMoveMoment { get; internal set; }
+        internal int FirstMoveDepth { get; set; }
 
         internal ChessPiece(PieceColor color) => Color = color;
 
-        public static ChessPiece GetNewPiece(PieceName name, PieceColor color) => name switch
+        internal static ChessPiece GetNewPiece(PieceName name, PieceColor color) => name switch
         {
             PieceName.King => new King(color),
             PieceName.Queen => new Queen(color),
@@ -21,340 +21,474 @@ namespace Chess.LogicPart
             _ => new Pawn(color)
         };
 
+        internal ChessPiece Copy()
+        {
+            var copy = GetNewPiece(Name, Color);
+            copy.FirstMoveDepth = FirstMoveDepth;
+            return copy;
+        }
+
         public abstract IEnumerable<Square> GetAttackedSquares();
 
-        public bool Attacks(Square square) => Color == PieceColor.White ?
-        square.WhiteMenaces.Contains(this) : square.BlackMenaces.Contains(this);
-
-        // Переопределено для пешки.
-        public virtual bool CanMove()
+        public bool Attacks(Square square)
         {
-            var board = Board;
-
-            if (board == null)
+            if (square == null)
             {
                 return false;
             }
 
-            lock (board.Locker)
+            return square.GetMenaces(Color).Contains(this);
+        }
+
+        // Переопределено для короля и пешки.
+        internal virtual bool CanMove()
+        {
+            var isKingSafe = GetKingSafetyFunc();
+            return GetAttackedSquares().Any(sq => sq.Contained?.Color != Color && isKingSafe(sq));
+        }
+
+        private protected Func<Square, bool> GetKingSafetyFunc()
+        {
+            var king = Color == PieceColor.White ? Board.WhiteKing : Board.BlackKing;
+
+            if (ShieldsByVertical(king.Square))
             {
-                if (Board != board)
+                if (king.Square.IsMenacedBy(EnemyColor))
                 {
-                    throw new InvalidOperationException("Во время вычисления этой функции нельзя менять позицию фигуры.");
+                    return square => false;
                 }
 
-                if ((board.Status != BoardStatus.GameIncomplete && !board.IsSettingPosition) ||
-                     board.MoveTurn != Color)
+                var vertical = X;
+                return square => square.X == vertical;
+            }
+
+            if (ShieldsByHorizontal(king.Square))
+            {
+                if (king.Square.IsMenacedBy(EnemyColor))
+                {
+                    return square => false;
+                }
+
+                var horizontal = Y;
+                return square => square.Y == horizontal;
+            }
+
+            if (ShieldsByDiagonal(king.Square))
+            {
+                if (king.Square.IsMenacedBy(EnemyColor))
+                {
+                    return square => false;
+                }
+
+                var position = Square;
+                var kingPosition = king.Square;
+                return square => square.IsOnSameDiagonal(position) && square.IsOnSameDiagonal(kingPosition);
+            }
+
+            var checksCount = king.Square.GetMenacesCount(EnemyColor);
+
+            if (checksCount > 1)
+            {
+                return square => false;
+            }
+
+            if (checksCount == 1)
+            {
+                return square => ProtectsKingWithMoveTo(square);
+            }
+
+            return square => true;
+        }
+
+        private protected bool ShieldsByVertical(Square square)
+        {
+            if (square.X != X)
+            {
+                return false;
+            }
+
+            if (square.Y > Y)
+            {
+                for (var i = Y + 1; i < square.Y; ++i)
+                {
+                    if (!Board[X, i].IsClear)
+                    {
+                        return false;
+                    }
+                }
+
+                for (var i = Y - 1; i >= 0; --i)
+                {
+                    var piece = Board.GetPiece(X, i);
+
+                    if (piece == null)
+                    {
+                        continue;
+                    }
+
+                    return piece.Color != Color && (piece.Name == PieceName.Queen || piece.Name == PieceName.Rook);
+                }
+
+                return false;
+            }
+
+            for (var i = Y - 1; i > square.Y; --i)
+            {
+                if (!Board[X, i].IsClear)
+                {
+                    return false;
+                }
+            }
+
+            for (var i = Y + 1; i < 8; ++i)
+            {
+                var piece = Board.GetPiece(X, i);
+
+                if (piece == null)
+                {
+                    continue;
+                }
+
+                return piece.Color != Color && (piece.Name == PieceName.Queen || piece.Name == PieceName.Rook);
+            }
+
+            return false;
+        }
+
+        private protected bool ShieldsByHorizontal(Square square)
+        {
+            if (square.Y != Y)
+            {
+                return false;
+            }
+
+            if (square.X > X)
+            {
+                for (var i = X + 1; i < square.X; ++i)
+                {
+                    if (!Board[i, Y].IsClear)
+                    {
+                        return false;
+                    }
+                }
+
+                for (var i = X - 1; i >= 0; --i)
+                {
+                    var piece = Board.GetPiece(i, Y);
+
+                    if (piece == null)
+                    {
+                        continue;
+                    }
+
+                    return piece.Color != Color && (piece.Name == PieceName.Queen || piece.Name == PieceName.Rook);
+                }
+
+                return false;
+            }
+
+            for (var i = X - 1; i > square.X; --i)
+            {
+                if (!Board[i, Y].IsClear)
+                {
+                    return false;
+                }
+            }
+
+            for (var i = X + 1; i < 8; ++i)
+            {
+                var piece = Board.GetPiece(i, Y);
+
+                if (piece == null)
+                {
+                    continue;
+                }
+
+                return piece.Color != Color && (piece.Name == PieceName.Queen || piece.Name == PieceName.Rook);
+            }
+
+            return false;
+        }
+
+        private protected bool ShieldsByDiagonal(Square square)
+        {
+            if (!Square.IsOnSameDiagonal(square))
+            {
+                return false;
+            }
+
+            if (square.X > X)
+            {
+                if (square.Y > Y)
+                {
+                    for (int i = X + 1, j = Y + 1; i < square.X; ++i, ++j)
+                    {
+                        if (!Board[i, j].IsClear)
+                        {
+                            return false;
+                        }
+                    }
+
+                    for (int i = X - 1, j = Y - 1; i >= 0 && j >= 0; --i, --j)
+                    {
+                        var piece = Board.GetPiece(i, j);
+
+                        if (piece == null)
+                        {
+                            continue;
+                        }
+
+                        return piece.Color != Color && (piece.Name == PieceName.Queen || piece.Name == PieceName.Bishop);
+                    }
+
+                    return false;
+                }
+
+                for (int i = X + 1, j = Y - 1; i < square.X; ++i, --j)
+                {
+                    if (!Board[i, j].IsClear)
+                    {
+                        return false;
+                    }
+                }
+
+                for (int i = X - 1, j = Y + 1; i >= 0 && j < 8; --i, ++j)
+                {
+                    var piece = Board.GetPiece(i, j);
+
+                    if (piece == null)
+                    {
+                        continue;
+                    }
+
+                    return piece.Color != Color && (piece.Name == PieceName.Queen || piece.Name == PieceName.Bishop);
+                }
+
+                return false;
+            }
+
+            if (square.Y > Y)
+            {
+                for (int i = X - 1, j = Y + 1; i > square.X; --i, ++j)
+                {
+                    if (!Board[i, j].IsClear)
+                    {
+                        return false;
+                    }
+                }
+
+                for (int i = X + 1, j = Y - 1; i < 8 && j >= 0; ++i, --j)
+                {
+                    var piece = Board.GetPiece(i, j);
+
+                    if (piece == null)
+                    {
+                        continue;
+                    }
+
+                    return piece.Color != Color && (piece.Name == PieceName.Queen || piece.Name == PieceName.Bishop);
+                }
+
+                return false;
+            }
+
+            for (int i = X - 1, j = Y - 1; i > square.X; --i, --j)
+            {
+                if (!Board[i, j].IsClear)
+                {
+                    return false;
+                }
+            }
+
+            for (int i = X + 1, j = Y + 1; i < 8 && j < 8; ++i, ++j)
+            {
+                var piece = Board.GetPiece(i, j);
+
+                if (piece == null)
+                {
+                    continue;
+                }
+
+                return piece.Color != Color && (piece.Name == PieceName.Queen || piece.Name == PieceName.Bishop);
+            }
+
+            return false;
+        }
+
+        private protected bool ProtectsKingWithMoveTo(Square moveSquare)
+        {
+            var board = moveSquare.Board;
+
+            lock (board.Locker)
+            {
+                var king = Color == PieceColor.White ? board.WhiteKing : board.BlackKing;
+
+                if (king == null || king.Square.GetMenacesCount(EnemyColor) != 1)
                 {
                     return false;
                 }
 
-                return FilterKingSafe(GetAttackedSquares().Where(sq => sq.Contained?.Color != Color)).Any();
+                var menace = king.Square.GetMenaces(EnemyColor).First();
+
+                if (moveSquare == menace.Square)
+                {
+                    return true;
+                }
+
+                if (moveSquare.IsPawnPassed && menace.Name == PieceName.Pawn &&
+                    Name == PieceName.Pawn && Attacks(moveSquare))
+                {
+                    return true;
+                }
+
+                if (!menace.IsLongRanged)
+                {
+                    return false;
+                }
+
+                if (menace.X == king.X)
+                {
+                    return moveSquare.X == king.X &&
+                    (king.Y < moveSquare.Y ^ menace.Y < moveSquare.Y);
+                }
+
+                if (menace.Y == king.Y)
+                {
+                    return moveSquare.Y == king.Y &&
+                    (king.X < moveSquare.X ^ menace.X < moveSquare.X);
+                }
+
+                return moveSquare.IsOnSameDiagonal(king) && moveSquare.IsOnSameDiagonal(menace) &&
+                (king.X < moveSquare.X ^ menace.X < moveSquare.X);
             }
         }
 
         // Переопределено для короля и пешки.        
-        internal virtual bool CanMoveTo(Square square, out IllegalMoveException exception)
+        internal virtual bool CanMoveTo(Square moveSquare, out Type exceptionType)
         {
-            if (!Attacks(square))
+            if (!Attacks(moveSquare))
             {
-                exception = new();
+                exceptionType = typeof(IllegalMoveException);
                 return false;
             }
 
-            if (IsPinnedVertically())
+            var king = Color == PieceColor.White ? Board.WhiteKing : Board.BlackKing;
+
+            if (moveSquare.X != X && ShieldsByVertical(king.Square))
             {
-                if (square.X != X)
-                {
-                    exception = new PiecePinnedException();
-                    return false;
-                }
-            }
-            else if (IsPinnedHorizontally())
-            {
-                if (square.Y != Y)
-                {
-                    exception = new PiecePinnedException();
-                    return false;
-                }
-            }
-            else if (IsPinnedDiagonally())
-            {
-                if (!IsOnSameDiagonal(square) || !King.IsOnSameDiagonal(square))
-                {
-                    exception = new PiecePinnedException();
-                    return false;
-                }
+                exceptionType = typeof(PiecePinnedException);
+                return false;
             }
 
-            if (King.IsChecked)
+            if (moveSquare.Y != Y && ShieldsByHorizontal(king.Square))
             {
-                if (King.Menaces.Count > 1 || !ProtectsKingByMoveTo(square))
-                {
-                    exception = new KingCheckedException();
-                    return false;
-                }
+                exceptionType = typeof(PiecePinnedException);
+                return false;
             }
 
-            exception = null;
+            if (!(moveSquare.IsOnSameDiagonal(Square) && moveSquare.IsOnSameDiagonal(king)) && ShieldsByDiagonal(king.Square))
+            {
+                exceptionType = typeof(PiecePinnedException);
+                return false;
+            }
+
+            if (king.Square.IsMenacedBy(EnemyColor) && !ProtectsKingWithMoveTo(moveSquare))
+            {
+                exceptionType = typeof(KingCheckedException);
+                return false;
+            }
+
+            exceptionType = null;
             return true;
         }
 
         // Переопределено для короля и пешки.
-        public virtual Square[] GetAccessibleSquares()
+        public virtual IEnumerable<Square> GetAccessibleSquares()
         {
+            Func<Square, bool> isKingSafe;
+            ulong modCount;
+            ulong gamesCount;
             var board = Board;
 
             if (board == null)
             {
-                return Array.Empty<Square>();
+                yield break;
             }
 
             lock (board.Locker)
             {
-                if (Board != board)
+                if (!IsOnBoard)
                 {
-                    throw new InvalidOperationException("Во время вычисления этой функции нельзя менять позицию фигуры.");
+                    yield break;
                 }
 
                 if (board.Status != BoardStatus.GameIncomplete || board.MoveTurn != Color)
                 {
-                    return Array.Empty<Square>();
+                    yield break;
                 }
 
-                return FilterKingSafe(GetAttackedSquares().Where(sq => sq.Contained?.Color != Color)).ToArray();
+                isKingSafe = GetKingSafetyFunc();
+                modCount = board.ModCount;
+                gamesCount = board.GamesCount;
+            }
+
+            Square previous = null;
+
+            foreach (var current in GetAttackedSquares().
+            Where(sq => sq.Contained?.Color != Color && isKingSafe(sq)))
+            {
+                if (previous == null)
+                {
+                    previous = current;
+                    continue;
+                }
+
+                if (board.ModCount != modCount || board.GamesCount != gamesCount)
+                {
+                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                }
+
+                yield return previous;
+                previous = current;
+            }
+
+            if (board.ModCount != modCount || board.GamesCount != gamesCount)
+            {
+                throw new InvalidOperationException("Изменение позиции во время перечисления.");
+            }
+
+            if (previous != null)
+            {
+                yield return previous;
             }
         }
 
-        // Переопределено для короля.
-        private protected virtual IEnumerable<Square> FilterKingSafe(IEnumerable<Square> unfiltered)
+        internal void RemoveMenaces()
         {
-            var result = unfiltered;
-
-            if (King.IsChecked)
+            foreach (var square in GetAttackedSquares())
             {
-                if (King.Menaces.Count > 1)
-                {
-                    return Enumerable.Empty<Square>();
-                }
-
-                result = result.Where(sq => ProtectsKingByMoveTo(sq));
+                square.RemoveMenace(this);
             }
-
-            if (IsPinnedVertically())
-            {
-                result = result.Where(sq => sq.X == X);
-            }
-            else if (IsPinnedHorizontally())
-            {
-                result = result.Where(sq => sq.Y == Y);
-            }
-            else if (IsPinnedDiagonally())
-            {
-                result = result.Where(sq => IsOnSameDiagonal(sq) && King.IsOnSameDiagonal(sq));
-            }
-
-            return result;
         }
 
-        private protected bool ProtectsKingByMoveTo(Square square)
+        internal void AddMenaces()
         {
-            var menace = King.Menaces[0];
-
-            if (square == menace.Square)
+            foreach (var square in GetAttackedSquares())
             {
-                return true;
-            }
-
-            if (square.IsPawnPassed && Name == PieceName.Pawn && menace.Name == PieceName.Pawn)
-            {
-                return true;
-            }
-
-            if (!menace.IsLongRanged)
-            {
-                return false;
-            }
-
-            if (menace.X == King.X)
-            {
-                return square.X == menace.X && (King.Y < square.Y ^ menace.Y < square.Y);
-            }
-
-            if (menace.Y == King.Y)
-            {
-                return square.Y == menace.Y && (King.X < square.X ^ menace.X < square.X);
-            }
-
-            return square.IsOnSameDiagonal(King) && square.IsOnSameDiagonal(menace) &&
-            (King.X < square.X ^ menace.X < square.X);
-        }
-
-        public bool IsPinnedVertically()
-        {
-            var board = Board;
-
-            if (board == null)
-            {
-                return false;
-            }
-
-            lock (board.Locker)
-            {
-                if (Board != board)
-                {
-                    throw new InvalidOperationException("Во время вычисления этой функции нельзя менять позицию фигуры.");
-                }
-
-                if (King.X != X)
-                {
-                    return false;
-                }
-
-                for (var i = King.Y > Y ? Y + 1 : Y - 1; i != King.Y; i = i > Y ? i + 1 : i - 1)
-                {
-                    if (!board[X, i].IsClear)
-                    {
-                        return false;
-                    }
-                }
-
-                for (var i = King.Y > Y ? Y - 1 : Y + 1; i >= 0 && i < 8; i = i > Y ? i + 1 : i - 1)
-                {
-                    var piece = board.GetPiece(X, i);
-
-                    if (piece != null)
-                    {
-                        return piece.Color != Color && (piece.Name == PieceName.Queen ||
-                        piece.Name == PieceName.Rook);
-                    }
-                }
-
-                return false;
+                square.AddMenace(this);
             }
         }
 
-        public bool IsPinnedHorizontally()
-        {
-            var board = Board;
+        internal abstract void RemoveUnactualMenaces(Square newSquare);
 
-            if (board == null)
-            {
-                return false;
-            }
-
-            lock (board.Locker)
-            {
-                if (Board != board)
-                {
-                    throw new InvalidOperationException("Во время вычисления этой функции нельзя менять позицию фигуры.");
-                }
-
-                if (King.Y != Y)
-                {
-                    return false;
-                }
-
-                for (var i = King.X > X ? X + 1 : X - 1; i != King.X; i = i > X ? i + 1 : i - 1)
-                {
-                    if (!board[i, Y].IsClear)
-                    {
-                        return false;
-                    }
-                }
-
-                for (var i = King.X > X ? X - 1 : X + 1; i >= 0 && i < 8; i = i > X ? i + 1 : i - 1)
-                {
-                    var piece = board.GetPiece(i, Y);
-
-                    if (piece != null)
-                    {
-                        return piece.Color != Color && (piece.Name == PieceName.Queen ||
-                        piece.Name == PieceName.Rook);
-                    }
-                }
-
-                return false;
-            }
-        }
-
-        public bool IsPinnedDiagonally()
-        {
-            var board = Board;
-
-            if (board == null)
-            {
-                return false;
-            }
-
-            lock (board.Locker)
-            {
-                if (Board != board)
-                {
-                    throw new InvalidOperationException("Во время вычисления этой функции нельзя менять позицию фигуры.");
-                }
-
-                if (!IsOnSameDiagonal(King))
-                {
-                    return false;
-                }
-
-                for (int i = King.X > X ? X + 1 : X - 1, j = King.Y > Y ? Y + 1 : Y - 1;
-                     i != King.X; i = i > X ? i + 1 : i - 1, j = j > Y ? j + 1 : j - 1)
-                {
-                    if (!board[i, j].IsClear)
-                    {
-                        return false;
-                    }
-                }
-
-                for (int i = King.X > X ? X - 1 : X + 1, j = King.Y > Y ? Y - 1 : Y + 1;
-                     i >= 0 && j >= 0 && i < 8 && j < 8;
-                     i = i > X ? i + 1 : i - 1, j = j > Y ? j + 1 : j - 1)
-                {
-                    var piece = board.GetPiece(i, j);
-
-                    if (piece != null)
-                    {
-                        return piece.Color != Color && (piece.Name == PieceName.Queen ||
-                        piece.Name == PieceName.Bishop);
-                    }
-                }
-
-                return false;
-            }
-        }
-
-        public bool IsOnSameDiagonal(Square square)
-        {
-            var position = Square;
-            return position != null && position.IsOnSameDiagonal(square);
-        }
-
-        public bool IsOnSameDiagonal(ChessPiece other)
-        {
-            var position = Square;
-            return position != null && position.IsOnSameDiagonal(other);
-        }
-
-        internal bool RemoveMenace(Square square)
-        {
-            var list = Color == PieceColor.White ? square.WhiteMenaces : square.BlackMenaces;
-            return list.Remove(this);
-        }
-
-        internal void AddMenace(Square square)
-        {
-            var list = Color == PieceColor.White ? square.WhiteMenaces : square.BlackMenaces;
-            list.Add(this);
-        }
+        internal abstract void AddMissingMenaces(Square oldSquare);
 
         internal void RemoveVerticalMenaces()
         {
             for (var i = Y + 1; i < 8; ++i)
             {
                 var square = Board[X, i];
-                RemoveMenace(square);
+                square.RemoveMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -365,7 +499,7 @@ namespace Chess.LogicPart
             for (var i = Y - 1; i >= 0; --i)
             {
                 var square = Board[X, i];
-                RemoveMenace(square);
+                square.RemoveMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -379,7 +513,7 @@ namespace Chess.LogicPart
             for (var i = Y + 1; i < 8; ++i)
             {
                 var square = Board[X, i];
-                AddMenace(square);
+                square.AddMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -390,7 +524,7 @@ namespace Chess.LogicPart
             for (var i = Y - 1; i >= 0; --i)
             {
                 var square = Board[X, i];
-                AddMenace(square);
+                square.AddMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -404,7 +538,7 @@ namespace Chess.LogicPart
             for (var i = X + 1; i < 8; ++i)
             {
                 var square = Board[i, Y];
-                RemoveMenace(square);
+                square.RemoveMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -415,7 +549,7 @@ namespace Chess.LogicPart
             for (var i = X - 1; i >= 0; --i)
             {
                 var square = Board[i, Y];
-                RemoveMenace(square);
+                square.RemoveMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -429,7 +563,7 @@ namespace Chess.LogicPart
             for (var i = X + 1; i < 8; ++i)
             {
                 var square = Board[i, Y];
-                AddMenace(square);
+                square.AddMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -440,7 +574,7 @@ namespace Chess.LogicPart
             for (var i = X - 1; i >= 0; --i)
             {
                 var square = Board[i, Y];
-                AddMenace(square);
+                square.AddMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -470,7 +604,7 @@ namespace Chess.LogicPart
             for (int i = X + 1, j = Y + 1; i < 8 && j < 8; ++i, ++j)
             {
                 var square = Board[i, j];
-                RemoveMenace(square);
+                square.RemoveMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -484,7 +618,7 @@ namespace Chess.LogicPart
             for (int i = X + 1, j = Y + 1; i < 8 && j < 8; ++i, ++j)
             {
                 var square = Board[i, j];
-                AddMenace(square);
+                square.AddMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -498,7 +632,7 @@ namespace Chess.LogicPart
             for (int i = X - 1, j = Y - 1; i >= 0 && j >= 0; --i, --j)
             {
                 var square = Board[i, j];
-                RemoveMenace(square);
+                square.RemoveMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -512,7 +646,7 @@ namespace Chess.LogicPart
             for (int i = X - 1, j = Y - 1; i >= 0 && j >= 0; --i, --j)
             {
                 var square = Board[i, j];
-                AddMenace(square);
+                square.AddMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -526,7 +660,7 @@ namespace Chess.LogicPart
             for (int i = X + 1, j = Y - 1; i < 8 && j >= 0; ++i, --j)
             {
                 var square = Board[i, j];
-                RemoveMenace(square);
+                square.RemoveMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -540,7 +674,7 @@ namespace Chess.LogicPart
             for (int i = X + 1, j = Y - 1; i < 8 && j >= 0; ++i, --j)
             {
                 var square = Board[i, j];
-                AddMenace(square);
+                square.AddMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -554,7 +688,7 @@ namespace Chess.LogicPart
             for (int i = X - 1, j = Y + 1; i >= 0 && j < 8; --i, ++j)
             {
                 var square = Board[i, j];
-                RemoveMenace(square);
+                square.RemoveMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -568,7 +702,7 @@ namespace Chess.LogicPart
             for (int i = X - 1, j = Y + 1; i >= 0 && j < 8; --i, ++j)
             {
                 var square = Board[i, j];
-                AddMenace(square);
+                square.AddMenace(this);
 
                 if (!square.IsClear)
                 {
@@ -577,29 +711,297 @@ namespace Chess.LogicPart
             }
         }
 
-        internal void RemoveMenaces()
+        internal void OpenLine(Square blockerOldSquare, Square blockerNewSquare)
         {
-            foreach (var square in GetAttackedSquares())
+            if (blockerOldSquare.X == X)
             {
-                RemoveMenace(square);
+                if (blockerOldSquare.Y > Y)
+                {
+                    if (blockerNewSquare?.X == X && blockerNewSquare.Y < blockerOldSquare.Y)
+                    {
+                        return;
+                    }
+
+                    for (var i = blockerOldSquare.Y + 1; i < 8; ++i)
+                    {
+                        var square = Board[X, i];
+                        square.AddMenace(this);
+
+                        if (!square.IsClear || square == blockerNewSquare)
+                        {
+                            return;
+                        }
+                    }
+
+                    return;
+                }
+
+                if (blockerNewSquare?.X == X && blockerNewSquare.Y > blockerOldSquare.Y)
+                {
+                    return;
+                }
+
+                for (var i = blockerOldSquare.Y - 1; i >= 0; --i)
+                {
+                    var square = Board[X, i];
+                    square.AddMenace(this);
+
+                    if (!square.IsClear || square == blockerNewSquare)
+                    {
+                        return;
+                    }
+                }
+
+                return;
+            }
+
+            if (blockerOldSquare.Y == Y)
+            {
+                if (blockerOldSquare.X > X)
+                {
+                    if (blockerNewSquare?.Y == Y && blockerNewSquare.X < blockerOldSquare.X)
+                    {
+                        return;
+                    }
+
+                    for (var i = blockerOldSquare.X + 1; i < 8; ++i)
+                    {
+                        var square = Board[i, Y];
+                        square.AddMenace(this);
+
+                        if (!square.IsClear || square == blockerNewSquare)
+                        {
+                            return;
+                        }
+                    }
+
+                    return;
+                }
+
+                if (blockerNewSquare?.Y == Y && blockerNewSquare.X > blockerOldSquare.X)
+                {
+                    return;
+                }
+
+                for (var i = blockerOldSquare.X - 1; i >= 0; --i)
+                {
+                    var square = Board[i, Y];
+                    square.AddMenace(this);
+
+                    if (!square.IsClear || square == blockerNewSquare)
+                    {
+                        return;
+                    }
+                }
+
+                return;
+            }
+
+            if (blockerOldSquare.X > X)
+            {
+                if (blockerOldSquare.Y > Y)
+                {
+                    if (blockerOldSquare.IsOnSameDiagonal(blockerNewSquare) &&
+                        blockerNewSquare.X < blockerOldSquare.X &&
+                        blockerNewSquare.Y < blockerOldSquare.Y)
+                    {
+                        return;
+                    }
+
+                    for (int i = blockerOldSquare.X + 1, j = blockerOldSquare.Y + 1; i < 8 && j < 8; ++i, ++j)
+                    {
+                        var square = Board[i, j];
+                        square.AddMenace(this);
+
+                        if (!square.IsClear || square == blockerNewSquare)
+                        {
+                            return;
+                        }
+                    }
+
+                    return;
+                }
+
+                if (blockerOldSquare.IsOnSameDiagonal(blockerNewSquare) &&
+                    blockerNewSquare.X < blockerOldSquare.X &&
+                    blockerNewSquare.Y > blockerOldSquare.Y)
+                {
+                    return;
+                }
+
+                for (int i = blockerOldSquare.X + 1, j = blockerOldSquare.Y - 1; i < 8 && j >= 0; ++i, --j)
+                {
+                    var square = Board[i, j];
+                    square.AddMenace(this);
+
+                    if (!square.IsClear || square == blockerNewSquare)
+                    {
+                        return;
+                    }
+                }
+
+                return;
+            }
+
+            if (blockerOldSquare.Y > Y)
+            {
+                if (blockerOldSquare.IsOnSameDiagonal(blockerNewSquare) &&
+                    blockerNewSquare.X > blockerOldSquare.X &&
+                    blockerNewSquare.Y < blockerOldSquare.Y)
+                {
+                    return;
+                }
+
+                for (int i = blockerOldSquare.X - 1, j = blockerOldSquare.Y + 1; i >= 0 && j < 8; --i, ++j)
+                {
+                    var square = Board[i, j];
+                    square.AddMenace(this);
+
+                    if (!square.IsClear || square == blockerNewSquare)
+                    {
+                        return;
+                    }
+                }
+
+                return;
+            }
+
+            if (blockerOldSquare.IsOnSameDiagonal(blockerNewSquare) &&
+                blockerNewSquare.X > blockerOldSquare.X &&
+                blockerNewSquare.Y > blockerOldSquare.Y)
+            {
+                return;
+            }
+
+            for (int i = blockerOldSquare.X - 1, j = blockerOldSquare.Y - 1; i >= 0 && j >= 0; --i, --j)
+            {
+                var square = Board[i, j];
+                square.AddMenace(this);
+
+                if (!square.IsClear || square == blockerNewSquare)
+                {
+                    return;
+                }
             }
         }
 
-        internal void AddMenaces()
+        internal void BlockLine(Square blockerSquare)
         {
-            foreach (var square in GetAttackedSquares())
+            if (blockerSquare.X == X)
             {
-                AddMenace(square);
+                if (blockerSquare.Y > Y)
+                {
+                    for (var i = blockerSquare.Y + 1; i < 8; ++i)
+                    {
+                        var square = Board[X, i];
+
+                        if (!square.RemoveMenace(this) || !square.IsClear)
+                        {
+                            return;
+                        }
+                    }
+
+                    return;
+                }
+
+                for (var i = blockerSquare.Y - 1; i >= 0; --i)
+                {
+                    var square = Board[X, i];
+
+                    if (!square.RemoveMenace(this) || !square.IsClear)
+                    {
+                        return;
+                    }
+                }
+
+                return;
+            }
+
+            if (blockerSquare.Y == Y)
+            {
+                if (blockerSquare.X > X)
+                {
+                    for (var i = blockerSquare.X + 1; i < 8; ++i)
+                    {
+                        var square = Board[i, Y];
+
+                        if (!square.RemoveMenace(this) || !square.IsClear)
+                        {
+                            return;
+                        }
+                    }
+
+                    return;
+                }
+
+                for (var i = blockerSquare.X - 1; i >= 0; --i)
+                {
+                    var square = Board[i, Y];
+
+                    if (!square.RemoveMenace(this) || !square.IsClear)
+                    {
+                        return;
+                    }
+                }
+
+                return;
+            }
+
+            if (blockerSquare.X > X)
+            {
+                if (blockerSquare.Y > Y)
+                {
+                    for (int i = blockerSquare.X + 1, j = blockerSquare.Y + 1; i < 8 && j < 8; ++i, ++j)
+                    {
+                        var square = Board[i, j];
+
+                        if (!square.RemoveMenace(this) || !square.IsClear)
+                        {
+                            return;
+                        }
+                    }
+
+                    return;
+                }
+
+                for (int i = blockerSquare.X + 1, j = blockerSquare.Y - 1; i < 8 && j >= 0; ++i, --j)
+                {
+                    var square = Board[i, j];
+
+                    if (!square.RemoveMenace(this) || !square.IsClear)
+                    {
+                        return;
+                    }
+                }
+
+                return;
+            }
+
+            if (blockerSquare.Y > Y)
+            {
+                for (int i = blockerSquare.X - 1, j = blockerSquare.Y + 1; i >= 0 && j < 8; --i, ++j)
+                {
+                    var square = Board[i, j];
+
+                    if (!square.RemoveMenace(this) || !square.IsClear)
+                    {
+                        return;
+                    }
+                }
+
+                return;
+            }
+
+            for (int i = blockerSquare.X - 1, j = blockerSquare.Y - 1; i >= 0 && j >= 0; --i, --j)
+            {
+                var square = Board[i, j];
+
+                if (!square.RemoveMenace(this) || !square.IsClear)
+                {
+                    return;
+                }
             }
         }
-
-        internal abstract void RemoveExcessMenaces(Square newSquare);
-
-        internal abstract void AddMissingMenaces(Square oldSquare);
-
-        internal abstract void OpenLine(Square oldPiecePosition, Square newPiecePosition);
-
-        internal abstract void BlockLine(Square blockSquare);
 
         internal void MoveTo(Square destination)
         {
@@ -607,7 +1009,7 @@ namespace Chess.LogicPart
 
             if (IsOnBoard)
             {
-                RemoveExcessMenaces(destination);
+                RemoveUnactualMenaces(destination);
                 Square.OpenLines(destination);
                 Square.Contained = null;
             }
@@ -621,21 +1023,40 @@ namespace Chess.LogicPart
         internal void CaptureAt(Square destination)
         {
             var oldSquare = Square;
-            var capturedPiece = destination.Contained;
-            capturedPiece.RemoveMenaces();
-            RemoveExcessMenaces(destination);
-            Square.OpenLines(destination);
+            RemoveUnactualMenaces(destination);
 
             if (IsLongRanged)
             {
                 OpenLine(destination, null);
             }
 
+            destination.Contained.RemoveMenaces();
+            destination.Contained.Square = null;
             Square.Contained = null;
             Square = destination;
             Square.Contained = this;
-            capturedPiece.Square = null;
+            oldSquare.OpenLines(Square);
             AddMissingMenaces(oldSquare);
+        }
+
+        internal void PromoteAt(Square promotionSquare, PieceName newPieceName)
+        {
+            var newPiece = GetNewPiece(newPieceName, Color);
+
+            if (promotionSquare.IsClear)
+            {
+                Remove();
+                newPiece.MoveTo(promotionSquare);
+                return;
+            }
+
+            var capturedPiece = promotionSquare.Contained;
+            capturedPiece.RemoveMenaces();
+            capturedPiece.Square = null;
+            newPiece.Square = promotionSquare;
+            promotionSquare.Contained = newPiece;
+            newPiece.AddMenaces();
+            Remove();
         }
 
         internal void Remove()
@@ -646,66 +1067,43 @@ namespace Chess.LogicPart
             Square = null;
         }
 
-        public bool IsOnBoard => Square != null;
-
-        public ChessBoard Board => Square?.Board;
-
-        public SquareLocation SquareLocation => Square?.Location;
-
-        public int X => Square.X;
-
-        public int Y => Square.Y;
-
-        public King King
-        {
-            get
-            {
-                if (Name == PieceName.King)
-                {
-                    return (King)this;
-                }
-
-                var board = Board;
-
-                if (board == null)
-                {
-                    return null;
-                }
-
-                var king = Color == PieceColor.White ? board.WhiteKing : board.BlackKing;
-                return Board == board ? king : null;
-            }
-        }
-
         public abstract PieceName Name { get; }
 
         public abstract bool IsLongRanged { get; }
 
-        internal List<ChessPiece> Menaces
+        public PieceColor EnemyColor => Color == PieceColor.White ? PieceColor.Black : PieceColor.White;
+
+        public bool IsOnBoard => Square != null;
+
+        public ChessBoard Board => Square?.Board;
+
+        public SquareLocation Location
         {
             get
             {
                 var square = Square;
-
-                if (square == null)
-                {
-                    return null;
-                }
-
-                var board = square.Board;
-                var gamesCount = board.GamesCount;
-                var modCount = board.ModCount;
-
-                if (Square != square)
-                {
-                    throw new InvalidOperationException("Позиция на доске изменилась во время вычисления.");
-                }
-
-                var menaces = Color == PieceColor.White ? square.BlackMenaces : square.WhiteMenaces;
-
-                return board.ModCount == modCount && board.GamesCount == gamesCount ? menaces :
-                throw new InvalidOperationException("Позиция на доске изменилась во время вычисления.");
+                return square == null ? throw new InvalidOperationException("Фигура не на доске.") : square.Location;
             }
         }
+
+        public int X
+        {
+            get
+            {
+                var square = Square;
+                return square == null ? throw new InvalidOperationException("Фигура не на доске.") : square.X;
+            }
+        }
+
+        public int Y
+        {
+            get
+            {
+                var square = Square;
+                return square == null ? throw new InvalidOperationException("Фигура не на доске.") : square.Y;
+            }
+        }
+
+        public bool HasMoved => FirstMoveDepth > 0;
     }
 }

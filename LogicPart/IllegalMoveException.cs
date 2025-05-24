@@ -10,17 +10,17 @@
 
     public class KingCheckedException : KingUnsafetyException { }
 
-    public class KingMovesToCheckedSquareException : KingCheckedException { }
+    public class KingMovesIntoCheckException : KingUnsafetyException { }
 
-    public class CastlingIllegalException : IllegalMoveException { }
+    public class IllegalCastlingException : IllegalMoveException { }
 
-    public class CastlingKingHasMovedException : CastlingIllegalException { }
+    public class KingHasMovedException : IllegalCastlingException { }
 
-    public class CastlingRookHasMovedException : CastlingIllegalException { }
+    public class RookHasMovedException : IllegalCastlingException { }
 
-    public class CastlingKingCheckedException : CastlingIllegalException { }
+    public class CastlingKingCheckedException : IllegalCastlingException { }
 
-    public class CastlingKingCrossesMenacedSquareException : CastlingIllegalException { }
+    public class KingPassesUnsafeSquareException : IllegalCastlingException { }
 
     public class NewPieceNotSelectedException : IllegalMoveException { }
 }

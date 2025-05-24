@@ -3,24 +3,38 @@ namespace Chess.LogicPart
 {
     public sealed class Pawn : ChessPiece
     {
-        public Pawn(PieceColor color) : base(color) { }
+        internal Pawn(PieceColor color) : base(color) { }
 
         public override IEnumerable<Square> GetAttackedSquares()
         {
-            var square = Square;
+            var board = Board;
 
-            if (square == null)
+            if (board == null)
             {
                 yield break;
             }
 
-            var board = square.Board;
-            var gamesCount = board.GamesCount;
-            var modCount = board.ModCount;
+            Square square;
+            ulong gamesCount;
+            ulong modCount;
+
+            lock (board.Locker)
+            {
+                if (Board != board)
+                {
+                    yield break;
+                }
+
+                square = Square;
+                gamesCount = board.GamesCount;
+                modCount = board.ModCount;
+            }
+
+            var nextHorizontal = Color == PieceColor.White ? square.Y + 1 : square.Y - 1;
 
             if (square.X > 0)
             {
-                yield return board[square.X - 1, Color == PieceColor.White ? square.Y + 1 : square.Y - 1];
+                yield return board[square.X - 1, nextHorizontal];
             }
 
             if (square.X < 7)
@@ -30,180 +44,168 @@ namespace Chess.LogicPart
                     throw new InvalidOperationException("Изменение позиции во время перечисления.");
                 }
 
-                yield return board[square.X + 1, Color == PieceColor.White ? square.Y + 1 : square.Y - 1];
+                yield return board[square.X + 1, nextHorizontal];
             }
         }
 
-        public override bool CanMove()
+        internal override bool CanMove()
         {
-            var board = Board;
+            var isKingSafe = GetKingSafetyFunc();
 
-            if (board == null)
+            if (Color == PieceColor.White)
             {
-                return false;
-            }
-
-            lock (board.Locker)
-            {
-                if (Board != board)
+                if (Board[X, Y + 1].IsClear)
                 {
-                    throw new InvalidOperationException("Во время вычисления этой функции нельзя менять позицию на доске.");
-                }
-
-                if ((board.Status != BoardStatus.GameIncomplete && !board.IsSettingPosition) ||
-                     board.MoveTurn != Color)
-                {
-                    return false;
-                }
-
-                var unfiltered = GetAttackedSquares().
-                Where(sq => (!sq.IsClear && sq.Contained.Color != Color) || sq.IsPawnPassed);
-
-                if (Color == PieceColor.White)
-                {
-                    if (board[X, Y + 1].IsClear)
+                    if (isKingSafe(Board[X, Y + 1]))
                     {
-                        unfiltered = unfiltered.Append(board[X, Y + 1]);
+                        return true;
+                    }
 
-                        if (Y == 1 && board[X, 3].IsClear)
-                        {
-                            unfiltered = unfiltered.Append(board[X, 3]);
-                        }
+                    if (Y == 1 && Board[X, 3].IsClear && isKingSafe(Board[X, 3]))
+                    {
+                        return true;
                     }
                 }
-                else
+            }
+            else
+            {
+                if (Board[X, Y - 1].IsClear)
                 {
-                    if (board[X, Y - 1].IsClear)
+                    if (isKingSafe(Board[X, Y - 1]))
                     {
-                        unfiltered = unfiltered.Append(board[X, Y - 1]);
+                        return true;
+                    }
 
-                        if (Y == 6 && board[X, 4].IsClear)
-                        {
-                            unfiltered = unfiltered.Append(board[X, 4]);
-                        }
+                    if (Y == 6 && Board[X, 4].IsClear && isKingSafe(Board[X, 4]))
+                    {
+                        return true;
                     }
                 }
-
-                return FilterKingSafe(unfiltered).Any();
             }
+
+            return GetAttackedSquares().Any(sq =>
+            ((!sq.IsClear && sq.Contained.Color != Color) || sq.IsPawnPassed) && isKingSafe(sq));
         }
 
-        internal override bool CanMoveTo(Square square, out IllegalMoveException exception)
+        internal override bool CanMoveTo(Square moveSquare, out Type exceptionType)
         {
-            if (Attacks(square))
+            if (Attacks(moveSquare))
             {
-                if (square.IsClear && !square.IsPawnPassed)
+                if (moveSquare.IsClear && !moveSquare.IsPawnPassed)
                 {
-                    exception = new();
+                    exceptionType = typeof(IllegalMoveException);
                     return false;
                 }
             }
             else
             {
-                if (!square.IsClear || square.X != X)
+                if (!moveSquare.IsClear || moveSquare.X != X)
                 {
-                    exception = new();
+                    exceptionType = typeof(IllegalMoveException);
                     return false;
                 }
 
                 if (Color == PieceColor.White)
                 {
-                    if (square.Y < Y || square.Y > Y + 2)
+                    if (moveSquare.Y < Y || moveSquare.Y > Y + 2)
                     {
-                        exception = new();
+                        exceptionType = typeof(IllegalMoveException);
                         return false;
                     }
 
-                    if (square.Y == Y + 2 && !(Y == 1 && Board[X, 2].IsClear))
+                    if (moveSquare.Y == Y + 2 && !(Y == 1 && Board[X, 2].IsClear))
                     {
-                        exception = new();
+                        exceptionType = typeof(IllegalMoveException);
                         return false;
                     }
                 }
                 else
                 {
-                    if (square.Y > Y || square.Y < Y - 2)
+                    if (moveSquare.Y > Y || moveSquare.Y < Y - 2)
                     {
-                        exception = new();
+                        exceptionType = typeof(IllegalMoveException);
                         return false;
                     }
 
-                    if (square.Y == Y - 2 && !(Y == 6 && Board[X, 5].IsClear))
+                    if (moveSquare.Y == Y - 2 && !(Y == 6 && Board[X, 5].IsClear))
                     {
-                        exception = new();
+                        exceptionType = typeof(IllegalMoveException);
                         return false;
                     }
                 }
             }
 
-            if (IsPinnedVertically())
+            var king = Color == PieceColor.White ? Board.WhiteKing : Board.BlackKing;
+
+            if (moveSquare.X != X && ShieldsByVertical(king.Square))
             {
-                if (square.X != X)
-                {
-                    exception = new PawnPinnedException();
-                    return false;
-                }
-            }
-            else if (IsPinnedHorizontally())
-            {
-                exception = new PawnPinnedException();
+                exceptionType = typeof(PawnPinnedException);
                 return false;
             }
-            else if (IsPinnedDiagonally())
+
+            if (ShieldsByHorizontal(king.Square))
             {
-                if (!IsOnSameDiagonal(square) || !King.IsOnSameDiagonal(square))
-                {
-                    exception = new PawnPinnedException();
-                    return false;
-                }
+                exceptionType = typeof(PawnPinnedException);
+                return false;
             }
 
-            if (King.IsChecked)
+            if (!(moveSquare.IsOnSameDiagonal(Square) && moveSquare.IsOnSameDiagonal(king)) &&
+                ShieldsByDiagonal(king.Square))
             {
-                if (King.Menaces.Count > 1 || !ProtectsKingByMoveTo(square))
-                {
-                    exception = new KingCheckedException();
-                    return false;
-                }
+                exceptionType = typeof(PawnPinnedException);
+                return false;
             }
 
-            exception = null;
+            if (king.Square.IsMenacedBy(EnemyColor) && !ProtectsKingWithMoveTo(moveSquare))
+            {
+                exceptionType = typeof(KingCheckedException);
+                return false;
+            }
+
+            exceptionType = null;
             return true;
         }
 
-        public override Square[] GetAccessibleSquares()
+        public override IEnumerable<Square> GetAccessibleSquares()
         {
+            IEnumerable<Square> collection;
+            ulong modCount;
+            ulong gamesCount;
             var board = Board;
 
             if (board == null)
             {
-                return Array.Empty<Square>();
+                yield break;
             }
 
             lock (board.Locker)
             {
-                if (Board != board)
+                if (!IsOnBoard)
                 {
-                    throw new InvalidOperationException("Во время вычисления этой функции нельзя менять позицию на доске.");
+                    yield break;
                 }
 
                 if (board.Status != BoardStatus.GameIncomplete || board.MoveTurn != Color)
                 {
-                    return Array.Empty<Square>();
+                    yield break;
                 }
 
-                var unfiltered = GetAttackedSquares().
-                Where(sq => (!sq.IsClear && sq.Contained.Color != Color) || sq.IsPawnPassed);
+                collection = GetAttackedSquares().
+                Where(square =>
+                {
+                    var piece = square.Contained;
+                    return (piece != null && piece.Color != Color) || square.IsPawnPassed;
+                });
 
                 if (Color == PieceColor.White)
                 {
                     if (board[X, Y + 1].IsClear)
                     {
-                        unfiltered = unfiltered.Append(board[X, Y + 1]);
+                        collection = collection.Append(board[X, Y + 1]);
 
                         if (Y == 1 && board[X, 3].IsClear)
                         {
-                            unfiltered = unfiltered.Append(board[X, 3]);
+                            collection = collection.Append(board[X, 3]);
                         }
                     }
                 }
@@ -211,28 +213,54 @@ namespace Chess.LogicPart
                 {
                     if (board[X, Y - 1].IsClear)
                     {
-                        unfiltered = unfiltered.Append(board[X, Y - 1]);
+                        collection = collection.Append(board[X, Y - 1]);
 
                         if (Y == 6 && board[X, 4].IsClear)
                         {
-                            unfiltered = unfiltered.Append(board[X, 4]);
+                            collection = collection.Append(board[X, 4]);
                         }
                     }
                 }
 
-                return FilterKingSafe(unfiltered).ToArray();
+                var isKingSafe = GetKingSafetyFunc();
+                collection = collection.Where(isKingSafe);
+                modCount = board.ModCount;
+                gamesCount = board.GamesCount;
+            }
+
+            Square previous = null;
+
+            foreach (var current in collection)
+            {
+                if (previous == null)
+                {
+                    previous = current;
+                    continue;
+                }
+
+                if (board.ModCount != modCount || board.GamesCount != gamesCount)
+                {
+                    throw new InvalidOperationException("Изменение позиции во время перечисления.");
+                }
+
+                yield return previous;
+                previous = current;
+            }
+
+            if (board.ModCount != modCount || board.GamesCount != gamesCount)
+            {
+                throw new InvalidOperationException("Изменение позиции во время перечисления.");
+            }
+
+            if (previous != null)
+            {
+                yield return previous;
             }
         }
 
-        internal override void RemoveExcessMenaces(Square newSquare) => RemoveMenaces();
+        internal override void RemoveUnactualMenaces(Square newSquare) => RemoveMenaces();
 
         internal override void AddMissingMenaces(Square oldSquare) => AddMenaces();
-
-        internal override void OpenLine(Square oldPiecePosition, Square newPiecePosition) =>
-        throw new NotImplementedException();
-
-        internal override void BlockLine(Square blockSquare) =>
-        throw new NotImplementedException();
 
         public override PieceName Name => PieceName.Pawn;
 
